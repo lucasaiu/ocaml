@@ -11,12 +11,14 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_umask(value perm)
+CAMLprim value unix_umask_r(CAML_R, value perm)
 {
   return Val_int(umask(Int_val(perm)));
 }

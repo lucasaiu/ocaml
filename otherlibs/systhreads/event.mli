@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** First-class synchronous communication.
 
    This module implements synchronous inter-thread communications over

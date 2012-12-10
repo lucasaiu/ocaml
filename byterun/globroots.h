@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Registration of global memory roots */
 
 #ifndef CAML_GLOBROOTS_H
@@ -19,7 +21,7 @@
 #include "mlvalues.h"
 #include "roots.h"
 
-void caml_scan_global_roots(scanning_action f);
-void caml_scan_global_young_roots(scanning_action f);
+void caml_scan_global_roots_r(CAML_R, scanning_action f);
+void caml_scan_global_young_roots_r(CAML_R, scanning_action f);
 
 #endif /* CAML_GLOBROOTS_H */

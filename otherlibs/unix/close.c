@@ -11,11 +11,13 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_close(value fd)
+CAMLprim value unix_close_r(CAML_R, value fd)
 {
-  if (close(Int_val(fd)) == -1) uerror("close", Nothing);
+  if (close(Int_val(fd)) == -1) uerror_r(ctx, "close", Nothing);
   return Val_unit;
 }

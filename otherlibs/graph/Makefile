@@ -11,6 +11,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # Makefile for the portable graphics library
 
 LIBNAME=graphics

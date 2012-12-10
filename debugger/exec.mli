@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Handling of keyboard interrupts *)
 
 val protect : (unit -> unit) -> unit

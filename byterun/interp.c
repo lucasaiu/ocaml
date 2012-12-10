@@ -11,6 +11,21 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_DYNLINK
+#define CAML_CONTEXT_DEBUGGER
+#define CAML_CONTEXT_CALLBACK
+#define CAML_CONTEXT_STACKS
+#define CAML_CONTEXT_STARTUP
+#define CAML_CONTEXT_SIGNALS_BYT
+#define CAML_CONTEXT_FAIL
+#define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_MAJOR_GC
+#define CAML_CONTEXT_MINOR_GC
+#define CAML_CONTEXT_BACKTRACE
+#define CAML_CONTEXT_FIX_CODE
+
 /* The bytecode interpreter */
 #include <stdio.h>
 #include "alloc.h"
@@ -188,7 +203,7 @@ static intnat caml_bcodcount;
 
 /* The interpreter itself */
 
-value caml_interprete(code_t prog, asize_t prog_size)
+value caml_interprete_r(CAML_R, code_t prog, asize_t prog_size)
 {
 #ifdef PC_REG
   register code_t pc PC_REG;
@@ -274,12 +289,12 @@ value caml_interprete(code_t prog, asize_t prog_size)
     caml_bcodcount++;
     if (caml_icount-- == 0) caml_stop_here ();
     if (caml_trace_flag>1) printf("\n##%ld\n", caml_bcodcount);
-    if (caml_trace_flag) caml_disasm_instr(pc);
+    if (caml_trace_flag) caml_disasm_instr_r(ctx, pc);
     if (caml_trace_flag>1) {
       printf("env=");
-      caml_trace_value_file(env,prog,prog_size,stdout);
+      caml_trace_value_file_r(ctx, env,prog,prog_size,stdout);
       putchar('\n');
-      caml_trace_accu_sp_file(accu,sp,prog,prog_size,stdout);
+      caml_trace_accu_sp_file_r(ctx, accu,sp,prog,prog_size,stdout);
       fflush(stdout);
     };
     Assert(sp >= caml_stack_low);
@@ -601,7 +616,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     }
 
     Instruct(SETGLOBAL):
-      caml_modify(&Field(caml_global_data, *pc), accu);
+      caml_modify_r(ctx, &Field(caml_global_data, *pc), accu);
       accu = Val_unit;
       pc++;
       Next;
@@ -630,9 +645,9 @@ value caml_interprete(code_t prog, asize_t prog_size)
         Field(block, 0) = accu;
         for (i = 1; i < wosize; i++) Field(block, i) = *sp++;
       } else {
-        block = caml_alloc_shr(wosize, tag);
-        caml_initialize(&Field(block, 0), accu);
-        for (i = 1; i < wosize; i++) caml_initialize(&Field(block, i), *sp++);
+        block = caml_alloc_shr_r(ctx, wosize, tag);
+        caml_initialize_r(ctx, &Field(block, 0), accu);
+        for (i = 1; i < wosize; i++) caml_initialize_r(ctx, &Field(block, i), *sp++);
       }
       accu = block;
       Next;
@@ -673,7 +688,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       if (size <= Max_young_wosize / Double_wosize) {
         Alloc_small(block, size * Double_wosize, Double_array_tag);
       } else {
-        block = caml_alloc_shr(size * Double_wosize, Double_array_tag);
+        block = caml_alloc_shr_r(ctx, size * Double_wosize, Double_array_tag);
       }
       Store_double_field(block, 0, Double_val(accu));
       for (i = 1; i < size; i++){
@@ -819,8 +834,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(RAISE):
     raise_exception:
-      if (caml_trapsp >= caml_trap_barrier) caml_debugger(TRAP_BARRIER);
-      if (caml_backtrace_active) caml_stash_backtrace(accu, pc, sp);
+      if (caml_trapsp >= caml_trap_barrier) caml_debugger_r(ctx, TRAP_BARRIER);
+      if (caml_backtrace_active) caml_stash_backtrace_r(ctx, accu, pc, sp);
       if ((char *) caml_trapsp
           >= (char *) caml_stack_high - initial_sp_offset) {
         caml_external_raise = initial_external_raise;
@@ -842,7 +857,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     check_stacks:
       if (sp < caml_stack_threshold) {
         caml_extern_sp = sp;
-        caml_realloc_stack(Stack_threshold / sizeof(value));
+        caml_realloc_stack_r(ctx, Stack_threshold / sizeof(value));
         sp = caml_extern_sp;
       }
       /* Fall through CHECK_SIGNALS */
@@ -856,7 +871,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     process_signal:
       caml_something_to_do = 0;
       Setup_for_event;
-      caml_process_event();
+      caml_process_event_r(ctx);
       Restore_after_event;
       Next;
 
@@ -864,34 +879,39 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(C_CALL1):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu);
+      if(*pc++) accu = Primitive(*pc)(ctx, accu);
+      else accu = Primitive(*pc)(accu);
       Restore_after_c_call;
       pc++;
       Next;
     Instruct(C_CALL2):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[1]);
+      if(*pc++) accu = Primitive(*pc)(ctx, accu, sp[1]);
+      else accu = Primitive(*pc)(accu, sp[1]);
       Restore_after_c_call;
       sp += 1;
       pc++;
       Next;
     Instruct(C_CALL3):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[1], sp[2]);
+      if(*pc++) accu = Primitive(*pc)(ctx, accu, sp[1], sp[2]);
+      else accu = Primitive(*pc)(accu, sp[1], sp[2]);
       Restore_after_c_call;
       sp += 2;
       pc++;
       Next;
     Instruct(C_CALL4):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[1], sp[2], sp[3]);
+      if(*pc++) accu = Primitive(*pc)(ctx, accu, sp[1], sp[2], sp[3]);
+      else accu = Primitive(*pc)(accu, sp[1], sp[2], sp[3]);
       Restore_after_c_call;
       sp += 3;
       pc++;
       Next;
     Instruct(C_CALL5):
       Setup_for_c_call;
-      accu = Primitive(*pc)(accu, sp[1], sp[2], sp[3], sp[4]);
+      if(*pc++) accu = Primitive(*pc)(ctx, accu, sp[1], sp[2], sp[3], sp[4]);
+      else accu = Primitive(*pc)(accu, sp[1], sp[2], sp[3], sp[4]);
       Restore_after_c_call;
       sp += 4;
       pc++;
@@ -900,7 +920,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
       int nargs = *pc++;
       *--sp = accu;
       Setup_for_c_call;
-      accu = Primitive(*pc)(sp + 1, nargs);
+      if(*pc++) accu = Primitive(*pc)(ctx, sp + 1, nargs);
+      else accu = Primitive(*pc)(sp + 1, nargs);
       Restore_after_c_call;
       sp += nargs;
       pc++;
@@ -948,7 +969,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(DIVINT): {
       intnat divisor = Long_val(*sp++);
-      if (divisor == 0) { Setup_for_c_call; caml_raise_zero_divide(); }
+      if (divisor == 0) { Setup_for_c_call; caml_raise_zero_divide_r(ctx); }
 #ifdef NONSTANDARD_DIV_MOD
       accu = Val_long(caml_safe_div(Long_val(accu), divisor));
 #else
@@ -958,7 +979,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     }
     Instruct(MODINT): {
       intnat divisor = Long_val(*sp++);
-      if (divisor == 0) { Setup_for_c_call; caml_raise_zero_divide(); }
+      if (divisor == 0) { Setup_for_c_call; caml_raise_zero_divide_r(ctx); }
 #ifdef NONSTANDARD_DIV_MOD
       accu = Val_long(caml_safe_mod(Long_val(accu), divisor));
 #else
@@ -1103,14 +1124,14 @@ value caml_interprete(code_t prog, asize_t prog_size)
     Instruct(EVENT):
       if (--caml_event_count == 0) {
         Setup_for_debugger;
-        caml_debugger(EVENT_COUNT);
+        caml_debugger_r(ctx, EVENT_COUNT);
         Restore_after_debugger;
       }
       Restart_curr_instr;
 
     Instruct(BREAK):
       Setup_for_debugger;
-      caml_debugger(BREAKPOINT);
+      caml_debugger_r(ctx, BREAKPOINT);
       Restore_after_debugger;
       Restart_curr_instr;
 

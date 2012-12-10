@@ -10,6 +10,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # Makefile for the parser generator.
 
 include ../config/Makefile

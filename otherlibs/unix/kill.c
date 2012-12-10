@@ -11,17 +11,19 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <fail.h>
 #include "unixsupport.h"
 #include <signal.h>
 #include <signals.h>
 
-CAMLprim value unix_kill(value pid, value signal)
+CAMLprim value unix_kill_r(CAML_R, value pid, value signal)
 {
   int sig;
   sig = convert_signal_number(Int_val(signal));
   if (kill(Int_val(pid), sig) == -1)
-    uerror("kill", Nothing);
+    uerror_r(ctx,"kill", Nothing);
   return Val_unit;
 }

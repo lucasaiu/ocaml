@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <memory.h>
 #include "unixsupport.h"
@@ -20,18 +22,18 @@ extern char ** cstringvect();
 extern char ** environ;
 #endif
 
-CAMLprim value unix_execvp(value path, value args)
+CAMLprim value unix_execvp_r(CAML_R, value path, value args)
 {
   char ** argv;
   argv = cstringvect(args);
   (void) execvp(String_val(path), argv);
   stat_free((char *) argv);
-  uerror("execvp", path);
+  uerror_r(ctx, "execvp", path);
   return Val_unit;                  /* never reached, but suppress warnings */
                                 /* from smart compilers */
 }
 
-CAMLprim value unix_execvpe(value path, value args, value env)
+CAMLprim value unix_execvpe_r(CAML_R, value path, value args, value env)
 {
   char ** argv;
   char ** saved_environ;
@@ -42,7 +44,7 @@ CAMLprim value unix_execvpe(value path, value args, value env)
   stat_free((char *) argv);
   stat_free((char *) environ);
   environ = saved_environ;
-  uerror("execvp", path);
+  uerror_r(ctx, "execvp", path);
   return Val_unit;                  /* never reached, but suppress warnings */
                                 /* from smart compilers */
 }

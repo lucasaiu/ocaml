@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Use floating-point arithmetic *)
 
 external (+) : float -> float -> float = "%addfloat"

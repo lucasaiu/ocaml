@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Machine configuration, Intel x86 processors, Win32,
    Visual C++ or Mingw compiler */
 

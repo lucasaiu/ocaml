@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -24,17 +26,17 @@
 
 #ifdef HAS_REWINDDIR
 
-CAMLprim value unix_rewinddir(value vd)
+CAMLprim value unix_rewinddir_r(CAML_R, value vd)
 {
   DIR * d = DIR_Val(vd);
-  if (d == (DIR *) NULL) unix_error(EBADF, "rewinddir", Nothing);
+  if (d == (DIR *) NULL) unix_error_r(ctx,EBADF, "rewinddir", Nothing);
   rewinddir(d);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_rewinddir(value d)
-{ invalid_argument("rewinddir not implemented"); }
+CAMLprim value unix_rewinddir_r(CAML_R, value d)
+{ caml_invalid_argument_r(ctx,"rewinddir not implemented"); }
 
 #endif

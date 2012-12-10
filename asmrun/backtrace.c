@@ -11,7 +11,12 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Stack backtrace for uncaught exceptions */
+
+#define CAML_CONTEXT_BACKTRACE
+#define CAML_CONTEXT_ROOTS
 
 #include <stdio.h>
 #include "alloc.h"
@@ -21,15 +26,11 @@
 #include "mlvalues.h"
 #include "stack.h"
 
-int caml_backtrace_active = 0;
-int caml_backtrace_pos = 0;
-code_t * caml_backtrace_buffer = NULL;
-value caml_backtrace_last_exn = Val_unit;
 #define BACKTRACE_BUFFER_SIZE 1024
 
 /* Start or stop the backtrace machinery */
 
-CAMLprim value caml_record_backtrace(value vflag)
+CAMLprim value caml_record_backtrace_r(CAML_R, value vflag)
 {
   int flag = Int_val(vflag);
 
@@ -37,9 +38,9 @@ CAMLprim value caml_record_backtrace(value vflag)
     caml_backtrace_active = flag;
     caml_backtrace_pos = 0;
     if (flag) {
-      caml_register_global_root(&caml_backtrace_last_exn);
+      caml_register_global_root_r(ctx, &caml_backtrace_last_exn);
     } else {
-      caml_remove_global_root(&caml_backtrace_last_exn);
+      caml_remove_global_root_r(ctx, &caml_backtrace_last_exn);
     }
   }
   return Val_unit;
@@ -47,7 +48,7 @@ CAMLprim value caml_record_backtrace(value vflag)
 
 /* Return the status of the backtrace machinery */
 
-CAMLprim value caml_backtrace_status(value vunit)
+CAMLprim value caml_backtrace_status_r(CAML_R, value vunit)
 {
   return Val_bool(caml_backtrace_active);
 }
@@ -55,7 +56,7 @@ CAMLprim value caml_backtrace_status(value vunit)
 /* Store the return addresses contained in the given stack fragment
    into the backtrace array */
 
-void caml_stash_backtrace(value exn, uintnat pc, char * sp, char * trapsp)
+void caml_stash_backtrace_r(CAML_R, value exn, uintnat pc, char * sp, char * trapsp)
 {
   frame_descr * d;
   uintnat h;
@@ -68,7 +69,7 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char * trapsp)
     caml_backtrace_buffer = malloc(BACKTRACE_BUFFER_SIZE * sizeof(code_t));
     if (caml_backtrace_buffer == NULL) return;
   }
-  if (caml_frame_descriptors == NULL) caml_init_frame_descriptors();
+  if (caml_frame_descriptors == NULL) caml_init_frame_descriptors_r(ctx);
 
   while (1) {
     /* Find the descriptor corresponding to the return address */
@@ -180,7 +181,7 @@ static void print_location(struct loc_info * li, int index)
 
 /* Print a backtrace */
 
-void caml_print_exception_backtrace(void)
+void caml_print_exception_backtrace_r(CAML_R)
 {
   int i;
   struct loc_info li;
@@ -193,30 +194,30 @@ void caml_print_exception_backtrace(void)
 
 /* Convert the backtrace to a data structure usable from OCaml */
 
-CAMLprim value caml_get_exception_backtrace(value unit)
+CAMLprim value caml_get_exception_backtrace_r(CAML_R, value unit)
 {
   CAMLparam0();
   CAMLlocal4(res, arr, p, fname);
   int i;
   struct loc_info li;
 
-  arr = caml_alloc(caml_backtrace_pos, 0);
+  arr = caml_alloc_r(ctx, caml_backtrace_pos, 0);
   for (i = 0; i < caml_backtrace_pos; i++) {
     extract_location_info((frame_descr *) (caml_backtrace_buffer[i]), &li);
     if (li.loc_valid) {
-      fname = caml_copy_string(li.loc_filename);
-      p = caml_alloc_small(5, 0);
+      fname = caml_copy_string_r(ctx, li.loc_filename);
+      p = caml_alloc_small_r(ctx, 5, 0);
       Field(p, 0) = Val_bool(li.loc_is_raise);
       Field(p, 1) = fname;
       Field(p, 2) = Val_int(li.loc_lnum);
       Field(p, 3) = Val_int(li.loc_startchr);
       Field(p, 4) = Val_int(li.loc_endchr);
     } else {
-      p = caml_alloc_small(1, 1);
+      p = caml_alloc_small_r(ctx, 1, 1);
       Field(p, 0) = Val_bool(li.loc_is_raise);
     }
-    caml_modify(&Field(arr, i), p);
+    caml_modify_r(ctx, &Field(arr, i), p);
   }
-  res = caml_alloc_small(1, 0); Field(res, 0) = arr; /* Some */
+  res = caml_alloc_small_r(ctx, 1, 0); Field(res, 0) = arr; /* Some */
   CAMLreturn(res);
 }

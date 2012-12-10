@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (**** Typing of type definitions ****)
 
 open Misc
@@ -891,7 +893,7 @@ let transl_exception env loc excdecl =
 
 (* Translate an exception rebinding *)
 let transl_exn_rebind env loc lid =
-  let cdescr =
+  let (path, cdescr) =
     try
       Env.lookup_constructor lid env
     with Not_found ->

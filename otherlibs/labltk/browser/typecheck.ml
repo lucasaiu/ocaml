@@ -137,7 +137,12 @@ let f txt =
           Lexer.report_error Format.std_formatter err; l
       | Syntaxerr.Error err ->
           Syntaxerr.report_error Format.std_formatter err;
-          Syntaxerr.location_of_error err
+          begin match err with
+            Syntaxerr.Unclosed(l,_,_,_) -> l
+          | Syntaxerr.Applicative_path l -> l
+          | Syntaxerr.Variable_in_scope(l,_) -> l
+          | Syntaxerr.Other l -> l
+          end
       | Typecore.Error (l,err) ->
           Typecore.report_error Format.std_formatter err; l
       | Typeclass.Error (l,err) ->

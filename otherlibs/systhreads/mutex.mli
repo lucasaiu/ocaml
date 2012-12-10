@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Locks for mutual exclusion.
 
    Mutexes (mutual-exclusion locks) are used to implement critical sections

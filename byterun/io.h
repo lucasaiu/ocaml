@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Buffered input/output */
 
 #ifndef CAML_IO_H
@@ -63,31 +65,33 @@ enum {
    type struct channel *.  No locking is performed. */
 
 #define putch(channel, ch) do{                                            \
-  if ((channel)->curr >= (channel)->end) caml_flush_partial(channel);     \
+  if ((channel)->curr >= (channel)->end) caml_flush_partial_r(ctx, channel); \
   *((channel)->curr)++ = (ch);                                            \
 }while(0)
 
 #define getch(channel)                                                      \
   ((channel)->curr >= (channel)->max                                        \
-   ? caml_refill(channel)                                                   \
+   ? caml_refill_r(ctx, channel)						\
    : (unsigned char) *((channel)->curr)++)
 
-CAMLextern struct channel * caml_open_descriptor_in (int);
-CAMLextern struct channel * caml_open_descriptor_out (int);
+CAMLextern struct channel * caml_open_descriptor_in_r (CAML_R, int);
+CAMLextern struct channel * caml_open_descriptor_out_r (CAML_R, int);
 CAMLextern void caml_close_channel (struct channel *);
 CAMLextern int caml_channel_binary_mode (struct channel *);
-CAMLextern value caml_alloc_channel(struct channel *chan);
+CAMLextern value caml_alloc_channel_r(CAML_R,struct channel *chan);
 
-CAMLextern int caml_flush_partial (struct channel *);
-CAMLextern void caml_flush (struct channel *);
-CAMLextern void caml_putword (struct channel *, uint32);
-CAMLextern int caml_putblock (struct channel *, char *, intnat);
-CAMLextern void caml_really_putblock (struct channel *, char *, intnat);
+CAMLextern int caml_flush_partial_r (CAML_R, struct channel *);
+CAMLextern void caml_flush_r (CAML_R, struct channel *);
+CAMLextern void caml_putword_r (CAML_R, struct channel *, uint32);
+CAMLextern int caml_putblock_r (CAML_R, struct channel *, char *, intnat);
+CAMLextern void caml_really_putblock_r (CAML_R, struct channel *, char *, intnat);
 
-CAMLextern unsigned char caml_refill (struct channel *);
-CAMLextern uint32 caml_getword (struct channel *);
-CAMLextern int caml_getblock (struct channel *, char *, intnat);
-CAMLextern int caml_really_getblock (struct channel *, char *, intnat);
+CAMLextern unsigned char caml_refill_r (CAML_R, struct channel *);
+CAMLextern uint32 caml_getword_r (CAML_R, struct channel *);
+CAMLextern int caml_getblock_r (CAML_R, struct channel *, char *, intnat);
+CAMLextern int caml_really_getblock_r (CAML_R, struct channel *, char *, intnat);
+
+CAMLextern struct custom_operations caml_channel_operations;
 
 /* Extract a struct channel * from the heap object representing it */
 
@@ -112,7 +116,7 @@ CAMLextern struct channel * caml_all_opened_channels;
 /* Conversion between file_offset and int64 */
 
 #ifdef ARCH_INT64_TYPE
-#define Val_file_offset(fofs) caml_copy_int64(fofs)
+#define Val_file_offset(fofs) caml_copy_int64_r(ctx, fofs)
 #define File_offset_val(v) ((file_offset) Int64_val(v))
 #else
 CAMLextern value caml_Val_file_offset(file_offset fofs);

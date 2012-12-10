@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 

@@ -11,22 +11,24 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
 
 #ifdef HAS_SYMLINK
 
-CAMLprim value unix_symlink(value path1, value path2)
+CAMLprim value unix_symlink_r(CAML_R, value path1, value path2)
 {
   if (symlink(String_val(path1), String_val(path2)) == -1)
-    uerror("symlink", path2);
+    uerror_r(ctx,"symlink", path2);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_symlink(value path1, value path2)
-{ invalid_argument("symlink not implemented"); }
+CAMLprim value unix_symlink_r(CAML_R, value path1, value path2)
+{ caml_invalid_argument_r(ctx,"symlink not implemented"); }
 
 #endif

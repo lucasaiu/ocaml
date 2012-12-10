@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 let _ =
   let args = Ccomp.quote_files (List.tl (Array.to_list Sys.argv)) in
   exit(Sys.command("ocamlc -I +compiler-libs -linkall ocamlcommon.cma ocamlbytecomp.cma ocamltoplevel.cma " ^ args ^ " topstart.cmo"))

@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* The fields of type t are not mutable to preserve polymorphism of
    the empty stream. This is type safe because the empty stream is never
    patched. *)

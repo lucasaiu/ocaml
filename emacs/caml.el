@@ -10,6 +10,8 @@
 ;(*                                                                     *)
 ;(***********************************************************************)
 
+;(* $Id$ *)
+
 ;;; caml.el --- OCaml code editing commands for Emacs
 
 ;; Xavier Leroy, july 1993.

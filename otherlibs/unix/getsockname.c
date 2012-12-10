@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -19,7 +21,7 @@
 
 #include "socketaddr.h"
 
-CAMLprim value unix_getsockname(value sock)
+CAMLprim value unix_getsockname_r(CAML_R, value sock)
 {
   int retcode;
   union sock_addr_union addr;
@@ -27,13 +29,13 @@ CAMLprim value unix_getsockname(value sock)
 
   addr_len = sizeof(addr);
   retcode = getsockname(Int_val(sock), &addr.s_gen, &addr_len);
-  if (retcode == -1) uerror("getsockname", Nothing);
-  return alloc_sockaddr(&addr, addr_len, -1);
+  if (retcode == -1) uerror_r(ctx,"getsockname", Nothing);
+  return alloc_sockaddr_r(ctx, &addr, addr_len, -1);
 }
 
 #else
 
-CAMLprim value unix_getsockname(value sock)
-{ invalid_argument("getsockname not implemented"); }
+CAMLprim value unix_getsockname_r(CAML_R, value sock)
+{ caml_invalid_argument_r(ctx,"getsockname not implemented"); }
 
 #endif

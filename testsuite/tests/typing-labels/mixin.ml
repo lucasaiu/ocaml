@@ -1,3 +1,5 @@
+(* $Id$ *)
+
 open StdLabels
 open MoreLabels
 

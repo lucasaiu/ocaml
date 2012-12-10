@@ -11,7 +11,12 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Signal handling, code specific to the bytecode interpreter */
+
+#define CAML_CONTEXT_SIGNALS_BYT
+#define CAML_CONTEXT_SIGNALS
 
 #include <signal.h>
 #include "config.h"
@@ -26,20 +31,17 @@
 
 #ifdef _WIN32
 typedef void (*sighandler)(int sig);
-extern sighandler caml_win32_signal(int sig, sighandler action);
+extern sighandler caml_win32_signal(int sig, sighandler action); /* TODO */
 #define signal(sig,act) caml_win32_signal(sig,act)
 #endif
 
-CAMLexport int volatile caml_something_to_do = 0;
-CAMLexport void (* volatile caml_async_action_hook)(void) = NULL;
-
-void caml_process_event(void)
+void caml_process_event_r(CAML_R)
 {
   void (*async_action)(void);
 
-  if (caml_force_major_slice) caml_minor_collection ();
+  if (caml_force_major_slice) caml_minor_collection_r (ctx);
                              /* FIXME should be [caml_check_urgent_gc] */
-  caml_process_pending_signals();
+  caml_process_pending_signals_r(ctx);
   async_action = caml_async_action_hook;
   if (async_action != NULL) {
     caml_async_action_hook = NULL;
@@ -53,12 +55,15 @@ static void handle_signal(int signal_number)
   signal(signal_number, handle_signal);
 #endif
   if (signal_number < 0 || signal_number >= NSIG) return;
+  {
+  INIT_CAML_R;
   if (caml_try_leave_blocking_section_hook()) {
-    caml_execute_signal(signal_number, 1);
+    caml_execute_signal_r(ctx, signal_number, 1);
     caml_enter_blocking_section_hook();
   }else{
-    caml_record_signal(signal_number);
+    caml_record_signal_r(ctx, signal_number);
  }
+  }
 }
 
 int caml_set_signal_action(int signo, int action)

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Swap byte-order in 16, 32, and 64-bit integers or floats */
 
 #ifndef CAML_REVERSE_H

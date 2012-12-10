@@ -11,12 +11,24 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Asm part of the runtime system, AMD64 processor */
 /* Must be preprocessed by cpp */
 
 /* PIC mode support based on contribution by Paul Stravers (see PR#4795) */
 
 #include "../config/m.h"
+
+/* The following indices must respect the order of the caml_global_context
+   fields in byterun/context.h; they are in fact offsets in words. */
+#define caml_young_limit          0
+#define caml_young_ptr            1
+#define caml_last_return_address  2
+#define caml_bottom_of_stack      3
+#define caml_gc_regs              4
+#define caml_exception_pointer    5
+#define caml_backtrace_active     6
 
 #if defined(SYS_macosx)
 
@@ -73,6 +85,8 @@
 #define CFI_ADJUST(n)
 #endif
 
+#if 0 /* REENTRANTRUNTIME: beginning of the disabled part */
+
 #if defined(__PIC__) && !defined(SYS_mingw64)
 
 /* Position-independent operations on global variables. */
@@ -116,12 +130,12 @@
         STORE_VAR(%rax,caml_bottom_of_stack) ; \
         popq    %r11; CFI_ADJUST(-8)
 
-#else
+#else /* #if defined(__PIC__) && !defined(SYS_mingw64) */
 
 /* Non-PIC operations on global variables.  Slightly faster. */
 
 #define STORE_VAR(srcreg,dstlabel) \
-        movq    srcreg, G(dstlabel)(%rip)
+        movq    srcreg, G(dstlabel)(%rip) /* [All of this is disabled]  This is will fail in REENTRANTRUNTIME */
 
 #define LOAD_VAR(srclabel,dstreg) \
         movq    G(srclabel)(%rip), dstreg
@@ -144,7 +158,43 @@
         leaq    8+OFFSET(%rsp), %rax ; \
         STORE_VAR(%rax,caml_bottom_of_stack)
 
-#endif
+#endif /* #if defined(__PIC__) && !defined(SYS_mingw64) */
+
+#else /* REENTRANTRUNTIME: here comes the new part using context structs */
+
+/* Store [srcreg] in global [dstlabel]. */
+#define STORE_VAR(srcreg,dstlabel) \
+        movq    srcreg, dstlabel*8(%r13)
+
+/* Load global [srclabel] in register [dstreg]. */
+#define LOAD_VAR(srclabel,dstreg) \
+        movq    srclabel*8(%r13), dstreg
+
+/* Compare global [label] with register [reg]. */
+#define CMP_VAR(label,reg) \
+        cmpq    label*8(%r13), reg
+
+/* Test 32-bit global [label] against mask [imm]. */
+#define TESTL_VAR(imm,label) \
+        testl   imm, label*8(%r13)
+
+/* Push global [label] on stack. */
+#define PUSH_VAR(srclabel) \
+        pushq    srclabel*8(%r13)
+
+/* Pop global [label] off stack. */
+#define POP_VAR(dstlabel) \
+        popq	dstlabel(%r13)
+
+/* Record lowest stack address and return address. */
+#define RECORD_STACK_FRAME(OFFSET) \
+        movq    OFFSET(%rsp), %rax ; \
+	STORE_VAR(%rax,caml_last_return_address) ; \
+        leaq    8+OFFSET(%rsp), %rax ; \
+	STORE_VAR(%rax,caml_bottom_of_stack)
+//#endif // REENTRANTRUNTIME: FIXME: I think I introduced this #endif by mistake.  FIXME: Verify.
+
+#endif /* REENTRANTRUNTIME: end of our big conditional disbling another conditional */
 
 /* Save and restore all callee-save registers on stack.
    Keep the stack 16-aligned. */
@@ -235,7 +285,7 @@ G(caml_system__code_begin):
 
 /* Allocation */
 
-FUNCTION(G(caml_call_gc))
+FUNCTION(G(caml_call_gc_r13))
         CFI_STARTPROC
         RECORD_STACK_FRAME(0)
 LBL(caml_call_gc):
@@ -250,7 +300,7 @@ LBL(caml_call_gc):
         pushq   %r11; CFI_ADJUST (8);
         pushq   %r10; CFI_ADJUST (8);
         pushq   %rbp; CFI_ADJUST (8);
-        pushq   %r13; CFI_ADJUST (8);
+#        pushq   %r13; CFI_ADJUST (8); # REENTRANTRUNTIME [FIXME: Should I really not save %r13?]
         pushq   %r12; CFI_ADJUST (8);
         pushq   %r9; CFI_ADJUST (8);
         pushq   %r8; CFI_ADJUST (8);
@@ -284,7 +334,8 @@ LBL(caml_call_gc):
         movsd   %xmm15, 15*8(%rsp)
     /* Call the garbage collector */
         PREPARE_FOR_C_CALL
-        call    GCALL(caml_garbage_collection)
+        movq    %r13, %rdi      /* set ctx in first argument REENTRANTRUNTIME */
+        call    GCALL(caml_garbage_collection_r)
         CLEANUP_AFTER_C_CALL
     /* Restore caml_young_ptr, caml_exception_pointer */
         LOAD_VAR(caml_young_ptr, %r15)
@@ -316,7 +367,7 @@ LBL(caml_call_gc):
         popq    %r8; CFI_ADJUST(-8)
         popq    %r9; CFI_ADJUST(-8)
         popq    %r12; CFI_ADJUST(-8)
-        popq    %r13; CFI_ADJUST(-8)
+#        popq    %r13; CFI_ADJUST(-8) # REENTRANTRUNTIME
         popq    %rbp; CFI_ADJUST(-8)
         popq    %r10; CFI_ADJUST(-8)
         popq    %r11; CFI_ADJUST(-8)
@@ -324,7 +375,7 @@ LBL(caml_call_gc):
         ret
 CFI_ENDPROC
 
-FUNCTION(G(caml_alloc1))
+FUNCTION(G(caml_alloc1_r13))
 CFI_STARTPROC
 LBL(caml_alloc1):
         subq    $16, %r15
@@ -339,7 +390,7 @@ LBL(100):
         jmp     LBL(caml_alloc1)
 CFI_ENDPROC
 
-FUNCTION(G(caml_alloc2))
+FUNCTION(G(caml_alloc2_r13))
 CFI_STARTPROC
 LBL(caml_alloc2):
         subq    $24, %r15
@@ -354,7 +405,7 @@ LBL(101):
         jmp     LBL(caml_alloc2)
 CFI_ENDPROC
 
-FUNCTION(G(caml_alloc3))
+FUNCTION(G(caml_alloc3_r13))
 CFI_STARTPROC
 LBL(caml_alloc3):
         subq    $32, %r15
@@ -369,7 +420,7 @@ LBL(102):
         jmp     LBL(caml_alloc3)
 CFI_ENDPROC
 
-FUNCTION(G(caml_allocN))
+FUNCTION(G(caml_allocN_r13))
 CFI_STARTPROC
 LBL(caml_allocN):
         pushq   %rax; CFI_ADJUST(8)        /* save desired size */
@@ -387,7 +438,7 @@ CFI_ENDPROC
 
 /* Call a C function from OCaml */
 
-FUNCTION(G(caml_c_call))
+FUNCTION(G(caml_c_call_r13))
 CFI_STARTPROC
 LBL(caml_c_call):
     /* Record lowest stack address and return address */
@@ -413,26 +464,39 @@ CFI_ENDPROC
 
 /* Start the OCaml program */
 
-FUNCTION(G(caml_start_program))
+FUNCTION(G(caml_start_program_r))
        CFI_STARTPROC
     /* Save callee-save registers */
         PUSH_CALLEE_SAVE_REGS
     /* Initial entry point is G(caml_program) */
-        leaq    GCALL(caml_program)(%rip), %r12
+        leaq    GCALL(caml_program_r13)(%rip), %r12
     /* Common code for caml_start_program and caml_callback* */
 LBL(caml_start_program):
     /* Build a callback link */
         subq    $8, %rsp; CFI_ADJUST (8)        /* stack 16-aligned */
+        movq	%rdi, %r13      /* setup context REENTRANTRUNTIME */
         PUSH_VAR(caml_gc_regs)
         PUSH_VAR(caml_last_return_address)
         PUSH_VAR(caml_bottom_of_stack)
-    /* Setup alloc ptr and exception ptr */
-        LOAD_VAR(caml_young_ptr, %r15)
+# FIXME: I feel uneasy about this change, which I can't test yet.  This is the old version,
+# using %r13 as a temporary.  REENTRANTRUNTIME --Luca Saiu
+#   /* Setup alloc ptr and exception ptr */
+#       LOAD_VAR(caml_young_ptr, %r15)
+#       LOAD_VAR(caml_exception_pointer, %r14)
+#   /* Build an exception handler */
+#       lea     LBL(108)(%rip), %r13
+#       pushq   %r13; CFI_ADJUST(8)
+#       pushq   %r14; CFI_ADJUST(8)
+# Tentative change: begin [so we don't clobber %r13]
+    /* Setup exception ptr */
         LOAD_VAR(caml_exception_pointer, %r14)
     /* Build an exception handler */
-        lea     LBL(108)(%rip), %r13
-        pushq   %r13; CFI_ADJUST(8)
+        lea     LBL(108)(%rip), %r15 # Here we use %r15 as an ordinary temporary
+        pushq   %r15; CFI_ADJUST(8) # Here we use %r15 as an ordinary temporary
         pushq   %r14; CFI_ADJUST(8)
+    /* Setup alloc ptr */
+        LOAD_VAR(caml_young_ptr, %r15)
+# Tentative change: end [so we don't clobber %r13]
         CFI_ADJUST(16)
         movq    %rsp, %r14
     /* Call the OCaml code */
@@ -474,11 +538,12 @@ CFI_ENDPROC
 #define C_ARG_2 %rsi
 #define C_ARG_3 %rdx
 #define C_ARG_4 %rcx
+#define C_ARG_5 %r8   // REENTRANTRUNTIME
 #endif
 
 /* Raise an exception from OCaml */
 
-FUNCTION(G(caml_raise_exn))
+FUNCTION(G(caml_raise_exn_r13))
 CFI_STARTPROC
         TESTL_VAR($1, caml_backtrace_active)
         jne     LBL(110)
@@ -487,13 +552,22 @@ CFI_STARTPROC
         ret
 LBL(110):
         movq    %rax, %r12            /* Save exception bucket */
-        movq    %rax, C_ARG_1         /* arg 1: exception bucket */
-        popq    C_ARG_2               /* arg 2: pc of raise */
-        movq    %rsp, C_ARG_3         /* arg 3: sp at raise */
-        movq    %r14, C_ARG_4         /* arg 4: sp of handler */
-        /* PR#5700: thanks to popq above, stack is now 16-aligned */
+# Original version REENTRANTRUNTIME: begin
+        ;; movq    %rax, C_ARG_1         /* arg 1: exception bucket */
+        ;; popq    C_ARG_2               /* arg 2: pc of raise */
+        ;; movq    %rsp, C_ARG_3         /* arg 3: sp at raise */
+        ;; movq    %r14, C_ARG_4         /* arg 4: sp of handler */ 
+# Original version REENTRANTRUNTIME: end
+# Updated version REENTRANTRUNTIME: begin
+        movq    %r13, C_ARG_1         /* arg 1: context */
+        movq    %rax, C_ARG_2         /* arg 2: exception bucket */
+        popq    C_ARG_3               /* arg 3: pc of raise */
+        movq    %rsp, C_ARG_4         /* arg 4: sp at raise */
+        movq    %r14, C_ARG_5         /* arg 5: sp of handler */
+# Updated version REENTRANTRUNTIME: end
+	/* PR#5700: thanks to popq above, stack is now 16-aligned */
         PREPARE_FOR_C_CALL            /* no need to cleanup after */
-        call    GCALL(caml_stash_backtrace)
+        call    GCALL(caml_stash_backtrace_r)
         movq    %r12, %rax            /* Recover exception bucket */
         movq    %r14, %rsp
         popq    %r14; CFI_ADJUST(-8)
@@ -502,8 +576,13 @@ CFI_ENDPROC
 
 /* Raise an exception from C */
 
-FUNCTION(G(caml_raise_exception))
+/* REENTRANTRUNTIME: */
+/*	C arg1 : %rdi = ctx */
+/*	C arg2 : %rsi = exn */
+FUNCTION(G(caml_raise_exception_r))
 CFI_STARTPROC
+	movq 	C_ARG_1, %r13    /* setup context REENTRANTRUNTIME */
+	movq	C_ARG_2, C_ARG_1 /* restore exn in first argument REENTRANTRUNTIME */
         TESTL_VAR($1, caml_backtrace_active)
         jne     LBL(111)
         movq    C_ARG_1, %rax
@@ -513,13 +592,23 @@ CFI_STARTPROC
         ret
 LBL(111):
         movq    C_ARG_1, %r12            /* Save exception bucket */
-                                      /* arg 1: exception bucket */
-        LOAD_VAR(caml_last_return_address,C_ARG_2)   /* arg 2: pc of raise */
-        LOAD_VAR(caml_bottom_of_stack,C_ARG_3)       /* arg 3: sp of raise */
-        LOAD_VAR(caml_exception_pointer,C_ARG_4)     /* arg 4: sp of handler */
+        
+# Original code: begin REENTRANTRUNTIME
+#                                      /* arg 1: exception bucket */
+#        LOAD_VAR(caml_last_return_address,C_ARG_2)   /* arg 2: pc of raise */
+#        LOAD_VAR(caml_bottom_of_stack,C_ARG_3)       /* arg 3: sp of raise */
+#        LOAD_VAR(caml_exception_pointer,C_ARG_4)     /* arg 4: sp of handler */
+# Original code: end REENTRANTRUNTIME
+# Updated code: begin REENTRANTRUNTIME
+        movq %r13, C_ARG_1                           /* arg 1: ctx */
+        movq %r12, C_ARG_2                           /* arg 2: exception bucket */
+        LOAD_VAR(caml_last_return_address, C_ARG_3)  /* arg 3: pc of raise */
+        LOAD_VAR(caml_bottom_of_stack, C_ARG_4)      /* arg 4: sp of raise */
+        LOAD_VAR(caml_exception_pointer, C_ARG_5)    /* arg 5: sp of handler */
+# Updated code: end REENTRANTRUNTIME
         subq    $8, %rsp              /* PR#5700: maintain stack alignment */
         PREPARE_FOR_C_CALL            /* no need to cleanup after */
-        call    GCALL(caml_stash_backtrace)
+        call    GCALL(caml_stash_backtrace_r)
         movq    %r12, %rax            /* Recover exception bucket */
         LOAD_VAR(caml_exception_pointer,%rsp)
         popq    %r14; CFI_ADJUST(-8)   /* Recover previous exception handler */
@@ -529,45 +618,83 @@ CFI_ENDPROC
 
 /* Callback from C to OCaml */
 
-FUNCTION(G(caml_callback_exn))
+/*  C arg 1: %rdi : ctx */
+/*  C arg 2: %rsi : closure */
+/*  C arg 3: %rdx : arg1 */
+FUNCTION(G(caml_callback_exn_r))
 CFI_STARTPROC
     /* Save callee-save registers */
         PUSH_CALLEE_SAVE_REGS
     /* Initial loading of arguments */
-        movq    C_ARG_1, %rbx      /* closure */
-        movq    C_ARG_2, %rax      /* argument */
+# Original code begin REENTRANTRUNTIME
+#        movq    C_ARG_1, %rbx      /* closure */
+#        movq    C_ARG_2, %rax      /* argument */
+# Original code end REENTRANTRUNTIME
+# Udpdated code begin REENTRANTRUNTIME
+        movq    C_ARG_1, %r13      /* ctx */
+        movq    C_ARG_2, %rbx      /* caml arg 1: closure */  // FIXME: why are %rax and %rbx reversed?
+        movq    C_ARG_3, %rax      /* caml arg 2: argument */ // FIXME: why are %rax and %rbx reversed?
+# Udpdated code end REENTRANTRUNTIME
         movq    0(%rbx), %r12      /* code pointer */
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 
-FUNCTION(G(caml_callback2_exn))
+/*  C arg 1: %rdi : ctx */
+/*  C arg 2: %rsi : closure */
+/*  C arg 3: %rdx : arg1 */
+/*  C arg 4: %rcx : arg2 */
+FUNCTION(G(caml_callback2_exn_r))
 CFI_STARTPROC
     /* Save callee-save registers */
         PUSH_CALLEE_SAVE_REGS
     /* Initial loading of arguments */
-        movq    C_ARG_1, %rdi      /* closure -- no op with Unix conventions */
-        movq    C_ARG_2, %rax      /* first argument */
-        movq    C_ARG_3, %rbx      /* second argument */
+# Original code REENTRANTRUNTIME begin
+#        movq    C_ARG_1, %rdi      /* closure -- no op with Unix conventions */
+#        movq    C_ARG_2, %rax      /* first argument */
+#        movq    C_ARG_3, %rbx      /* second argument */
+# Original code REENTRANTRUNTIME end
+# Updated code REENTRANTRUNTIME begin
+        movq    C_ARG_1, %r13      /* setup ctx */
+        movq    C_ARG_2, %rdi      /* caml arg 3: closure [this clobbers C_ARG_1, which is ok] */
+        movq    C_ARG_3, %rax      /* caml arg 1: first argument */
+        movq    C_ARG_4, %rbx      /* caml arg 2: second argument */
+# Updated code REENTRANTRUNTIME end
+
         leaq    GCALL(caml_apply2)(%rip), %r12  /* code pointer */
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 
-FUNCTION(G(caml_callback3_exn))
+/*  C arg 1: %rdi : ctx */
+/*  C arg 2: %rsi : closure */
+/*  C arg 3: %rdx : arg1 */
+/*  C arg 4: %rcx : arg2 */
+/*  C arg 5: %r8  : arg3 */
+FUNCTION(G(caml_callback3_exn_r))
 CFI_STARTPROC
     /* Save callee-save registers */
         PUSH_CALLEE_SAVE_REGS
     /* Initial loading of arguments */
-        movq    C_ARG_2, %rax      /* first argument */
-        movq    C_ARG_3, %rbx      /* second argument */
-        movq    C_ARG_1, %rsi      /* closure */
-        movq    C_ARG_4, %rdi      /* third argument */
+# Original version begin REENTRANTRUNTIME
+#        movq    C_ARG_2, %rax      /* first argument */
+#        movq    C_ARG_3, %rbx      /* second argument */
+#        movq    C_ARG_1, %rsi      /* closure */
+#        movq    C_ARG_4, %rdi      /* third argument */
+# Original version end REENTRANTRUNTIME
+# Updated version begin REENTRANTRUNTIME
+        movq    C_ARG_1, %r13      /* setup context */
+#        movq    C_ARG_2, %rsi      /* caml arg 4: closure [actually a noop: this would clobber C_ARG_2] */
+        movq    C_ARG_3, %rax      /* caml arg 1: first argument */
+        movq    C_ARG_4, %rbx      /* caml arg 2: second argument */
+        movq    C_ARG_5, %rdi      /* caml arg 3: third argument [this clobbers C_ARG_1] */
+# Updated version end REENTRANTRUNTIME
         leaq    GCALL(caml_apply3)(%rip), %r12  /* code pointer */
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 
-FUNCTION(G(caml_ml_array_bound_error))
+FUNCTION(G(caml_ml_array_bound_error_r13))
 CFI_STARTPROC
-        leaq    GCALL(caml_array_bound_error)(%rip), %rax
+	movq 	%r13, %rdi  /* setup context as first argument REENTRANTRUNTIME*/
+        leaq    GCALL(caml_array_bound_error_r)(%rip), %rax
         jmp     LBL(caml_c_call)
 CFI_ENDPROC
 

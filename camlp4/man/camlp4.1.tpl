@@ -11,6 +11,8 @@
 .\"*                                                                     *
 .\"***********************************************************************
 .\"
+.\" $Id$
+.\"
 .TH CAMLP4 1  "" "INRIA"
 .SH NAME
 camlp4 - Pre-Precessor-Pretty-Printer for OCaml

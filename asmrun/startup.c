@@ -11,7 +11,16 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Start-up code */
+
+#define CAML_CODE_FRAGMENT_TABLE
+#define CAML_CONTEXT_STARTUP
+#define CAML_CONTEXT_PARSING
+#define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_FAILROOTS
+#define CAML_CONTEXT_DEBUGGER
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,15 +44,11 @@
 #include "ui.h"
 #endif
 
-extern int caml_parser_trace;
-CAMLexport header_t caml_atom_table[256];
-char * caml_code_area_start, * caml_code_area_end;
-
 /* Initialize the atom table and the static data and code area limits. */
 
 struct segment { char * begin; char * end; };
 
-static void init_atoms(void)
+static void init_atoms_r(CAML_R)
 {
   extern struct segment caml_data_segments[], caml_code_segments[];
   int i;
@@ -52,16 +57,16 @@ static void init_atoms(void)
   for (i = 0; i < 256; i++) {
     caml_atom_table[i] = Make_header(0, i, Caml_white);
   }
-  if (caml_page_table_add(In_static_data,
-                          caml_atom_table, caml_atom_table + 256) != 0)
+  if (caml_page_table_add_r(ctx, In_static_data,
+                            caml_atom_table, caml_atom_table + 256) != 0)
     caml_fatal_error("Fatal error: not enough memory for the initial page table");
 
   for (i = 0; caml_data_segments[i].begin != 0; i++) {
     /* PR#5509: we must include the zero word at end of data segment,
        because pointers equal to caml_data_segments[i].end are static data. */
-    if (caml_page_table_add(In_static_data,
-                            caml_data_segments[i].begin,
-                            caml_data_segments[i].end + sizeof(value)) != 0)
+    if (caml_page_table_add_r(ctx, In_static_data,
+                              caml_data_segments[i].begin,
+                              caml_data_segments[i].end + sizeof(value)) != 0)
       caml_fatal_error("Fatal error: not enough memory for the initial page table");
   }
 
@@ -82,6 +87,7 @@ static void init_atoms(void)
   caml_ext_table_add(&caml_code_fragments_table, cf);
 }
 
+/* caml_R: can be shared between threads, as it is only needed on startup */
 /* Configuration parameters and flags */
 
 static uintnat percent_free_init = Percent_free_def;
@@ -114,7 +120,7 @@ static void scanmult (char *opt, uintnat *var)
   }
 }
 
-static void parse_camlrunparam(void)
+static void parse_camlrunparam_r(CAML_R)
 {
   char *opt = getenv ("OCAMLRUNPARAM");
   uintnat p;
@@ -131,23 +137,45 @@ static void parse_camlrunparam(void)
       case 'o': scanmult (opt, &percent_free_init); break;
       case 'O': scanmult (opt, &max_percent_free_init); break;
       case 'v': scanmult (opt, &caml_verb_gc); break;
-      case 'b': caml_record_backtrace(Val_true); break;
+      case 'b': caml_record_backtrace_r(ctx, Val_true); break;
       case 'p': caml_parser_trace = 1; break;
-      case 'a': scanmult (opt, &p); caml_set_allocation_policy (p); break;
+      case 'a': scanmult (opt, &p); caml_set_allocation_policy_r (ctx, p); break;
       }
     }
   }
 }
 
-/* These are termination hooks used by the systhreads library */
-struct longjmp_buffer caml_termination_jmpbuf;
-void (*caml_termination_hook)(void *) = NULL;
+extern __thread caml_global_context *caml_context; // in context.c
 
-extern value caml_start_program (void);
+/* FIXME: refactor: call this from caml_main_rr --Luca Saiu REENTRANTRUNTIME */
+caml_global_context* caml_make_empty_context(void)
+{
+  // FIXME: lock
+  /* Make a new context in which to unmarshal back the byte array back
+     into a big data structure, copying whatever's needed: */
+  caml_global_context *old_thread_local_context = caml_context;
+  caml_global_context *ctx = caml_initialize_first_global_context();
+  caml_context = old_thread_local_context; // undo caml_initialize_first_global_context's trashing of the __thread variable
+  // FIXME: unlock
+
+  /* Initialize the abstract machine */
+  caml_init_gc_r (ctx, minor_heap_init, heap_size_init, heap_chunk_init,
+                  percent_free_init, max_percent_free_init);
+  //caml_init_stack_r (ctx, max_stack_init); // Not for native code
+  init_atoms_r(ctx);
+
+  /* No need to call caml_init_signals for each context: its
+     initialization only needs to be performed once */
+  caml_debugger_init_r (ctx); /* force debugger.o stub to be linked */
+  return ctx;
+}
+
+extern value caml_start_program_r (CAML_R);
 extern void caml_init_ieee_floats (void);
 extern void caml_init_signals (void);
+extern void caml_debugger_init_r(CAML_R);
 
-void caml_main(char **argv)
+caml_global_context* caml_main_rr(char **argv)
 {
   char * exe_name;
 #ifdef __linux__
@@ -155,6 +183,7 @@ void caml_main(char **argv)
 #endif
   value res;
   char tos;
+  CAML_R = caml_initialize_first_global_context();
 
   caml_init_ieee_floats();
   caml_init_custom_operations();
@@ -162,12 +191,51 @@ void caml_main(char **argv)
   caml_verb_gc = 63;
 #endif
   caml_top_of_stack = &tos;
-  parse_camlrunparam();
-  caml_init_gc (minor_heap_init, heap_size_init, heap_chunk_init,
+  parse_camlrunparam_r(ctx);
+  caml_init_gc_r (ctx, minor_heap_init, heap_size_init, heap_chunk_init,
                 percent_free_init, max_percent_free_init);
-  init_atoms();
+
+  /* I don't think that ctx->caml_global_data is actually used for
+     native code.  Just to be sure, I set it to a non-pointer and then
+     forget about it.  If the field is used then the thing will crash,
+     and I will know.  --Luca Saiu REENTRANTRUNTIME */
+  ctx->caml_global_data = Val_long(42);
+
+/*   /\* Make the global variable array, and make it go to the old */
+/*      generation: --Luca Saiu REENTRANTRUNTIME *\/ */
+/*   //printf("The tagged size is %li\n", (long)Val_long(CAML_INITIAL_GLOBAL_NO)); */
+/*   /\* printf("Initializing ctx->caml_global_data: it will have %i elements\n", CAML_INITIAL_GLOBAL_NO); *\/ */
+/*   ctx->caml_global_data = caml_alloc_shr_r(ctx, */
+/*                                            CAML_INITIAL_GLOBAL_NO, */
+/*                                            0); // just like in meta.c */
+/*   int i; */
+/*   for (i = 0; i < CAML_INITIAL_GLOBAL_NO; i ++) */
+/*     caml_initialize_r(ctx, &Field(ctx->caml_global_data, i), Val_long(i)); */
+
+/* /\*   // FIXME: remove this ugly kludge: begin --Luca Saiu REENTRANTRUNTIME *\/ */
+/* /\*   // Just in order to test from the assembly side with known global variables *\/ */
+/* /\*   // (not yet generated by the compiler), let's hardwire some values: *\/ */
+/* /\*   //#define GLOBAL(INDEX, X) caml_array_set_r(ctx, ctx->caml_global_data, Val_long(INDEX), X); *\/ */
+/* /\* #define GLOBAL(INDEX, X) caml_initialize_r(ctx, &Field(ctx->caml_global_data, INDEX), X); *\/ */
+/* /\*   //caml_initialize_r(ctx, &Field(new_global_data, i), Field(caml_global_data, i)); *\/ */
+
+/* /\*   GLOBAL(0, Val_long(10)) *\/ */
+/* /\*   GLOBAL(1, caml_make_vect_r(ctx, Val_long(3), Val_long(10000))) *\/ */
+/* /\*   GLOBAL(2, Val_long(20)) *\/ */
+/* /\*   GLOBAL(3, Val_long(0)) *\/ */
+/* /\*   GLOBAL(4, Val_long(1)) *\/ */
+/* /\*   GLOBAL(5, Val_long(0)) *\/ */
+/* /\*   GLOBAL(6, caml_copy_double_r(ctx, 3.14)) *\/ */
+/* /\*   GLOBAL(7, Val_long('a')) *\/ */
+/* /\*   GLOBAL(8, Val_long(30)) *\/ */
+
+/*   // FIXME: remove this ugly kludge: end --Luca Saiu REENTRANTRUNTIME */
+/*   caml_oldify_one_r (ctx, ctx->caml_global_data, &ctx->caml_global_data); */
+/*   caml_oldify_mopup_r (ctx); // FIXME: what's this for, exactly?  --Luca Saiu REENTRANTRUNTIME */
+
+  init_atoms_r(ctx);
   caml_init_signals();
-  caml_debugger_init (); /* force debugger.o stub to be linked */
+  caml_debugger_init_r (ctx); /* force debugger.o stub to be linked */
   exe_name = argv[0];
   if (exe_name == NULL) exe_name = "";
 #ifdef __linux__
@@ -178,17 +246,19 @@ void caml_main(char **argv)
 #else
   exe_name = caml_search_exe_in_path(exe_name);
 #endif
-  caml_sys_init(exe_name, argv);
+  caml_sys_init_r(ctx, exe_name, argv);
   if (sigsetjmp(caml_termination_jmpbuf.buf, 0)) {
     if (caml_termination_hook != NULL) caml_termination_hook(NULL);
-    return;
+    return ctx;
   }
-  res = caml_start_program();
+  res = caml_start_program_r(ctx);
   if (Is_exception_result(res))
-    caml_fatal_uncaught_exception(Extract_exception(res));
+    caml_fatal_uncaught_exception_r(ctx, Extract_exception(res));
+
+  return ctx;
 }
 
 void caml_startup(char **argv)
 {
-  caml_main(argv);
+  caml_main_rr(argv);
 }

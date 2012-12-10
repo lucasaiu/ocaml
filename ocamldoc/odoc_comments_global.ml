@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** The global variables used by the special comment parser.*)
 
 let nb_chars = ref 0
@@ -46,3 +48,5 @@ let init () =
   raised_exceptions := [];
   return_value := None ;
   customs := []
+
+(* eof $Id$ *)

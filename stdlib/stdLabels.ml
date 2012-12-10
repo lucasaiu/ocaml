@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Module [StdLabels]: meta-module for labelled libraries *)
 
 module Array = ArrayLabels

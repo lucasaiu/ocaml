@@ -10,6 +10,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # The lexer generator
 CAMLC=../boot/ocamlrun ../boot/ocamlc -strict-sequence -nostdlib -I ../boot
 CAMLOPT=../boot/ocamlrun ../ocamlopt -nostdlib -I ../stdlib
@@ -17,6 +19,7 @@ COMPFLAGS=-w +33..39 -warn-error A
 CAMLYACC=../boot/ocamlyacc
 YACCFLAGS=-v
 CAMLLEX=../boot/ocamlrun ../boot/ocamllex
+#CAMLLEX=ocamllex # Changhed by Fabrice, I think.  I reverted to the old version --Luca Saiu REENTRANTRUNTIME
 CAMLDEP=../boot/ocamlrun ../tools/ocamldep
 
 

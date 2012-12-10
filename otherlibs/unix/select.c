@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -43,7 +47,7 @@ static int fdlist_to_fdset(value fdlist, fd_set *fdset, int *maxfd)
   return 0;
 }
 
-static value fdset_to_fdlist(value fdlist, fd_set *fdset)
+static value fdset_to_fdlist_r(CAML_R, value fdlist, fd_set *fdset)
 {
   value l;
   value res = Val_int(0);
@@ -52,7 +56,7 @@ static value fdset_to_fdlist(value fdlist, fd_set *fdset)
     for (l = fdlist; l != Val_int(0); l = Field(l, 1)) {
       int fd = Int_val(Field(l, 0));
       if (FD_ISSET(fd, fdset)) {
-        value newres = alloc_small(2, 0);
+        value newres = caml_alloc_small_r(ctx,2, 0);
         Field(newres, 0) = Val_int(fd);
         Field(newres, 1) = res;
         res = newres;
@@ -62,8 +66,8 @@ static value fdset_to_fdlist(value fdlist, fd_set *fdset)
   return res;
 }
 
-CAMLprim value unix_select(value readfds, value writefds, value exceptfds,
-                           value timeout)
+CAMLprim value unix_select_r(CAML_R, value readfds, value writefds, value exceptfds,
+                             value timeout)
 {
   fd_set read, write, except;
   int maxfd;
@@ -79,7 +83,7 @@ CAMLprim value unix_select(value readfds, value writefds, value exceptfds,
     retcode += fdlist_to_fdset(writefds, &write, &maxfd);
     retcode += fdlist_to_fdset(exceptfds, &except, &maxfd);
     /* PR#5563: if a bad fd was encountered, report EINVAL error */
-    if (retcode != 0) unix_error(EINVAL, "select", Nothing);
+    if (retcode != 0) unix_error_r(ctx, EINVAL, "select", Nothing);
     tm = Double_val(timeout);
     if (tm < 0.0)
       tvp = (struct timeval *) NULL;
@@ -88,14 +92,14 @@ CAMLprim value unix_select(value readfds, value writefds, value exceptfds,
       tv.tv_usec = (int) (1e6 * (tm - tv.tv_sec));
       tvp = &tv;
     }
-    enter_blocking_section();
+    caml_enter_blocking_section_r(ctx);
     retcode = select(maxfd + 1, &read, &write, &except, tvp);
-    leave_blocking_section();
-    if (retcode == -1) uerror("select", Nothing);
-    readfds = fdset_to_fdlist(readfds, &read);
-    writefds = fdset_to_fdlist(writefds, &write);
-    exceptfds = fdset_to_fdlist(exceptfds, &except);
-    res = alloc_small(3, 0);
+    caml_leave_blocking_section_r(ctx);
+    if (retcode == -1) uerror_r(ctx,"select", Nothing);
+    readfds = fdset_to_fdlist_r(ctx, readfds, &read);
+    writefds = fdset_to_fdlist_r(ctx, writefds, &write);
+    exceptfds = fdset_to_fdlist_r(ctx, exceptfds, &except);
+    res = caml_alloc_small_r(ctx,3, 0);
     Field(res, 0) = readfds;
     Field(res, 1) = writefds;
     Field(res, 2) = exceptfds;
@@ -105,8 +109,8 @@ CAMLprim value unix_select(value readfds, value writefds, value exceptfds,
 
 #else
 
-CAMLprim value unix_select(value readfds, value writefds, value exceptfds,
+CAMLprim value unix_select_r(CAML_R, value readfds, value writefds, value exceptfds,
                            value timeout)
-{ invalid_argument("select not implemented"); }
+{ caml_invalid_argument_r(ctx,"select not implemented"); }
 
 #endif

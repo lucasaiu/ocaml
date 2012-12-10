@@ -12,6 +12,7 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
 CAMLP4_COMMON="\
   camlp4/Camlp4/Camlp4Ast.partial.ml \
   camlp4/boot/camlp4boot.byte"

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <stddef.h>
 #include <mlvalues.h>
 #include <callback.h>
@@ -43,7 +45,9 @@ static struct custom_operations win_handle_ops = {
   win_handle_hash,
   custom_serialize_default,
   custom_deserialize_default,
-  custom_compare_ext_default
+  custom_compare_ext_default,
+  custom_serialize_default,
+  custom_deserialize_default
 };
 
 value win_alloc_handle(HANDLE h)

@@ -11,10 +11,12 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_isatty(value fd)
+CAMLprim value unix_isatty_r(CAML_R, value fd)
 {
   return (Val_bool(isatty(Int_val(fd))));
 }

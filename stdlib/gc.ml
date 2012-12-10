@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 type stat = {
   minor_words : float;
   promoted_words : float;
@@ -40,16 +42,16 @@ type control = {
   mutable allocation_policy : int;
 };;
 
-external stat : unit -> stat = "caml_gc_stat";;
-external quick_stat : unit -> stat = "caml_gc_quick_stat";;
-external counters : unit -> (float * float * float) = "caml_gc_counters";;
-external get : unit -> control = "caml_gc_get";;
-external set : control -> unit = "caml_gc_set";;
-external minor : unit -> unit = "caml_gc_minor";;
-external major_slice : int -> int = "caml_gc_major_slice";;
-external major : unit -> unit = "caml_gc_major";;
-external full_major : unit -> unit = "caml_gc_full_major";;
-external compact : unit -> unit = "caml_gc_compaction";;
+external stat : unit -> stat = "caml_gc_stat_r" "reentrant";;
+external quick_stat : unit -> stat = "caml_gc_quick_stat_r" "reentrant";;
+external counters : unit -> (float * float * float) = "caml_gc_counters_r" "reentrant";;
+external get : unit -> control = "caml_gc_get_r" "reentrant";;
+external set : control -> unit = "caml_gc_set_r" "reentrant";;
+external minor : unit -> unit = "caml_gc_minor_r" "reentrant";;
+external major_slice : int -> int = "caml_gc_major_slice_r" "reentrant";;
+external major : unit -> unit = "caml_gc_major_r" "reentrant";;
+external full_major : unit -> unit = "caml_gc_full_major_r" "reentrant";;
+external compact : unit -> unit = "caml_gc_compaction_r" "reentrant";;
 
 open Printf;;
 
@@ -77,8 +79,8 @@ let allocated_bytes () =
   (mi +. ma -. pro) *. float_of_int (Sys.word_size / 8)
 ;;
 
-external finalise : ('a -> unit) -> 'a -> unit = "caml_final_register";;
-external finalise_release : unit -> unit = "caml_final_release";;
+external finalise : ('a -> unit) -> 'a -> unit = "caml_final_register_r" "reentrant";;
+external finalise_release : unit -> unit = "caml_final_release_r" "reentrant";;
 
 
 type alarm = bool ref;;

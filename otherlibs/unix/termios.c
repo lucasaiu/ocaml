@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -124,7 +126,7 @@ static struct {
 
 #define NSPEEDS (sizeof(speedtable) / sizeof(speedtable[0]))
 
-static void encode_terminal_status(value *dst)
+static void encode_terminal_status_r(CAML_R, value *dst)
 {
   long * pc;
   int i;
@@ -174,7 +176,7 @@ static void encode_terminal_status(value *dst)
   }
 }
 
-static void decode_terminal_status(value *src)
+static void decode_terminal_status_r(CAML_R, value *src)
 {
   long * pc;
   int i;
@@ -198,7 +200,7 @@ static void decode_terminal_status(value *src)
         if (i >= 0 && i < num) {
           *dst = (*dst & ~msk) | pc[i];
         } else {
-          unix_error(EINVAL, "tcsetattr", Nothing);
+          unix_error_r(ctx,EINVAL, "tcsetattr", Nothing);
         }
         pc += num;
         break; }
@@ -214,11 +216,11 @@ static void decode_terminal_status(value *src)
             case Input:
               res = cfsetispeed(&terminal_status, speedtable[i].speed); break;
             }
-            if (res == -1) uerror("tcsetattr", Nothing);
+            if (res == -1) uerror_r(ctx,"tcsetattr", Nothing);
             goto ok;
           }
         }
-        unix_error(EINVAL, "tcsetattr", Nothing);
+        unix_error_r(ctx,EINVAL, "tcsetattr", Nothing);
       ok:
         break; }
     case Char:
@@ -229,14 +231,14 @@ static void decode_terminal_status(value *src)
   }
 }
 
-CAMLprim value unix_tcgetattr(value fd)
+CAMLprim value unix_tcgetattr_r(CAML_R, value fd)
 {
   value res;
 
   if (tcgetattr(Int_val(fd), &terminal_status) == -1)
-    uerror("tcgetattr", Nothing);
-  res = alloc_tuple(NFIELDS);
-  encode_terminal_status(&Field(res, 0));
+    uerror_r(ctx,"tcgetattr", Nothing);
+  res = caml_alloc_tuple_r(ctx,NFIELDS);
+  encode_terminal_status_r(ctx, &Field(res, 0));
   return res;
 }
 
@@ -244,28 +246,28 @@ static int when_flag_table[] = {
   TCSANOW, TCSADRAIN, TCSAFLUSH
 };
 
-CAMLprim value unix_tcsetattr(value fd, value when, value arg)
+CAMLprim value unix_tcsetattr_r(CAML_R, value fd, value when, value arg)
 {
   if (tcgetattr(Int_val(fd), &terminal_status) == -1)
-    uerror("tcsetattr", Nothing);
-  decode_terminal_status(&Field(arg, 0));
+    uerror_r(ctx,"tcsetattr", Nothing);
+  decode_terminal_status_r(ctx, &Field(arg, 0));
   if (tcsetattr(Int_val(fd),
                 when_flag_table[Int_val(when)],
                 &terminal_status) == -1)
-    uerror("tcsetattr", Nothing);
+    uerror_r(ctx,"tcsetattr", Nothing);
   return Val_unit;
 }
 
-CAMLprim value unix_tcsendbreak(value fd, value delay)
+CAMLprim value unix_tcsendbreak_r(CAML_R, value fd, value delay)
 {
   if (tcsendbreak(Int_val(fd), Int_val(delay)) == -1)
-    uerror("tcsendbreak", Nothing);
+    uerror_r(ctx,"tcsendbreak", Nothing);
   return Val_unit;
 }
 
-CAMLprim value unix_tcdrain(value fd)
+CAMLprim value unix_tcdrain_r(CAML_R, value fd)
 {
-  if (tcdrain(Int_val(fd)) == -1) uerror("tcdrain", Nothing);
+  if (tcdrain(Int_val(fd)) == -1) uerror_r(ctx,"tcdrain", Nothing);
   return Val_unit;
 }
 
@@ -273,10 +275,10 @@ static int queue_flag_table[] = {
   TCIFLUSH, TCOFLUSH, TCIOFLUSH
 };
 
-CAMLprim value unix_tcflush(value fd, value queue)
+CAMLprim value unix_tcflush_r(CAML_R, value fd, value queue)
 {
   if (tcflush(Int_val(fd), queue_flag_table[Int_val(queue)]) == -1)
-    uerror("tcflush", Nothing);
+    uerror_r(ctx,"tcflush", Nothing);
   return Val_unit;
 }
 
@@ -284,31 +286,31 @@ static int action_flag_table[] = {
   TCOOFF, TCOON, TCIOFF, TCION
 };
 
-CAMLprim value unix_tcflow(value fd, value action)
+CAMLprim value unix_tcflow_r(CAML_R, value fd, value action)
 {
   if (tcflow(Int_val(fd), action_flag_table[Int_val(action)]) == -1)
-    uerror("tcflow", Nothing);
+    uerror_r(ctx,"tcflow", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_tcgetattr(value fd)
-{ invalid_argument("tcgetattr not implemented"); }
+CAMLprim value unix_tcgetattr_r(CAML_R, value fd)
+{ caml_invalid_argument_r(ctx,"tcgetattr not implemented"); }
 
-CAMLprim value unix_tcsetattr(value fd, value when, value arg)
-{ invalid_argument("tcsetattr not implemented"); }
+CAMLprim value unix_tcsetattr_r(CAML_R, value fd, value when, value arg)
+{ caml_invalid_argument_r(ctx,"tcsetattr not implemented"); }
 
-CAMLprim value unix_tcsendbreak(value fd, value delay)
-{ invalid_argument("tcsendbreak not implemented"); }
+CAMLprim value unix_tcsendbreak_r(CAML_R, value fd, value delay)
+{ caml_invalid_argument_r(ctx,"tcsendbreak not implemented"); }
 
-CAMLprim value unix_tcdrain(value fd)
-{ invalid_argument("tcdrain not implemented"); }
+CAMLprim value unix_tcdrain_r(CAML_R, value fd)
+{ caml_invalid_argument_r(ctx,"tcdrain not implemented"); }
 
-CAMLprim value unix_tcflush(value fd, value queue)
-{ invalid_argument("tcflush not implemented"); }
+CAMLprim value unix_tcflush_r(CAML_R, value fd, value queue)
+{ caml_invalid_argument_r(ctx,"tcflush not implemented"); }
 
-CAMLprim value unix_tcflow(value fd, value action)
-{ invalid_argument("tcflow not implemented"); }
+CAMLprim value unix_tcflow_r(CAML_R, value fd, value action)
+{ caml_invalid_argument_r(ctx,"tcflow not implemented"); }
 
 #endif

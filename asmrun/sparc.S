@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Asm part of the runtime system for the Sparc processor.  */
 /* Must be preprocessed by cpp */
 

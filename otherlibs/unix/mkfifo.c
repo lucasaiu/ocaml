@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fail.h>
@@ -19,10 +21,10 @@
 
 #ifdef HAS_MKFIFO
 
-CAMLprim value unix_mkfifo(value path, value mode)
+CAMLprim value unix_mkfifo_r(CAML_R, value path, value mode)
 {
   if (mkfifo(String_val(path), Int_val(mode)) == -1)
-    uerror("mkfifo", path);
+    uerror_r(ctx,"mkfifo", path);
   return Val_unit;
 }
 
@@ -33,18 +35,18 @@ CAMLprim value unix_mkfifo(value path, value mode)
 
 #ifdef S_IFIFO
 
-CAMLprim value unix_mkfifo(value path, value mode)
+CAMLprim value unix_mkfifo_r(CAML_R, value path, value mode)
 {
   if (mknod(String_val(path), (Int_val(mode) & 07777) | S_IFIFO, 0) == -1)
-    uerror("mkfifo", path);
+    uerror_r(ctx,"mkfifo", path);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_mkfifo(value path, value mode)
+CAMLprim value unix_mkfifo_r(CAML_R, value path, value mode)
 {
-  invalid_argument("mkfifo not implemented");
+  caml_invalid_argument_r(ctx,"mkfifo not implemented");
 }
 
 #endif

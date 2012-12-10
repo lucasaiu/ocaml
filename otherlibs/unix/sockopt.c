@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <mlvalues.h>
 #include <memory.h>
 #include <alloc.h>
@@ -167,7 +171,7 @@ union option_value {
 };
 
 CAMLexport value
-unix_getsockopt_aux(char * name,
+unix_getsockopt_aux_r(CAML_R, char * name,
                     enum option_type ty, int level, int option,
                     value socket)
 {
@@ -185,12 +189,12 @@ unix_getsockopt_aux(char * name,
   case TYPE_TIMEVAL:
     optsize = sizeof(optval.tv); break;
   default:
-    unix_error(EINVAL, name, Nothing);
+    unix_error_r(ctx,EINVAL, name, Nothing);
   }
 
   if (getsockopt(Int_val(socket), level, option,
                  (void *) &optval, &optsize) == -1)
-    uerror(name, Nothing);
+    uerror_r(ctx,name, Nothing);
 
   switch (ty) {
   case TYPE_BOOL:
@@ -200,32 +204,32 @@ unix_getsockopt_aux(char * name,
     if (optval.lg.l_onoff == 0) {
       return Val_int(0);        /* None */
     } else {
-      value res = alloc_small(1, 0); /* Some */
+      value res = caml_alloc_small_r(ctx,1, 0); /* Some */
       Field(res, 0) = Val_int(optval.lg.l_linger);
       return res;
     }
   case TYPE_TIMEVAL:
-    return copy_double((double) optval.tv.tv_sec
+    return caml_copy_double_r(ctx,(double) optval.tv.tv_sec
                        + (double) optval.tv.tv_usec / 1e6);
   case TYPE_UNIX_ERROR:
     if (optval.i == 0) {
       return Val_int(0);        /* None */
     } else {
       value err, res;
-      err = unix_error_of_code(optval.i);
+      err = unix_error_of_code_r(ctx, optval.i);
       Begin_root(err);
-        res = alloc_small(1, 0); /* Some */
+        res = caml_alloc_small_r(ctx,1, 0); /* Some */
         Field(res, 0) = err;
       End_roots();
       return res;
     }
   default:
-    unix_error(EINVAL, name, Nothing);
+    unix_error_r(ctx,EINVAL, name, Nothing);
   }
 }
 
 CAMLexport value
-unix_setsockopt_aux(char * name,
+unix_setsockopt_aux_r(CAML_R, char * name,
                     enum option_type ty, int level, int option,
                     value socket, value val)
 {
@@ -253,33 +257,33 @@ unix_setsockopt_aux(char * name,
     break;
   case TYPE_UNIX_ERROR:
   default:
-    unix_error(EINVAL, name, Nothing);
+    unix_error_r(ctx,EINVAL, name, Nothing);
   }
 
   if (setsockopt(Int_val(socket), level, option,
                  (void *) &optval, optsize) == -1)
-    uerror(name, Nothing);
+    uerror_r(ctx,name, Nothing);
 
   return Val_unit;
 }
 
-CAMLprim value unix_getsockopt(value vty, value vsocket, value voption)
+CAMLprim value unix_getsockopt_r(CAML_R, value vty, value vsocket, value voption)
 {
   enum option_type ty = Int_val(vty);
   struct socket_option * opt = &(sockopt_table[ty][Int_val(voption)]);
-  return unix_getsockopt_aux(getsockopt_fun_name[ty],
+  return unix_getsockopt_aux_r(ctx, getsockopt_fun_name[ty],
                              ty,
                              opt->level,
                              opt->option,
                              vsocket);
 }
 
-CAMLprim value unix_setsockopt(value vty, value vsocket, value voption,
+CAMLprim value unix_setsockopt_r(CAML_R, value vty, value vsocket, value voption,
                                value val)
 {
   enum option_type ty = Int_val(vty);
   struct socket_option * opt = &(sockopt_table[ty][Int_val(voption)]);
-  return unix_setsockopt_aux(setsockopt_fun_name[ty],
+  return unix_setsockopt_aux_r(ctx, setsockopt_fun_name[ty],
                              ty,
                              opt->level,
                              opt->option,
@@ -289,10 +293,10 @@ CAMLprim value unix_setsockopt(value vty, value vsocket, value voption,
 
 #else
 
-CAMLprim value unix_getsockopt(value vty, value socket, value option)
-{ invalid_argument("getsockopt not implemented"); }
+CAMLprim value unix_getsockopt_r(CAML_R, value vty, value socket, value option)
+{ caml_invalid_argument_r(ctx,"getsockopt not implemented"); }
 
-CAMLprim value unix_setsockopt(value vty, value socket, value option, value val)
-{ invalid_argument("setsockopt not implemented"); }
+CAMLprim value unix_setsockopt_r(CAML_R, value vty, value socket, value option, value val)
+{ caml_invalid_argument_r(ctx,"setsockopt not implemented"); }
 
 #endif

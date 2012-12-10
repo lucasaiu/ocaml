@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -20,7 +22,7 @@
 
 #include "socketaddr.h"
 
-CAMLprim value unix_string_of_inet_addr(value a)
+CAMLprim value unix_string_of_inet_addr_r(CAML_R, value a)
 {
   char * res;
 #ifdef HAS_IPV6
@@ -60,13 +62,13 @@ CAMLprim value unix_string_of_inet_addr(value a)
 #else
   res = inet_ntoa(GET_INET_ADDR(a));
 #endif
-  if (res == NULL) uerror("string_of_inet_addr", Nothing);
-  return copy_string(res);
+  if (res == NULL) uerror_r(ctx,"string_of_inet_addr", Nothing);
+  return caml_copy_string_r(ctx,res);
 }
 
 #else
 
-CAMLprim value unix_string_of_inet_addr(value a)
-{ invalid_argument("string_of_inet_addr not implemented"); }
+CAMLprim value unix_string_of_inet_addr_r(CAML_R, value a)
+{ caml_invalid_argument_r(ctx,"string_of_inet_addr not implemented"); }
 
 #endif

@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Translation from typed abstract syntax to lambda terms,
    for the core language *)
 
@@ -42,11 +44,11 @@ let transl_object =
 
 let comparisons_table = create_hashtable 11 [
   "%equal",
-      (Pccall{prim_name = "caml_equal"; prim_arity = 2; prim_alloc = true;
+      (Pccall{prim_name = "caml_equal_r"; prim_arity = 2; prim_alloc = true; prim_ctx = true;
               prim_native_name = ""; prim_native_float = false},
        Pintcomp Ceq,
        Pfloatcomp Ceq,
-       Pccall{prim_name = "caml_string_equal"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_equal"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false;
               prim_native_name = ""; prim_native_float = false},
        Pbintcomp(Pnativeint, Ceq),
@@ -54,11 +56,11 @@ let comparisons_table = create_hashtable 11 [
        Pbintcomp(Pint64, Ceq),
        true);
   "%notequal",
-      (Pccall{prim_name = "caml_notequal"; prim_arity = 2; prim_alloc = true;
+      (Pccall{prim_name = "caml_notequal_r"; prim_arity = 2; prim_alloc = true; prim_ctx = true;
               prim_native_name = ""; prim_native_float = false},
        Pintcomp Cneq,
        Pfloatcomp Cneq,
-       Pccall{prim_name = "caml_string_notequal"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_notequal"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
        Pbintcomp(Pnativeint, Cneq),
@@ -66,11 +68,11 @@ let comparisons_table = create_hashtable 11 [
        Pbintcomp(Pint64, Cneq),
        true);
   "%lessthan",
-      (Pccall{prim_name = "caml_lessthan"; prim_arity = 2; prim_alloc = true;
+      (Pccall{prim_name = "caml_lessthan_r"; prim_arity = 2; prim_alloc = true;  prim_ctx = true;
               prim_native_name = ""; prim_native_float = false},
        Pintcomp Clt,
        Pfloatcomp Clt,
-       Pccall{prim_name = "caml_string_lessthan"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_lessthan"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
        Pbintcomp(Pnativeint, Clt),
@@ -78,11 +80,11 @@ let comparisons_table = create_hashtable 11 [
        Pbintcomp(Pint64, Clt),
        false);
   "%greaterthan",
-      (Pccall{prim_name = "caml_greaterthan"; prim_arity = 2; prim_alloc = true;
+      (Pccall{prim_name = "caml_greaterthan_r"; prim_arity = 2; prim_alloc = true;  prim_ctx = true;
               prim_native_name = ""; prim_native_float = false},
        Pintcomp Cgt,
        Pfloatcomp Cgt,
-       Pccall{prim_name = "caml_string_greaterthan"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_greaterthan"; prim_arity = 2;  prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
        Pbintcomp(Pnativeint, Cgt),
@@ -90,11 +92,11 @@ let comparisons_table = create_hashtable 11 [
        Pbintcomp(Pint64, Cgt),
        false);
   "%lessequal",
-      (Pccall{prim_name = "caml_lessequal"; prim_arity = 2; prim_alloc = true;
+      (Pccall{prim_name = "caml_lessequal_r"; prim_arity = 2; prim_alloc = true; prim_ctx = true;
               prim_native_name = ""; prim_native_float = false},
        Pintcomp Cle,
        Pfloatcomp Cle,
-       Pccall{prim_name = "caml_string_lessequal"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_lessequal"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
        Pbintcomp(Pnativeint, Cle),
@@ -102,12 +104,12 @@ let comparisons_table = create_hashtable 11 [
        Pbintcomp(Pint64, Cle),
        false);
   "%greaterequal",
-      (Pccall{prim_name = "caml_greaterequal"; prim_arity = 2;
+      (Pccall{prim_name = "caml_greaterequal_r"; prim_arity = 2; prim_ctx = true;
               prim_alloc = true;
               prim_native_name = ""; prim_native_float = false},
        Pintcomp Cge,
        Pfloatcomp Cge,
-       Pccall{prim_name = "caml_string_greaterequal"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_greaterequal"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
        Pbintcomp(Pnativeint, Cge),
@@ -115,24 +117,24 @@ let comparisons_table = create_hashtable 11 [
        Pbintcomp(Pint64, Cge),
        false);
   "%compare",
-      (Pccall{prim_name = "caml_compare"; prim_arity = 2; prim_alloc = true;
+      (Pccall{prim_name = "caml_compare_r"; prim_arity = 2; prim_alloc = true; prim_ctx = true;
               prim_native_name = ""; prim_native_float = false},
-       Pccall{prim_name = "caml_int_compare"; prim_arity = 2;
+       Pccall{prim_name = "caml_int_compare"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
-       Pccall{prim_name = "caml_float_compare"; prim_arity = 2;
+       Pccall{prim_name = "caml_float_compare"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
-       Pccall{prim_name = "caml_string_compare"; prim_arity = 2;
+       Pccall{prim_name = "caml_string_compare"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
-       Pccall{prim_name = "caml_nativeint_compare"; prim_arity = 2;
+       Pccall{prim_name = "caml_nativeint_compare"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
-       Pccall{prim_name = "caml_int32_compare"; prim_arity = 2;
+       Pccall{prim_name = "caml_int32_compare"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
-       Pccall{prim_name = "caml_int64_compare"; prim_arity = 2;
+       Pccall{prim_name = "caml_int64_compare"; prim_arity = 2; prim_ctx = false;
               prim_alloc = false; prim_native_name = "";
               prim_native_float = false},
        false)
@@ -272,18 +274,15 @@ let primitives_table = create_hashtable 57 [
   "%caml_ba_unsafe_set_2",
     Pbigarrayset(true, 2, Pbigarray_unknown, Pbigarray_unknown_layout);
   "%caml_ba_unsafe_set_3",
-    Pbigarrayset(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout);
-  "%caml_ba_dim_1", Pbigarraydim(1);
-  "%caml_ba_dim_2", Pbigarraydim(2);
-  "%caml_ba_dim_3", Pbigarraydim(3);
+    Pbigarrayset(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)
 ]
 
 let prim_makearray =
-  { prim_name = "caml_make_vect"; prim_arity = 2; prim_alloc = true;
+  { prim_name = "caml_make_vect_r"; prim_arity = 2; prim_alloc = true; prim_ctx = true;
     prim_native_name = ""; prim_native_float = false }
 
 let prim_obj_dup =
-  { prim_name = "caml_obj_dup"; prim_arity = 1; prim_alloc = true;
+  { prim_name = "caml_obj_dup_r"; prim_arity = 1; prim_alloc = true; prim_ctx = true;
     prim_native_name = ""; prim_native_float = false }
 
 let find_primitive loc prim_name =
@@ -300,10 +299,10 @@ let transl_prim loc prim args =
          simplify_constant_constructor) =
       Hashtbl.find comparisons_table prim_name in
     begin match args with
-      [arg1; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}]
+      [arg1; {exp_desc = Texp_construct(_, _, {cstr_tag = Cstr_constant _}, _, _)}]
       when simplify_constant_constructor ->
         intcomp
-    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}; arg2]
+    | [{exp_desc = Texp_construct(_, _, {cstr_tag = Cstr_constant _}, _, _)}; arg2]
       when simplify_constant_constructor ->
         intcomp
     | [arg1; {exp_desc = Texp_variant(_, None)}]
@@ -660,7 +659,7 @@ and transl_exp0 e =
       with Not_constant ->
         Lprim(Pmakeblock(0, Immutable), ll)
       end
-  | Texp_construct(_, cstr, args, _) ->
+  | Texp_construct(_, _, cstr, args, _) ->
       let ll = transl_list args in
       begin match cstr.cstr_tag with
         Cstr_constant n ->
@@ -687,17 +686,17 @@ and transl_exp0 e =
             Lprim(Pmakeblock(0, Immutable),
                   [Lconst(Const_base(Const_int tag)); lam])
       end
-  | Texp_record ((_, lbl1, _) :: _ as lbl_expr_list, opt_init_expr) ->
+  | Texp_record ((_, _, lbl1, _) :: _ as lbl_expr_list, opt_init_expr) ->
       transl_record lbl1.lbl_all lbl1.lbl_repres lbl_expr_list opt_init_expr
   | Texp_record ([], _) ->
       fatal_error "Translcore.transl_exp: bad Texp_record"
-  | Texp_field(arg, _, lbl) ->
+  | Texp_field(arg, _, _, lbl) ->
       let access =
         match lbl.lbl_repres with
           Record_regular -> Pfield lbl.lbl_pos
         | Record_float -> Pfloatfield lbl.lbl_pos in
       Lprim(access, [transl_exp arg])
-  | Texp_setfield(arg, _, lbl, newval) ->
+  | Texp_setfield(arg, _, _, lbl, newval) ->
       let access =
         match lbl.lbl_repres with
           Record_regular -> Psetfield(lbl.lbl_pos, maybe_pointer newval)
@@ -788,7 +787,7 @@ and transl_exp0 e =
           ( Const_int _ | Const_char _ | Const_string _
           | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
       | Texp_function(_, _, _)
-      | Texp_construct (_, {cstr_arity = 0}, _, _)
+      | Texp_construct (_, _, {cstr_arity = 0}, _, _)
         -> transl_exp e
       | Texp_constant(Const_float _) ->
           Lprim(Pmakeblock(Obj.forward_tag, Immutable), [transl_exp e])
@@ -979,11 +978,11 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
         done
     end;
     List.iter
-      (fun (_, lbl, expr) -> lv.(lbl.lbl_pos) <- transl_exp expr)
+      (fun (_, _, lbl, expr) -> lv.(lbl.lbl_pos) <- transl_exp expr)
       lbl_expr_list;
     let ll = Array.to_list lv in
     let mut =
-      if List.exists (fun (_, lbl, expr) -> lbl.lbl_mut = Mutable) lbl_expr_list
+      if List.exists (fun (_, _, lbl, expr) -> lbl.lbl_mut = Mutable) lbl_expr_list
       then Mutable
       else Immutable in
     let lam =
@@ -1008,7 +1007,7 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
     (* If you change anything here, you will likely have to change
        [check_recursive_recordwith] in this file. *)
     let copy_id = Ident.create "newrecord" in
-    let update_field (_, lbl, expr) cont =
+    let update_field (_, _, lbl, expr) cont =
       let upd =
         match lbl.lbl_repres with
           Record_regular -> Psetfield(lbl.lbl_pos, maybe_pointer expr)

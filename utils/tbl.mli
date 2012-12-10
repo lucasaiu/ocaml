@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Association tables from any ordered type to any type.
    We use the generic ordering to compare keys. *)
 

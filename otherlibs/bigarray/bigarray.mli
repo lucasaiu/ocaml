@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Large, multi-dimensional, numerical arrays.
 
    This module implements multi-dimensional arrays of integers and
@@ -207,7 +209,7 @@ module Genarray :
      OCaml type [float]. *)
 
   external create: ('a, 'b) kind -> 'c layout -> int array -> ('a, 'b, 'c) t
-    = "caml_ba_create"
+    = "caml_ba_create_r" "reentrant"
   (** [Genarray.create kind layout dimensions] returns a new big array
      whose element kind is determined by the parameter [kind] (one of
      [float32], [float64], [int8_signed], etc) and whose layout is
@@ -236,7 +238,7 @@ module Genarray :
   (** [Genarray.dims a] returns all dimensions of the big array [a],
      as an array of integers of length [Genarray.num_dims a]. *)
 
-  external nth_dim: ('a, 'b, 'c) t -> int -> int = "caml_ba_dim"
+  external nth_dim: ('a, 'b, 'c) t -> int -> int = "caml_ba_dim_r" "reentrant"
   (** [Genarray.nth_dim a n] returns the [n]-th dimension of the
      big array [a].  The first dimension corresponds to [n = 0];
      the second dimension corresponds to [n = 1]; the last dimension,
@@ -250,7 +252,7 @@ module Genarray :
   external layout: ('a, 'b, 'c) t -> 'c layout = "caml_ba_layout"
   (** Return the layout of the given big array. *)
 
-  external get: ('a, 'b, 'c) t -> int array -> 'a = "caml_ba_get_generic"
+  external get: ('a, 'b, 'c) t -> int array -> 'a = "caml_ba_get_generic_r" "reentrant"
   (** Read an element of a generic big array.
      [Genarray.get a [|i1; ...; iN|]] returns the element of [a]
      whose coordinates are [i1] in the first dimension, [i2] in
@@ -270,7 +272,7 @@ module Genarray :
      as described below.) *)
 
   external set: ('a, 'b, 'c) t -> int array -> 'a -> unit
-    = "caml_ba_set_generic"
+    = "caml_ba_set_generic_r" "reentrant"
   (** Assign an element of a generic big array.
      [Genarray.set a [|i1; ...; iN|] v] stores the value [v] in the
      element of [a] whose coordinates are [i1] in the first dimension,
@@ -288,7 +290,7 @@ module Genarray :
      as described below.) *)
 
   external sub_left: ('a, 'b, c_layout) t -> int -> int -> ('a, 'b, c_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   (** Extract a sub-array of the given big array by restricting the
      first (left-most) dimension.  [Genarray.sub_left a ofs len]
      returns a big array with the same number of dimensions as [a],
@@ -308,7 +310,7 @@ module Genarray :
 
   external sub_right:
     ('a, 'b, fortran_layout) t -> int -> int -> ('a, 'b, fortran_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   (** Extract a sub-array of the given big array by restricting the
      last (right-most) dimension.  [Genarray.sub_right a ofs len]
      returns a big array with the same number of dimensions as [a],
@@ -328,7 +330,7 @@ module Genarray :
 
   external slice_left:
     ('a, 'b, c_layout) t -> int array -> ('a, 'b, c_layout) t
-    = "caml_ba_slice"
+    = "caml_ba_slice_r" "reentrant"
   (** Extract a sub-array of lower dimension from the given big array
      by fixing one or several of the first (left-most) coordinates.
      [Genarray.slice_left a [|i1; ... ; iM|]] returns the ``slice''
@@ -346,7 +348,7 @@ module Genarray :
 
   external slice_right:
     ('a, 'b, fortran_layout) t -> int array -> ('a, 'b, fortran_layout) t
-    = "caml_ba_slice"
+    = "caml_ba_slice_r" "reentrant"
   (** Extract a sub-array of lower dimension from the given big array
      by fixing one or several of the last (right-most) coordinates.
      [Genarray.slice_right a [|i1; ... ; iM|]] returns the ``slice''
@@ -363,7 +365,7 @@ module Genarray :
      is outside the bounds of [a]. *)
 
   external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit
-      = "caml_ba_blit"
+      = "caml_ba_blit_r" "reentrant"
   (** Copy all elements of a big array in another big array.
      [Genarray.blit src dst] copies all elements of [src] into
      [dst].  Both arrays [src] and [dst] must have the same number of
@@ -446,7 +448,7 @@ module Array1 : sig
      determine the array element kind and the array layout
      as described for [Genarray.create]. *)
 
-  external dim: ('a, 'b, 'c) t -> int = "%caml_ba_dim_1"
+  val dim: ('a, 'b, 'c) t -> int
   (** Return the size (dimension) of the given one-dimensional
      big array. *)
 
@@ -472,12 +474,12 @@ module Array1 : sig
      otherwise, [Invalid_argument] is raised. *)
 
   external sub: ('a, 'b, 'c) t -> int -> int -> ('a, 'b, 'c) t
-      = "caml_ba_sub"
+      = "caml_ba_sub_r" "reentrant"
   (** Extract a sub-array of the given one-dimensional big array.
      See [Genarray.sub_left] for more details. *)
 
   external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit
-      = "caml_ba_blit"
+      = "caml_ba_blit_r" "reentrant"
   (** Copy the first big array to the second big array.
      See [Genarray.blit] for more details. *)
 
@@ -526,10 +528,10 @@ module Array2 :
      determine the array element kind and the array layout
      as described for {!Bigarray.Genarray.create}. *)
 
-  external dim1: ('a, 'b, 'c) t -> int = "%caml_ba_dim_1"
+  val dim1: ('a, 'b, 'c) t -> int
   (** Return the first dimension of the given two-dimensional big array. *)
 
-  external dim2: ('a, 'b, 'c) t -> int = "%caml_ba_dim_2"
+  val dim2: ('a, 'b, 'c) t -> int
   (** Return the second dimension of the given two-dimensional big array. *)
 
   external kind: ('a, 'b, 'c) t -> ('a, 'b) kind = "caml_ba_kind"
@@ -553,7 +555,7 @@ module Array2 :
      otherwise, [Invalid_argument] is raised. *)
 
   external sub_left: ('a, 'b, c_layout) t -> int -> int -> ('a, 'b, c_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   (** Extract a two-dimensional sub-array of the given two-dimensional
      big array by restricting the first dimension.
      See {!Bigarray.Genarray.sub_left} for more details.
@@ -561,7 +563,7 @@ module Array2 :
 
   external sub_right:
     ('a, 'b, fortran_layout) t -> int -> int -> ('a, 'b, fortran_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   (** Extract a two-dimensional sub-array of the given two-dimensional
      big array by restricting the second dimension.
      See {!Bigarray.Genarray.sub_right} for more details.
@@ -582,7 +584,7 @@ module Array2 :
      with Fortran layout. *)
 
   external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit
-    = "caml_ba_blit"
+    = "caml_ba_blit_r" "reentrant"
   (** Copy the first big array to the second big array.
      See {!Bigarray.Genarray.blit} for more details. *)
 
@@ -629,13 +631,13 @@ module Array3 :
      [kind] and [layout] determine the array element kind and
      the array layout as described for {!Bigarray.Genarray.create}. *)
 
-  external dim1: ('a, 'b, 'c) t -> int = "%caml_ba_dim_1"
+  val dim1: ('a, 'b, 'c) t -> int
   (** Return the first dimension of the given three-dimensional big array. *)
 
-  external dim2: ('a, 'b, 'c) t -> int = "%caml_ba_dim_2"
+  val dim2: ('a, 'b, 'c) t -> int
   (** Return the second dimension of the given three-dimensional big array. *)
 
-  external dim3: ('a, 'b, 'c) t -> int = "%caml_ba_dim_3"
+  val dim3: ('a, 'b, 'c) t -> int
   (** Return the third dimension of the given three-dimensional big array. *)
 
   external kind: ('a, 'b, 'c) t -> ('a, 'b) kind = "caml_ba_kind"
@@ -660,7 +662,7 @@ module Array3 :
      otherwise, [Invalid_argument] is raised. *)
 
   external sub_left: ('a, 'b, c_layout) t -> int -> int -> ('a, 'b, c_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   (** Extract a three-dimensional sub-array of the given
      three-dimensional big array by restricting the first dimension.
      See {!Bigarray.Genarray.sub_left} for more details.  [Array3.sub_left]
@@ -668,7 +670,7 @@ module Array3 :
 
   external sub_right:
     ('a, 'b, fortran_layout) t -> int -> int -> ('a, 'b, fortran_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   (** Extract a three-dimensional sub-array of the given
      three-dimensional big array by restricting the second dimension.
      See {!Bigarray.Genarray.sub_right} for more details.  [Array3.sub_right]
@@ -709,7 +711,7 @@ module Array3 :
      layout. *)
 
   external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit
-    = "caml_ba_blit"
+    = "caml_ba_blit_r" "reentrant"
   (** Copy the first big array to the second big array.
      See {!Bigarray.Genarray.blit} for more details. *)
 

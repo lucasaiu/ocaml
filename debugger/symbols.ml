@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Handling of symbol tables (globals and events) *)
 
 open Instruct

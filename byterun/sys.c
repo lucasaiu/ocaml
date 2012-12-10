@@ -11,7 +11,13 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Basic system calls */
+
+#define CAML_CONTEXT_MAJOR_GC
+#define CAML_CONTEXT_SYS
+#define CAML_CONTEXT_ROOTS
 
 #include <errno.h>
 #include <fcntl.h>
@@ -61,7 +67,7 @@ static char * error_message(void)
 #define EWOULDBLOCK (-1)
 #endif
 
-CAMLexport void caml_sys_error(value arg)
+CAMLexport void caml_sys_error_r(CAML_R, value arg)
 {
   CAMLparam1 (arg);
   char * err;
@@ -69,32 +75,32 @@ CAMLexport void caml_sys_error(value arg)
 
   err = error_message();
   if (arg == NO_ARG) {
-    str = caml_copy_string(err);
+    str = caml_copy_string_r(ctx, err);
   } else {
     int err_len = strlen(err);
     int arg_len = caml_string_length(arg);
-    str = caml_alloc_string(arg_len + 2 + err_len);
+    str = caml_alloc_string_r(ctx, arg_len + 2 + err_len);
     memmove(&Byte(str, 0), String_val(arg), arg_len);
     memmove(&Byte(str, arg_len), ": ", 2);
     memmove(&Byte(str, arg_len + 2), err, err_len);
   }
-  caml_raise_sys_error(str);
+  caml_raise_sys_error_r(ctx, str);
   CAMLnoreturn;
 }
 
-CAMLexport void caml_sys_io_error(value arg)
+CAMLexport void caml_sys_io_error_r(CAML_R, value arg)
 {
   if (errno == EAGAIN || errno == EWOULDBLOCK) {
-    caml_raise_sys_blocked_io();
+    caml_raise_sys_blocked_io_r(ctx);
   } else {
-    caml_sys_error(arg);
+    caml_sys_error_r(ctx, arg);
   }
 }
 
-CAMLprim value caml_sys_exit(value retcode)
+CAMLprim value caml_sys_exit_r(CAML_R, value retcode)
 {
 #ifndef NATIVE_CODE
-  caml_debugger(PROGRAM_EXIT);
+  caml_debugger_r(ctx, PROGRAM_EXIT);
 #endif
   exit(Int_val(retcode));
   return Val_unit;
@@ -119,7 +125,7 @@ static int sys_open_flags[] = {
   O_BINARY, O_TEXT, O_NONBLOCK
 };
 
-CAMLprim value caml_sys_open(value path, value vflags, value vperm)
+CAMLprim value caml_sys_open_r(CAML_R, value path, value vflags, value vperm)
 {
   CAMLparam3(path, vflags, vperm);
   int fd, flags, perm;
@@ -130,16 +136,16 @@ CAMLprim value caml_sys_open(value path, value vflags, value vperm)
   flags = caml_convert_flag_list(vflags, sys_open_flags);
   perm = Int_val(vperm);
   /* open on a named FIFO can block (PR#1533) */
-  caml_enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   fd = open(p, flags, perm);
   /* fcntl on a fd can block (PR#5069)*/
 #if defined(F_SETFD) && defined(FD_CLOEXEC)
   if (fd != -1)
     fcntl(fd, F_SETFD, FD_CLOEXEC);
 #endif
-  caml_leave_blocking_section();
+  caml_leave_blocking_section_r(ctx);
   caml_stat_free(p);
-  if (fd == -1) caml_sys_error(path);
+  if (fd == -1) caml_sys_error_r(ctx, path);
   CAMLreturn(Val_long(fd));
 }
 
@@ -155,10 +161,10 @@ CAMLprim value caml_sys_file_exists(value name)
   return Val_bool(stat(String_val(name), &st) == 0);
 }
 
-CAMLprim value caml_sys_is_directory(value name)
+CAMLprim value caml_sys_is_directory_r(CAML_R, value name)
 {
   struct stat st;
-  if (stat(String_val(name), &st) == -1) caml_sys_error(name);
+  if (stat(String_val(name), &st) == -1) caml_sys_error_r(ctx,name);
 #ifdef S_ISDIR
   return Val_bool(S_ISDIR(st.st_mode));
 #else
@@ -166,63 +172,60 @@ CAMLprim value caml_sys_is_directory(value name)
 #endif
 }
 
-CAMLprim value caml_sys_remove(value name)
+CAMLprim value caml_sys_remove_r(CAML_R, value name)
 {
   int ret;
   ret = unlink(String_val(name));
-  if (ret != 0) caml_sys_error(name);
+  if (ret != 0) caml_sys_error_r(ctx,name);
   return Val_unit;
 }
 
-CAMLprim value caml_sys_rename(value oldname, value newname)
+CAMLprim value caml_sys_rename_r(CAML_R, value oldname, value newname)
 {
   if (rename(String_val(oldname), String_val(newname)) != 0)
-    caml_sys_error(NO_ARG);
+    caml_sys_error_r(ctx,NO_ARG);
   return Val_unit;
 }
 
-CAMLprim value caml_sys_chdir(value dirname)
+CAMLprim value caml_sys_chdir_r(CAML_R, value dirname)
 {
-  if (chdir(String_val(dirname)) != 0) caml_sys_error(dirname);
+  if (chdir(String_val(dirname)) != 0) caml_sys_error_r(ctx,dirname);
   return Val_unit;
 }
 
-CAMLprim value caml_sys_getcwd(value unit)
+CAMLprim value caml_sys_getcwd_r(CAML_R, value unit)
 {
   char buff[4096];
 #ifdef HAS_GETCWD
-  if (getcwd(buff, sizeof(buff)) == 0) caml_sys_error(NO_ARG);
+  if (getcwd(buff, sizeof(buff)) == 0) caml_sys_error_r(ctx,NO_ARG);
 #else
-  if (getwd(buff) == 0) caml_sys_error(NO_ARG);
+  if (getwd(buff) == 0) caml_sys_error_r(ctx,NO_ARG);
 #endif /* HAS_GETCWD */
-  return caml_copy_string(buff);
+  return caml_copy_string_r(ctx, buff);
 }
 
-CAMLprim value caml_sys_getenv(value var)
+CAMLprim value caml_sys_getenv_r(CAML_R, value var)
 {
   char * res;
 
   res = getenv(String_val(var));
-  if (res == 0) caml_raise_not_found();
-  return caml_copy_string(res);
+  if (res == 0) caml_raise_not_found_r(ctx);
+  return caml_copy_string_r(ctx, res);
 }
 
-char * caml_exe_name;
-static char ** caml_main_argv;
-
-CAMLprim value caml_sys_get_argv(value unit)
+CAMLprim value caml_sys_get_argv_r(CAML_R, value unit)
 {
   CAMLparam0 ();   /* unit is unused */
   CAMLlocal3 (exe_name, argv, res);
-  exe_name = caml_copy_string(caml_exe_name);
-  argv = caml_copy_string_array((char const **) caml_main_argv);
-  res = caml_alloc_small(2, 0);
+  exe_name = caml_copy_string_r(ctx, caml_exe_name);
+  argv = caml_copy_string_array_r(ctx, (char const **) caml_main_argv);
+  res = caml_alloc_small_r(ctx, 2, 0);
   Field(res, 0) = exe_name;
   Field(res, 1) = argv;
   CAMLreturn(res);
 }
 
-void caml_sys_init(char * exe_name, char **argv)
+void caml_sys_init_r(CAML_R, char * exe_name, char **argv)
 {
   caml_exe_name = exe_name;
   caml_main_argv = argv;
@@ -239,7 +242,7 @@ void caml_sys_init(char * exe_name, char **argv)
 #endif
 #endif
 
-CAMLprim value caml_sys_system_command(value command)
+CAMLprim value caml_sys_system_command_r(CAML_R, value command)
 {
   CAMLparam1 (command);
   int status, retcode;
@@ -249,11 +252,11 @@ CAMLprim value caml_sys_system_command(value command)
   len = caml_string_length (command);
   buf = caml_stat_alloc (len + 1);
   memmove (buf, String_val (command), len + 1);
-  caml_enter_blocking_section ();
+  caml_enter_blocking_section_r (ctx);
   status = system(buf);
-  caml_leave_blocking_section ();
+  caml_leave_blocking_section_r (ctx);
   caml_stat_free(buf);
-  if (status == -1) caml_sys_error(command);
+  if (status == -1) caml_sys_error_r(ctx,command);
   if (WIFEXITED(status))
     retcode = WEXITSTATUS(status);
   else
@@ -261,13 +264,13 @@ CAMLprim value caml_sys_system_command(value command)
   CAMLreturn (Val_int(retcode));
 }
 
-CAMLprim value caml_sys_time(value unit)
+CAMLprim value caml_sys_time_r(CAML_R, value unit)
 {
 #ifdef HAS_GETRUSAGE
   struct rusage ru;
 
   getrusage (RUSAGE_SELF, &ru);
-  return caml_copy_double (ru.ru_utime.tv_sec + ru.ru_utime.tv_usec / 1e6
+  return caml_copy_double_r (ctx, ru.ru_utime.tv_sec + ru.ru_utime.tv_usec / 1e6
                            + ru.ru_stime.tv_sec + ru.ru_stime.tv_usec / 1e6);
 #else
   #ifdef HAS_TIMES
@@ -292,7 +295,7 @@ CAMLprim value caml_sys_time(value unit)
 extern int caml_win32_random_seed (intnat data[16]);
 #endif
 
-CAMLprim value caml_sys_random_seed (value unit)
+CAMLprim value caml_sys_random_seed_r (CAML_R, value unit)
 {
   intnat data[16];
   int n, i;
@@ -329,18 +332,18 @@ CAMLprim value caml_sys_random_seed (value unit)
   }
 #endif
   /* Convert to an OCaml array of ints */
-  res = caml_alloc_small(n, 0);
+  res = caml_alloc_small_r(ctx, n, 0);
   for (i = 0; i < n; i++) Field(res, i) = Val_long(data[i]);
   return res;
 }
 
-CAMLprim value caml_sys_get_config(value unit)
+CAMLprim value caml_sys_get_config_r(CAML_R, value unit)
 {
   CAMLparam0 ();   /* unit is unused */
   CAMLlocal2 (result, ostype);
 
-  ostype = caml_copy_string(OCAML_OS_TYPE);
-  result = caml_alloc_small (3, 0);
+  ostype = caml_copy_string_r(ctx, OCAML_OS_TYPE);
+  result = caml_alloc_small_r (ctx, 3, 0);
   Field(result, 0) = ostype;
   Field(result, 1) = Val_long (8 * sizeof(value));
 #ifdef ARCH_BIG_ENDIAN
@@ -351,7 +354,7 @@ CAMLprim value caml_sys_get_config(value unit)
   CAMLreturn (result);
 }
 
-CAMLprim value caml_sys_read_directory(value path)
+CAMLprim value caml_sys_read_directory_r(CAML_R, value path)
 {
   CAMLparam1(path);
   CAMLlocal1(result);
@@ -360,10 +363,10 @@ CAMLprim value caml_sys_read_directory(value path)
   caml_ext_table_init(&tbl, 50);
   if (caml_read_directory(String_val(path), &tbl) == -1){
     caml_ext_table_free(&tbl, 1);
-    caml_sys_error(path);
+    caml_sys_error_r(ctx,path);
   }
   caml_ext_table_add(&tbl, NULL);
-  result = caml_copy_string_array((char const **) tbl.contents);
+  result = caml_copy_string_array_r(ctx, (char const **) tbl.contents);
   caml_ext_table_free(&tbl, 1);
   CAMLreturn(result);
 }

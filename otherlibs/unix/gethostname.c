@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -25,12 +27,12 @@
 #define MAXHOSTNAMELEN 256
 #endif
 
-CAMLprim value unix_gethostname(value unit)
+CAMLprim value unix_gethostname_r(CAML_R, value unit)
 {
   char name[MAXHOSTNAMELEN];
   gethostname(name, MAXHOSTNAMELEN);
   name[MAXHOSTNAMELEN-1] = 0;
-  return copy_string(name);
+  return caml_copy_string_r(ctx,name);
 }
 
 #else
@@ -38,17 +40,17 @@ CAMLprim value unix_gethostname(value unit)
 
 #include <sys/utsname.h>
 
-CAMLprim value unix_gethostname(value unit)
+CAMLprim value unix_gethostname_r(CAML_R, value unit)
 {
   struct utsname un;
   uname(&un);
-  return copy_string(un.nodename);
+  return caml_copy_string_r(ctx,un.nodename);
 }
 
 #else
 
-CAMLprim value unix_gethostname(value unit)
-{ invalid_argument("gethostname not implemented"); }
+CAMLprim value unix_gethostname_r(CAML_R, value unit)
+{ caml_invalid_argument_r(ctx,"gethostname not implemented"); }
 
 #endif
 #endif

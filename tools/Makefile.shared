@@ -10,6 +10,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 include ../config/Makefile
 
 CAMLRUN=../boot/ocamlrun
@@ -28,7 +30,7 @@ all: ocamldep ocamlprof ocamlcp ocamloptp ocamlmktop ocamlmklib dumpobj \
 
 .PHONY: all
 
-opt.opt: ocamldep.opt read_cmt.opt
+opt.opt: ocamldep.opt
 .PHONY: opt.opt
 
 # The dependency generator
@@ -208,7 +210,6 @@ READ_CMT= \
           ../parsing/location.cmo \
           ../parsing/longident.cmo \
           ../parsing/lexer.cmo \
-          ../parsing/pprintast.cmo \
           ../typing/ident.cmo \
           ../typing/path.cmo \
           ../typing/types.cmo \
@@ -228,17 +229,14 @@ READ_CMT= \
           ../typing/cmt_format.cmo \
           ../typing/stypes.cmo \
           \
-          untypeast.cmo \
+          pprintast.cmo untypeast.cmo \
           cmt2annot.cmo read_cmt.cmo
 
 read_cmt: $(READ_CMT)
 	$(CAMLC) $(LINKFLAGS) -o read_cmt $(READ_CMT)
 
-read_cmt.opt: $(READ_CMT:.cmo=.cmx)
-	$(CAMLOPT) $(LINKFLAGS) -o read_cmt.opt $(READ_CMT:.cmo=.cmx)
-
 clean::
-	rm -f read_cmt read_cmt.opt
+	rm -f read_cmt
 
 beforedepend::
 

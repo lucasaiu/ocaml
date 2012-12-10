@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** 64-bit integers.
 
    This module provides operations on the type [int64] of
@@ -112,13 +114,13 @@ external to_int : int64 -> int = "%int64_to_int"
    is taken modulo 2{^31}, i.e. the top 33 bits are lost
    during the conversion. *)
 
-external of_float : float -> int64 = "caml_int64_of_float"
+external of_float : float -> int64 = "caml_int64_of_float_r" "reentrant"
 (** Convert the given floating-point number to a 64-bit integer,
    discarding the fractional part (truncate towards 0).
    The result of the conversion is undefined if, after truncation,
    the number is outside the range \[{!Int64.min_int}, {!Int64.max_int}\]. *)
 
-external to_float : int64 -> float = "caml_int64_to_float"
+external to_float : int64 -> float = "caml_int64_to_float_r" "reentrant"
 (** Convert the given 64-bit integer to a floating-point number. *)
 
 
@@ -142,7 +144,7 @@ external to_nativeint : int64 -> nativeint = "%int64_to_nativeint"
    is taken modulo 2{^32}.  On 64-bit platforms,
    the conversion is exact. *)
 
-external of_string : string -> int64 = "caml_int64_of_string"
+external of_string : string -> int64 = "caml_int64_of_string_r" "reentrant"
 (** Convert the given string to a 64-bit integer.
    The string is read in decimal (by default) or in hexadecimal,
    octal or binary if the string begins with [0x], [0o] or [0b]
@@ -154,14 +156,14 @@ external of_string : string -> int64 = "caml_int64_of_string"
 val to_string : int64 -> string
 (** Return the string representation of its argument, in decimal. *)
 
-external bits_of_float : float -> int64 = "caml_int64_bits_of_float"
+external bits_of_float : float -> int64 = "caml_int64_bits_of_float_r" "reentrant"
 (** Return the internal representation of the given float according
    to the IEEE 754 floating-point ``double format'' bit layout.
    Bit 63 of the result represents the sign of the float;
    bits 62 to 52 represent the (biased) exponent; bits 51 to 0
    represent the mantissa. *)
 
-external float_of_bits : int64 -> float = "caml_int64_float_of_bits"
+external float_of_bits : int64 -> float = "caml_int64_float_of_bits_r" "reentrant"
 (** Return the floating-point number whose internal representation,
    according to the IEEE 754 floating-point ``double format'' bit layout,
    is the given [int64]. *)
@@ -179,6 +181,6 @@ val compare: t -> t -> int
 
 (** {6 Deprecated functions} *)
 
-external format : string -> int64 -> string = "caml_int64_format"
+external format : string -> int64 -> string = "caml_int64_format_r" "reentrant"
 (** Do not use this deprecated function.  Instead,
    used {!Printf.sprintf} with a [%L...] format. *)

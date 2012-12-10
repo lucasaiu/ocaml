@@ -11,7 +11,13 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Handling of blocks of bytecode (endianness switch, threading). */
+
+#define CAML_CONTEXT_DEBUGGER
+#define CAML_CONTEXT_EXTERN
+#define CAML_CONTEXT_FIX_CODE
 
 #include "config.h"
 
@@ -29,13 +35,9 @@
 #include "mlvalues.h"
 #include "reverse.h"
 
-code_t caml_start_code;
-asize_t caml_code_size;
-unsigned char * caml_saved_code;
-
 /* Read the main bytecode block from a file */
 
-void caml_init_code_fragments() {
+void caml_init_code_fragments_r(CAML_R) {
   struct code_fragment * cf;
   /* Register the code in the table of code fragments */
   cf = caml_stat_alloc(sizeof(struct code_fragment));
@@ -47,7 +49,7 @@ void caml_init_code_fragments() {
   caml_ext_table_add(&caml_code_fragments_table, cf);
 }
 
-void caml_load_code(int fd, asize_t len)
+void caml_load_code_r(CAML_R, int fd, asize_t len)
 {
   int i;
 
@@ -55,7 +57,7 @@ void caml_load_code(int fd, asize_t len)
   caml_start_code = (code_t) caml_stat_alloc(caml_code_size);
   if (read(fd, (char *) caml_start_code, caml_code_size) != caml_code_size)
     caml_fatal_error("Fatal error: truncated bytecode file.\n");
-  caml_init_code_fragments();
+  caml_init_code_fragments_r(ctx);
   /* Prepare the code for execution */
 #ifdef ARCH_BIG_ENDIAN
   caml_fixup_endianness(caml_start_code, caml_code_size);
@@ -69,7 +71,7 @@ void caml_load_code(int fd, asize_t len)
   /* Better to thread now than at the beginning of [caml_interprete],
      since the debugger interface needs to perform SET_EVENT requests
      on the code. */
-  caml_thread_code(caml_start_code, caml_code_size);
+  caml_thread_code_r(ctx, caml_start_code, caml_code_size);
 #endif
 }
 
@@ -77,7 +79,7 @@ void caml_load_code(int fd, asize_t len)
 
 #ifdef ARCH_BIG_ENDIAN
 
-void caml_fixup_endianness(code_t code, asize_t len)
+void caml_fixup_endianness_r(CAML_R, code_t code, asize_t len)
 {
   code_t p;
   len /= sizeof(opcode_t);
@@ -92,10 +94,7 @@ void caml_fixup_endianness(code_t code, asize_t len)
 
 #ifdef THREADED_CODE
 
-char ** caml_instr_table;
-char * caml_instr_base;
-
-void caml_thread_code (code_t code, asize_t len)
+void caml_thread_code_r (CAML_R, code_t code, asize_t len)
 {
   code_t p;
   int l [STOP + 1];
@@ -113,15 +112,18 @@ void caml_thread_code (code_t code, asize_t len)
   l[MAKEBLOCK3] = l[MAKEFLOATBLOCK] = l[GETFIELD] =
   l[GETFLOATFIELD] = l[SETFIELD] = l[SETFLOATFIELD] =
   l[BRANCH] = l[BRANCHIF] = l[BRANCHIFNOT] = l[PUSHTRAP] =
-  l[C_CALL1] = l[C_CALL2] = l[C_CALL3] = l[C_CALL4] = l[C_CALL5] =
   l[CONSTINT] = l[PUSHCONSTINT] = l[OFFSETINT] =
   l[OFFSETREF] = l[OFFSETCLOSURE] = l[PUSHOFFSETCLOSURE] = 1;
 
+  l[C_CALL1] = l[C_CALL2] = l[C_CALL3] = l[C_CALL4] = l[C_CALL5] = 2;
+
   /* Instructions with two operands */
   l[APPTERM] = l[CLOSURE] = l[PUSHGETGLOBALFIELD] =
-  l[GETGLOBALFIELD] = l[MAKEBLOCK] = l[C_CALLN] =
+  l[GETGLOBALFIELD] = l[MAKEBLOCK] =
   l[BEQ] = l[BNEQ] = l[BLTINT] = l[BLEINT] = l[BGTINT] = l[BGEINT] =
   l[BULTINT] = l[BUGEINT] = l[GETPUBMET] = 2;
+
+  l[C_CALLN] = 3;
   len /= sizeof(opcode_t);
   for (p = code; p < code + len; /*nothing*/) {
     opcode_t instr = *p;
@@ -151,7 +153,7 @@ void caml_thread_code (code_t code, asize_t len)
 
 #endif /* THREADED_CODE */
 
-void caml_set_instruction(code_t pos, opcode_t instr)
+void caml_set_instruction_r(CAML_R, code_t pos, opcode_t instr)
 {
 #ifdef THREADED_CODE
   *pos = (opcode_t)(caml_instr_table[instr] - caml_instr_base);
@@ -160,7 +162,7 @@ void caml_set_instruction(code_t pos, opcode_t instr)
 #endif
 }
 
-int caml_is_instruction(opcode_t instr1, opcode_t instr2)
+int caml_is_instruction_r(CAML_R, opcode_t instr1, opcode_t instr2)
 {
 #ifdef THREADED_CODE
   return instr1 == (opcode_t)(caml_instr_table[instr2] - caml_instr_base);

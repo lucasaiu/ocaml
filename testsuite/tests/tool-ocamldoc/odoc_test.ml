@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Custom generator to perform test on ocamldoc. *)
 
 open Odoc_info

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_FAIL_H
 #define CAML_FAIL_H
 
@@ -25,6 +27,8 @@
 #include "mlvalues.h"
 
 /* <private> */
+/* Some exception objects are pre-allocated and held as globals.  The
+   following are indices in caml_global_data: */
 #define OUT_OF_MEMORY_EXN 0     /* "Out_of_memory" */
 #define SYS_ERROR_EXN 1         /* "Sys_error" */
 #define FAILURE_EXN 2           /* "Failure" */
@@ -38,21 +42,9 @@
 #define ASSERT_FAILURE_EXN 10   /* "Assert_failure" */
 #define UNDEFINED_RECURSIVE_MODULE_EXN 11 /* "Undefined_recursive_module" */
 
-#ifdef POSIX_SIGNALS
-struct longjmp_buffer {
-  sigjmp_buf buf;
-};
-#else
-struct longjmp_buffer {
-  jmp_buf buf;
-};
-#define sigsetjmp(buf,save) setjmp(buf)
-#define siglongjmp(buf,val) longjmp(buf,val)
-#endif
-
-CAMLextern struct longjmp_buffer * caml_external_raise;
-extern value caml_exn_bucket;
-int caml_is_special_exception(value exn);
+/* CAMLextern struct longjmp_buffer * caml_external_raise;
+   extern value caml_exn_bucket; */
+int caml_is_special_exception_r(CAML_R, value exn);
 
 /* </private> */
 
@@ -60,22 +52,22 @@ int caml_is_special_exception(value exn);
 extern "C" {
 #endif
 
-CAMLextern void caml_raise (value bucket) Noreturn;
-CAMLextern void caml_raise_constant (value tag) Noreturn;
-CAMLextern void caml_raise_with_arg (value tag, value arg) Noreturn;
-CAMLextern void caml_raise_with_args (value tag, int nargs, value arg[]) Noreturn;
-CAMLextern void caml_raise_with_string (value tag, char const * msg) Noreturn;
-CAMLextern void caml_failwith (char const *) Noreturn;
-CAMLextern void caml_invalid_argument (char const *) Noreturn;
-CAMLextern void caml_raise_out_of_memory (void) Noreturn;
-CAMLextern void caml_raise_stack_overflow (void) Noreturn;
-CAMLextern void caml_raise_sys_error (value) Noreturn;
-CAMLextern void caml_raise_end_of_file (void) Noreturn;
-CAMLextern void caml_raise_zero_divide (void) Noreturn;
-CAMLextern void caml_raise_not_found (void) Noreturn;
-CAMLextern void caml_init_exceptions (void);
-CAMLextern void caml_array_bound_error (void) Noreturn;
-CAMLextern void caml_raise_sys_blocked_io (void) Noreturn;
+CAMLextern void caml_raise_r (CAML_R, value bucket) Noreturn;
+CAMLextern void caml_raise_constant_r (CAML_R, value tag) Noreturn;
+CAMLextern void caml_raise_with_arg_r (CAML_R, value tag, value arg) Noreturn;
+CAMLextern void caml_raise_with_args_r (CAML_R, value tag, int nargs, value arg[]) Noreturn;
+CAMLextern void caml_raise_with_string_r (CAML_R, value tag, char const * msg) Noreturn;
+CAMLextern void caml_failwith_r (CAML_R, char const *) Noreturn;
+CAMLextern void caml_invalid_argument_r (CAML_R, char const *) Noreturn;
+CAMLextern void caml_raise_out_of_memory_r (CAML_R) Noreturn;
+CAMLextern void caml_raise_stack_overflow_r (CAML_R) Noreturn;
+CAMLextern void caml_raise_sys_error_r (CAML_R, value) Noreturn;
+CAMLextern void caml_raise_end_of_file_r (CAML_R) Noreturn;
+CAMLextern void caml_raise_zero_divide_r (CAML_R) Noreturn;
+CAMLextern void caml_raise_not_found_r (CAML_R) Noreturn;
+CAMLextern void caml_init_exceptions_r (CAML_R);
+CAMLextern void caml_array_bound_error_r (CAML_R) Noreturn;
+CAMLextern void caml_raise_sys_blocked_io_r (CAML_R) Noreturn;
 
 #ifdef __cplusplus
 }

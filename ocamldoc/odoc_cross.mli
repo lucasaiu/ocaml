@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Cross-referencing. *)
 
 val associate : Odoc_module.t_module list -> unit

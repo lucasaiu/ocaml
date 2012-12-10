@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* definitions for compatibility with old identifiers */
 
 #ifndef CAML_COMPATIBILITY_H
@@ -44,7 +46,7 @@
 #define alloc_final caml_alloc_final
 #define copy_string caml_copy_string
 #define alloc_array caml_alloc_array
-#define copy_string_array caml_copy_string_array
+//#define copy_string_array caml_copy_string_array  // Disabled by Luca Saiu REENTRANTRUNTIME
 #define convert_flag_list caml_convert_flag_list
 
 /* **** array.c */
@@ -53,7 +55,7 @@
 #define backtrace_active caml_backtrace_active
 #define backtrace_pos caml_backtrace_pos
 #define backtrace_buffer caml_backtrace_buffer
-#define backtrace_last_exn caml_backtrace_last_exn
+//#define backtrace_last_exn caml_backtrace_last_exn // Disabled by Luca Saiu because of conflicts with other identifiers in otherlibs/systhreads/st_stubs.c REENTRANTRUNTIME
 #define print_exception_backtrace caml_print_exception_backtrace
 
 /* **** callback.c */
@@ -209,7 +211,7 @@
 
 /* **** major_gc.c */
 #define heap_start caml_heap_start
-#define page_table caml_page_table
+//#define page_table caml_page_table // Disabled by Luca Saiu: this makes it impossible to use struct page_table.  We can rename it if needed, but I don't think it's really used.  REENTRANTRUNTIME
 
 /* **** md5.c */
 #define md5_string caml_md5_string
@@ -250,7 +252,7 @@
 #define format_caml_exception caml_format_exception /*SP*/
 
 /* **** roots.c */
-#define local_roots caml_local_roots
+//#define local_roots caml_local_roots // Disabled by Luca Saiu: same reason as above  REENTRANTRUNTIME
 #define scan_roots_hook caml_scan_roots_hook
 #define do_local_roots caml_do_local_roots
 
@@ -268,8 +270,8 @@
 #define garbage_collection caml_garbage_collection
 
 /* **** stacks.c */
-#define stack_low caml_stack_low
-#define stack_high caml_stack_high
+//#define stack_low caml_stack_low // Disabled by Luca Saiu: same reason as above  REENTRANTRUNTIME
+//#define stack_high caml_stack_high // Disabled by Luca Saiu: same reason as above  REENTRANTRUNTIME
 #define stack_threshold caml_stack_threshold
 #define extern_sp caml_extern_sp
 #define trapsp caml_trapsp

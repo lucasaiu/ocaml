@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Same as ../../stdlib/pervasives.ml, except that I/O functions have
    been redefined to not block the whole process, but only the calling
    thread. *)
@@ -220,8 +222,8 @@ let rec (@) l1 l2 =
 type in_channel
 type out_channel
 
-external open_descriptor_out: int -> out_channel = "caml_ml_open_descriptor_out"
-external open_descriptor_in: int -> in_channel = "caml_ml_open_descriptor_in"
+external open_descriptor_out: int -> out_channel = "caml_ml_open_descriptor_out_r" "reentrant"
+external open_descriptor_in: int -> in_channel = "caml_ml_open_descriptor_in_r" "reentrant"
 
 let stdin = open_descriptor_in 0
 let stdout = open_descriptor_out 1
@@ -364,8 +366,8 @@ let open_in name =
 let open_in_bin name =
   open_in_gen [Open_rdonly; Open_binary] 0 name
 
-external input_char_blocking : in_channel -> char = "caml_ml_input_char"
-external input_byte_blocking : in_channel -> int = "caml_ml_input_char"
+external input_char_blocking : in_channel -> char = "caml_ml_input_char_r" "reentrant"
+external input_byte_blocking : in_channel -> int = "caml_ml_input_char_r" "reentrant"
 
 let rec input_char ic =
   try
@@ -374,7 +376,7 @@ let rec input_char ic =
     wait_inchan ic; input_char ic
 
 external unsafe_input_blocking : in_channel -> string -> int -> int -> int
-                               = "caml_ml_input"
+                               = "caml_ml_input_r" "reentrant"
 
 let rec unsafe_input ic s ofs len =
   try

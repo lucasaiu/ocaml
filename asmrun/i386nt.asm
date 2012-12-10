@@ -11,6 +11,8 @@
 ;*                                                                     *
 ;***********************************************************************
 
+; $Id$
+
 ; Asm part of the runtime system, Intel 386 processor, Intel syntax
 
         .386

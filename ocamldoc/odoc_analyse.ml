@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Analysis of source files. This module is strongly inspired from
     driver/main.ml :-) *)
 

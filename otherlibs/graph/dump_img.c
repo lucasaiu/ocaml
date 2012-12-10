@@ -11,12 +11,17 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include "libgraph.h"
 #include "image.h"
+#include "context.h"
 #include <alloc.h>
 #include <memory.h>
 
-value caml_gr_dump_image(value image)
+value caml_gr_dump_image_r(CAML_R, value image)
 {
   int width, height, i, j;
   XImage * idata, * imask;
@@ -26,10 +31,10 @@ value caml_gr_dump_image(value image)
     caml_gr_check_open();
     width = Width_im(image);
     height = Height_im(image);
-    m = alloc(height, 0);
+    m = caml_alloc_r(ctx, height, 0);
     for (i = 0; i < height; i++) {
-      value v = alloc(width, 0);
-      modify(&Field(m, i), v);
+      value v = caml_alloc_r(ctx, width, 0);
+      caml_modify_r(ctx, &Field(m, i), v);
     }
 
     idata =

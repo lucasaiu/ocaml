@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Module [ArrayLabels]: labelled Array module *)
 
 include Array

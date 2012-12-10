@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <memory.h>
 #include <fail.h>
@@ -20,7 +22,7 @@
 
 #include "socketaddr.h"
 
-CAMLprim value unix_inet_addr_of_string(value s)
+CAMLprim value unix_inet_addr_of_string_r(CAML_R, value s)
 {
 #if defined(HAS_IPV6)
 #ifdef _WIN32
@@ -38,19 +40,19 @@ CAMLprim value unix_inet_addr_of_string(value s)
   case AF_INET:
     {
       vres =
-        alloc_inet_addr(&((struct sockaddr_in *) res->ai_addr)->sin_addr);
+        alloc_inet_addr_r(ctx, &((struct sockaddr_in *) res->ai_addr)->sin_addr);
       break;
     }
   case AF_INET6:
     {
       vres =
-        alloc_inet6_addr(&((struct sockaddr_in6 *) res->ai_addr)->sin6_addr);
+        alloc_inet6_addr_r(ctx, &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr);
       break;
     }
   default:
     {
       freeaddrinfo(res);
-      failwith("inet_addr_of_string");
+      caml_failwith(ctx, "inet_addr_of_string");
     }
   }
   freeaddrinfo(res);
@@ -59,17 +61,17 @@ CAMLprim value unix_inet_addr_of_string(value s)
   struct in_addr address;
   struct in6_addr address6;
   if (inet_pton(AF_INET, String_val(s), &address) > 0)
-    return alloc_inet_addr(&address);
+    return alloc_inet_addr_r(ctx, &address);
   else if (inet_pton(AF_INET6, String_val(s), &address6) > 0)
-    return alloc_inet6_addr(&address6);
+    return alloc_inet6_addr_r(ctx, &address6);
   else
-    failwith("inet_addr_of_string");
+    caml_failwith_r(ctx, "inet_addr_of_string");
 #endif
 #elif defined(HAS_INET_ATON)
   struct in_addr address;
   if (inet_aton(String_val(s), &address) == 0)
     failwith("inet_addr_of_string");
-  return alloc_inet_addr(&address);
+  return alloc_inet_addr_r(ctx, &address);
 #else
   struct in_addr address;
   address.s_addr = inet_addr(String_val(s));
@@ -80,7 +82,7 @@ CAMLprim value unix_inet_addr_of_string(value s)
 
 #else
 
-CAMLprim value unix_inet_addr_of_string(value s)
-{ invalid_argument("inet_addr_of_string not implemented"); }
+CAMLprim value unix_inet_addr_of_string_r(CAML_R, value s)
+{ caml_invalid_argument_r(ctx, "inet_addr_of_string not implemented"); }
 
 #endif

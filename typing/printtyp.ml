@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Printing functions *)
 
 open Misc
@@ -25,7 +27,7 @@ open Outcometree
 (* Print a long identifier *)
 
 let rec longident ppf = function
-  | Lident s -> pp_print_string ppf s
+  | Lident s -> fprintf ppf "%s" s
   | Ldot(p, s) -> fprintf ppf "%a.%s" longident p s
   | Lapply(p1, p2) -> fprintf ppf "%a(%a)" longident p1 longident p2
 
@@ -41,7 +43,7 @@ let add_unique id =
   with Not_found ->
     unique_names := Ident.add id (Ident.unique_toplevel_name id) !unique_names
 
-let ident ppf id = pp_print_string ppf (ident_name id)
+let ident ppf id = fprintf ppf "%s" (ident_name id)
 
 (* Print a path *)
 
@@ -61,11 +63,9 @@ let rec path ppf = function
   | Pident id ->
       ident ppf id
   | Pdot(Pident id, s, pos) when Ident.same id ident_pervasive ->
-      pp_print_string ppf s
+      fprintf ppf "%s" s
   | Pdot(p, s, pos) ->
-      path ppf p;
-      pp_print_char ppf '.';
-      pp_print_string ppf s
+      fprintf ppf "%a.%s" path p s
   | Papply(p1, p2) ->
       fprintf ppf "%a(%a)" path p1 path p2
 

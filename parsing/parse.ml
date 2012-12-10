@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Entry points in the parser *)
 
 (* Skip tokens to the end of the phrase *)

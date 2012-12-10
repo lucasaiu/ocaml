@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* When you change this, you need to update the documentation:
    - man/ocamlc.m   in ocaml
    - man/ocamlopt.m in ocaml

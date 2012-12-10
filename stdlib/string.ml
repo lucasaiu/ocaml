@@ -11,12 +11,14 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* String operations *)
 
 external length : string -> int = "%string_length"
 external get : string -> int -> char = "%string_safe_get"
 external set : string -> int -> char -> unit = "%string_safe_set"
-external create : int -> string = "caml_create_string"
+external create : int -> string = "caml_create_string_r" "reentrant"
 external unsafe_get : string -> int -> char = "%string_unsafe_get"
 external unsafe_set : string -> int -> char -> unit = "%string_unsafe_set"
 external unsafe_blit : string -> int -> string -> int -> int -> unit

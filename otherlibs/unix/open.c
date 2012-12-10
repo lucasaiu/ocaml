@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <memory.h>
@@ -37,7 +41,7 @@ static int open_flag_table[] = {
   O_NOCTTY, O_DSYNC, O_SYNC, O_RSYNC, 0
 };
 
-CAMLprim value unix_open(value path, value flags, value perm)
+CAMLprim value unix_open_r(CAML_R, value path, value flags, value perm)
 {
   CAMLparam3(path, flags, perm);
   int ret, cv_flags;
@@ -47,10 +51,10 @@ CAMLprim value unix_open(value path, value flags, value perm)
   p = stat_alloc(string_length(path) + 1);
   strcpy(p, String_val(path));
   /* open on a named FIFO can block (PR#1533) */
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   ret = open(p, cv_flags, Int_val(perm));
-  leave_blocking_section();
+  caml_leave_blocking_section_r(ctx);
   stat_free(p);
-  if (ret == -1) uerror("open", path);
+  if (ret == -1) uerror_r(ctx,"open", path);
   CAMLreturn (Val_int(ret));
 }

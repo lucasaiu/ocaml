@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <errno.h>
 #include <fcntl.h>
 #include <fail.h>
@@ -20,7 +22,7 @@
 
 #if defined(F_GETLK) && defined(F_SETLK) && defined(F_SETLKW)
 
-CAMLprim value unix_lockf(value fd, value cmd, value span)
+CAMLprim value unix_lockf_r(CAML_R, value fd, value cmd, value span)
 {
   struct flock l;
   int ret;
@@ -44,9 +46,9 @@ CAMLprim value unix_lockf(value fd, value cmd, value span)
     break;
   case 1: /* F_LOCK */
     l.l_type = F_WRLCK;
-    enter_blocking_section();
+    caml_enter_blocking_section_r(ctx);
     ret = fcntl(fildes, F_SETLKW, &l);
-    leave_blocking_section();
+    caml_leave_blocking_section_r(ctx);
     break;
   case 2: /* F_TLOCK */
     l.l_type = F_WRLCK;
@@ -66,9 +68,9 @@ CAMLprim value unix_lockf(value fd, value cmd, value span)
     break;
   case 4: /* F_RLOCK */
     l.l_type = F_RDLCK;
-    enter_blocking_section();
+    caml_enter_blocking_section_r(ctx);
     ret = fcntl(fildes, F_SETLKW, &l);
-    leave_blocking_section();
+    caml_leave_blocking_section_r(ctx);
     break;
   case 5: /* F_TRLOCK */
     l.l_type = F_RDLCK;
@@ -78,7 +80,7 @@ CAMLprim value unix_lockf(value fd, value cmd, value span)
     errno = EINVAL;
     ret = -1;
   }
-  if (ret == -1) uerror("lockf", Nothing);
+  if (ret == -1) uerror_r(ctx,"lockf", Nothing);
   return Val_unit;
 }
 
@@ -98,17 +100,17 @@ static int lock_command_table[] = {
   F_ULOCK, F_LOCK, F_TLOCK, F_TEST, F_LOCK, F_TLOCK
 };
 
-CAMLprim value unix_lockf(value fd, value cmd, value span)
+CAMLprim value unix_lockf_r(CAML_R, value fd, value cmd, value span)
 {
   if (lockf(Int_val(fd), lock_command_table[Int_val(cmd)], Long_val(span))
-      == -1) uerror("lockf", Nothing);
+      == -1) uerror_r(ctx,"lockf", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_lockf(value fd, value cmd, value span)
-{ invalid_argument("lockf not implemented"); }
+CAMLprim value unix_lockf_r(CAML_R, value fd, value cmd, value span)
+{ caml_invalid_argument_r(ctx,"lockf not implemented"); }
 
 #endif
 #endif

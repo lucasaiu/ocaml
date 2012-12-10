@@ -11,13 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_chdir(value path)
+CAMLprim value unix_chdir_r(CAML_R, value path)
 {
   int ret;
   ret = chdir(String_val(path));
-  if (ret == -1) uerror("chdir", path);
+  if (ret == -1) uerror_r(ctx, "chdir", path);
   return Val_unit;
 }

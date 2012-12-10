@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Merge of information from [.ml] and [.mli] for a module.*)
 
 (** Merging \@before tags. *)

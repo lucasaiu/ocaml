@@ -11,6 +11,14 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_MEMORY
+#define CAML_CONTEXT_MAJOR_GC
+#define CAML_CONTEXT_MINOR_GC
+#define CAML_CONTEXT_FREELIST
+#define CAML_CONTEXT_GC_CTRL
+
 #include <stdlib.h>
 #include <string.h>
 #include "fail.h"
@@ -25,7 +33,7 @@
 #include "mlvalues.h"
 #include "signals.h"
 
-extern uintnat caml_percent_free;                   /* major_gc.c */
+/* extern uintnat caml_percent_free;  */                  /* major_gc.c */
 
 /* Page table management */
 
@@ -38,15 +46,6 @@ extern uintnat caml_percent_free;                   /* major_gc.c */
    The page table is represented sparsely as a hash table
    with linear probing */
 
-struct page_table {
-  mlsize_t size;                /* size == 1 << (wordsize - shift) */
-  int shift;
-  mlsize_t mask;                /* mask == size - 1 */
-  mlsize_t occupancy;
-  uintnat * entries;            /* [size]  */
-};
-
-static struct page_table caml_page_table;
 
 /* Page table entries are the logical 'or' of
    - the key: address of a page (low Page_log bits = 0)
@@ -65,7 +64,9 @@ static struct page_table caml_page_table;
 #endif
 #define Hash(v) (((v) * HASH_FACTOR) >> caml_page_table.shift)
 
-int caml_page_table_lookup(void * addr)
+
+
+int caml_page_table_lookup_r(CAML_R, void * addr)
 {
   uintnat h, e;
 
@@ -81,7 +82,7 @@ int caml_page_table_lookup(void * addr)
   }
 }
 
-int caml_page_table_initialize(mlsize_t bytesize)
+int caml_page_table_initialize_r(CAML_R, mlsize_t bytesize)
 {
   uintnat pagesize = Page(bytesize);
 
@@ -101,7 +102,7 @@ int caml_page_table_initialize(mlsize_t bytesize)
     return 0;
 }
 
-static int caml_page_table_resize(void)
+static int caml_page_table_resize_r(CAML_R)
 {
   struct page_table old = caml_page_table;
   uintnat * new_entries;
@@ -135,7 +136,7 @@ static int caml_page_table_resize(void)
   return 0;
 }
 
-static int caml_page_table_modify(uintnat page, int toclear, int toset)
+static int caml_page_table_modify_r(CAML_R, uintnat page, int toclear, int toset)
 {
   uintnat h;
 
@@ -143,7 +144,7 @@ static int caml_page_table_modify(uintnat page, int toclear, int toset)
 
   /* Resize to keep load factor below 1/2 */
   if (caml_page_table.occupancy * 2 >= caml_page_table.size) {
-    if (caml_page_table_resize() != 0) return -1;
+    if (caml_page_table_resize_r(ctx) != 0) return -1;
   }
   h = Hash(Page(page));
   while (1) {
@@ -166,9 +167,6 @@ static int caml_page_table_modify(uintnat page, int toclear, int toset)
 
 /* 32-bit implementation:
    The page table is represented as a 2-level array of unsigned char */
-
-CAMLexport unsigned char * caml_page_table[Pagetable1_size];
-static unsigned char caml_page_table_empty[Pagetable2_size] = { 0, };
 
 int caml_page_table_initialize(mlsize_t bytesize)
 {
@@ -194,25 +192,25 @@ static int caml_page_table_modify(uintnat page, int toclear, int toset)
 
 #endif
 
-int caml_page_table_add(int kind, void * start, void * end)
+int caml_page_table_add_r(CAML_R, int kind, void * start, void * end)
 {
   uintnat pstart = (uintnat) start & Page_mask;
   uintnat pend = ((uintnat) end - 1) & Page_mask;
   uintnat p;
 
   for (p = pstart; p <= pend; p += Page_size)
-    if (caml_page_table_modify(p, 0, kind) != 0) return -1;
+    if (caml_page_table_modify_r(ctx, p, 0, kind) != 0) return -1;
   return 0;
 }
 
-int caml_page_table_remove(int kind, void * start, void * end)
+int caml_page_table_remove_r(CAML_R, int kind, void * start, void * end)
 {
   uintnat pstart = (uintnat) start & Page_mask;
   uintnat pend = ((uintnat) end - 1) & Page_mask;
   uintnat p;
 
   for (p = pstart; p <= pend; p += Page_size)
-    if (caml_page_table_modify(p, kind, 0) != 0) return -1;
+    if (caml_page_table_modify_r(ctx, p, kind, 0) != 0) return -1;
   return 0;
 }
 
@@ -256,7 +254,7 @@ void caml_free_for_heap (char *mem)
 
    See also: caml_compact_heap, which duplicates most of this function.
 */
-int caml_add_to_heap (char *m)
+int caml_add_to_heap_r (CAML_R, char *m)
 {
                                      Assert (Chunk_size (m) % Page_size == 0);
 #ifdef DEBUG
@@ -267,7 +265,7 @@ int caml_add_to_heap (char *m)
                    (caml_stat_heap_size + Chunk_size (m)) / 1024);
 
   /* Register block in page table */
-  if (caml_page_table_add(In_heap, m, m + Chunk_size(m)) != 0)
+  if (caml_page_table_add_r(ctx, In_heap, m, m + Chunk_size(m)) != 0)
     return -1;
 
   /* Chain this heap chunk. */
@@ -301,14 +299,14 @@ int caml_add_to_heap (char *m)
    The request must be less than or equal to Max_wosize.
    Return NULL when out of memory.
 */
-static char *expand_heap (mlsize_t request)
+static char *expand_heap_r (CAML_R, mlsize_t request)
 {
   char *mem, *hp, *prev;
   asize_t over_request, malloc_request, remain;
 
   Assert (request <= Max_wosize);
   over_request = request + request / 100 * caml_percent_free;
-  malloc_request = caml_round_heap_chunk_size (Bhsize_wosize (over_request));
+  malloc_request = caml_round_heap_chunk_size_r (ctx, Bhsize_wosize (over_request));
   mem = caml_alloc_for_heap (malloc_request);
   if (mem == NULL){
     caml_gc_message (0x04, "No room for growing heap\n", 0);
@@ -339,7 +337,7 @@ static char *expand_heap (mlsize_t request)
     if (remain == 1) Hd_hp (hp) = Make_header (0, 0, Caml_white);
   }
   Assert (Wosize_hp (mem) >= request);
-  if (caml_add_to_heap (mem) != 0){
+  if (caml_add_to_heap_r (ctx, mem) != 0){
     caml_free_for_heap (mem);
     return NULL;
   }
@@ -349,7 +347,7 @@ static char *expand_heap (mlsize_t request)
 /* Remove the heap chunk [chunk] from the heap and give the memory back
    to [free].
 */
-void caml_shrink_heap (char *chunk)
+void caml_shrink_heap_r (CAML_R, char *chunk)
 {
   char **cp;
 
@@ -382,13 +380,13 @@ void caml_shrink_heap (char *chunk)
   *cp = Chunk_next (chunk);
 
   /* Remove the pages of [chunk] from the page table. */
-  caml_page_table_remove(In_heap, chunk, chunk + Chunk_size (chunk));
+  caml_page_table_remove_r(ctx, In_heap, chunk, chunk + Chunk_size (chunk));
 
   /* Free the [malloc] block that contains [chunk]. */
   caml_free_for_heap (chunk);
 }
 
-color_t caml_allocation_color (void *hp)
+color_t caml_allocation_color_r (CAML_R, void *hp)
 {
   if (caml_gc_phase == Phase_mark
       || (caml_gc_phase == Phase_sweep && (addr)hp >= (addr)caml_gc_sweep_hp)){
@@ -401,22 +399,22 @@ color_t caml_allocation_color (void *hp)
   }
 }
 
-CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_shr_r (CAML_R, mlsize_t wosize, tag_t tag)
 {
   char *hp, *new_block;
 
-  if (wosize > Max_wosize) caml_raise_out_of_memory ();
-  hp = caml_fl_allocate (wosize);
+  if (wosize > Max_wosize) caml_raise_out_of_memory_r(ctx);
+  hp = caml_fl_allocate_r (ctx, wosize);
   if (hp == NULL){
-    new_block = expand_heap (wosize);
+    new_block = expand_heap_r (ctx, wosize);
     if (new_block == NULL) {
       if (caml_in_minor_collection)
         caml_fatal_error ("Fatal error: out of memory.\n");
       else
-        caml_raise_out_of_memory ();
+        caml_raise_out_of_memory_r(ctx);
     }
-    caml_fl_add_blocks (new_block);
-    hp = caml_fl_allocate (wosize);
+    caml_fl_add_blocks_r (ctx, new_block);
+    hp = caml_fl_allocate_r (ctx, wosize);
   }
 
   Assert (Is_in_heap (Val_hp (hp)));
@@ -431,10 +429,10 @@ CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
                 && (addr)hp < (addr)caml_gc_sweep_hp));
     Hd_hp (hp) = Make_header (wosize, tag, Caml_white);
   }
-  Assert (Hd_hp (hp) == Make_header (wosize, tag, caml_allocation_color (hp)));
+  Assert (Hd_hp (hp) == Make_header (wosize, tag, caml_allocation_color_r (ctx, hp)));
   caml_allocated_words += Whsize_wosize (wosize);
   if (caml_allocated_words > Wsize_bsize (caml_minor_heap_size)){
-    caml_urge_major_slice ();
+    caml_urge_major_slice_r (ctx);
   }
 #ifdef DEBUG
   {
@@ -456,13 +454,13 @@ CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
    free it.  In both cases, you pass as argument the size (in bytes)
    of the block being allocated or freed.
 */
-CAMLexport void caml_alloc_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_alloc_dependent_memory_r (CAML_R, mlsize_t nbytes)
 {
   caml_dependent_size += nbytes / sizeof (value);
   caml_dependent_allocated += nbytes / sizeof (value);
 }
 
-CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_free_dependent_memory_r (CAML_R, mlsize_t nbytes)
 {
   if (caml_dependent_size < nbytes / sizeof (value)){
     caml_dependent_size = 0;
@@ -479,19 +477,19 @@ CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
    Note that only [res/max] is relevant.  The units (and kind of
    resource) can change between calls to [caml_adjust_gc_speed].
 */
-CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
+CAMLexport void caml_adjust_gc_speed_r (CAML_R, mlsize_t res, mlsize_t max)
 {
   if (max == 0) max = 1;
   if (res > max) res = max;
   caml_extra_heap_resources += (double) res / (double) max;
   if (caml_extra_heap_resources > 1.0){
     caml_extra_heap_resources = 1.0;
-    caml_urge_major_slice ();
+    caml_urge_major_slice_r (ctx);
   }
   if (caml_extra_heap_resources
            > (double) Wsize_bsize (caml_minor_heap_size) / 2.0
              / (double) Wsize_bsize (caml_stat_heap_size)) {
-    caml_urge_major_slice ();
+    caml_urge_major_slice_r (ctx);
   }
 }
 
@@ -502,12 +500,12 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
 */
 /* [caml_initialize] never calls the GC, so you may call it while an block is
    unfinished (i.e. just after a call to [caml_alloc_shr].) */
-void caml_initialize (value *fp, value val)
+void caml_initialize_r (CAML_R, value *fp, value val)
 {
   *fp = val;
   if (Is_block (val) && Is_young (val) && Is_in_heap (fp)){
     if (caml_ref_table.ptr >= caml_ref_table.limit){
-      caml_realloc_ref_table (&caml_ref_table);
+      caml_realloc_ref_table_r (ctx, &caml_ref_table);
     }
     *caml_ref_table.ptr++ = fp;
   }
@@ -517,7 +515,7 @@ void caml_initialize (value *fp, value val)
    unless you are sure the value being overwritten is not a shared block and
    the value being written is not a young block. */
 /* [caml_modify] never calls the GC. */
-void caml_modify (value *fp, value val)
+void caml_modify_r (CAML_R, value *fp, value val)
 {
   Modify (fp, val);
 }
@@ -527,7 +525,7 @@ CAMLexport void * caml_stat_alloc (asize_t sz)
   void * result = malloc (sz);
 
   /* malloc() may return NULL if size is 0 */
-  if (result == NULL && sz != 0) caml_raise_out_of_memory ();
+  if (result == NULL && sz != 0) {INIT_CAML_R; caml_raise_out_of_memory_r(ctx);}
 #ifdef DEBUG
   memset (result, Debug_uninit_stat, sz);
 #endif
@@ -543,6 +541,6 @@ CAMLexport void * caml_stat_resize (void * blk, asize_t sz)
 {
   void * result = realloc (blk, sz);
 
-  if (result == NULL) caml_raise_out_of_memory ();
+  if (result == NULL) {INIT_CAML_R; caml_raise_out_of_memory_r(ctx);}
   return result;
 }

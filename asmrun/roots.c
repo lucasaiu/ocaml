@@ -11,7 +11,12 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* To walk the memory roots for garbage collection */
+
+#define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_MINOR_GC
 
 #include "finalise.h"
 #include "globroots.h"
@@ -25,26 +30,13 @@
 #include <string.h>
 #include <stdio.h>
 
-/* Roots registered from C functions */
-
-struct caml__roots_block *caml_local_roots = NULL;
-
-void (*caml_scan_roots_hook) (scanning_action) = NULL;
-
 /* The hashtable of frame descriptors */
 
 frame_descr ** caml_frame_descriptors = NULL;
 int caml_frame_descriptors_mask;
 
-/* Linked-list */
-
-typedef struct link {
-  void *data;
-  struct link *next;
-} link;
-
-static link *cons(void *data, link *tl) {
-  link *lnk = caml_stat_alloc(sizeof(link));
+static caml_link *cons(void *data, caml_link *tl) {
+  caml_link *lnk = caml_stat_alloc(sizeof(caml_link));
   lnk->data = data;
   lnk->next = tl;
   return lnk;
@@ -55,9 +47,9 @@ static link *cons(void *data, link *tl) {
 
 /* Linked-list of frametables */
 
-static link *frametables = NULL;
+static caml_link *frametables = NULL;
 
-void caml_register_frametable(intnat *table) {
+void caml_register_frametable_r(CAML_R, intnat *table) {
   frametables = cons(table,frametables);
 
   if (NULL != caml_frame_descriptors) {
@@ -67,20 +59,20 @@ void caml_register_frametable(intnat *table) {
   }
 }
 
-void caml_init_frame_descriptors(void)
+void caml_init_frame_descriptors_r(CAML_R)
 {
   intnat num_descr, tblsize, i, j, len;
   intnat * tbl;
   frame_descr * d;
   uintnat nextd;
   uintnat h;
-  link *lnk;
+  caml_link *lnk;
 
   static int inited = 0;
 
   if (!inited) {
     for (i = 0; caml_frametable[i] != 0; i++)
-      caml_register_frametable(caml_frametable[i]);
+      caml_register_frametable_r(ctx, caml_frametable[i]);
     inited = 1;
   }
 
@@ -123,23 +115,13 @@ void caml_init_frame_descriptors(void)
   }
 }
 
-/* Communication with [caml_start_program] and [caml_call_gc]. */
-
-char * caml_top_of_stack;
-char * caml_bottom_of_stack = NULL; /* no stack initially */
-uintnat caml_last_return_address = 1; /* not in OCaml code initially */
-value * caml_gc_regs;
-intnat caml_globals_inited = 0;
-static intnat caml_globals_scanned = 0;
-static link * caml_dyn_globals = NULL;
-
-void caml_register_dyn_global(void *v) {
+void caml_register_dyn_global_r(CAML_R, void *v) {
   caml_dyn_globals = cons((void*) v,caml_dyn_globals);
 }
 
 /* Call [caml_oldify_one] on (at least) all the roots that point to the minor
    heap. */
-void caml_oldify_local_roots (void)
+void caml_oldify_local_roots_r (CAML_R)
 {
   char * sp;
   uintnat retaddr;
@@ -155,7 +137,7 @@ void caml_oldify_local_roots (void)
   value glob;
   value * root;
   struct caml__roots_block *lr;
-  link *lnk;
+  caml_link *lnk;
 
   /* The global roots */
   for (i = caml_globals_scanned;
@@ -177,7 +159,7 @@ void caml_oldify_local_roots (void)
   }
 
   /* The stack and local roots */
-  if (caml_frame_descriptors == NULL) caml_init_frame_descriptors();
+  if (caml_frame_descriptors == NULL) caml_init_frame_descriptors_r(ctx);
   sp = caml_bottom_of_stack;
   retaddr = caml_last_return_address;
   regs = caml_gc_regs;
@@ -236,54 +218,54 @@ void caml_oldify_local_roots (void)
     }
   }
   /* Global C roots */
-  caml_scan_global_young_roots(&caml_oldify_one);
+  caml_scan_global_young_roots_r(ctx, &caml_oldify_one_r);
   /* Finalised values */
-  caml_final_do_young_roots (&caml_oldify_one);
+  caml_final_do_young_roots_r (ctx, &caml_oldify_one_r);
   /* Hook */
-  if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(&caml_oldify_one);
+  if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(&caml_oldify_one_r);
 }
 
 /* Call [darken] on all roots */
 
-void caml_darken_all_roots (void)
+void caml_darken_all_roots_r (CAML_R)
 {
-  caml_do_roots (caml_darken);
+  caml_do_roots_r (ctx, caml_darken_r);
 }
 
-void caml_do_roots (scanning_action f)
+void caml_do_roots_r (CAML_R, scanning_action f)
 {
   int i, j;
   value glob;
-  link *lnk;
+  caml_link *lnk;
 
   /* The global roots */
   for (i = 0; caml_globals[i] != 0; i++) {
     glob = caml_globals[i];
     for (j = 0; j < Wosize_val(glob); j++)
-      f (Field (glob, j), &Field (glob, j));
+      f (ctx, Field (glob, j), &Field (glob, j));
   }
 
   /* Dynamic global roots */
   iter_list(caml_dyn_globals, lnk) {
     glob = (value) lnk->data;
     for (j = 0; j < Wosize_val(glob); j++){
-      f (Field (glob, j), &Field (glob, j));
+      f (ctx, Field (glob, j), &Field (glob, j));
     }
   }
 
   /* The stack and local roots */
-  if (caml_frame_descriptors == NULL) caml_init_frame_descriptors();
-  caml_do_local_roots(f, caml_bottom_of_stack, caml_last_return_address,
+  if (caml_frame_descriptors == NULL) caml_init_frame_descriptors_r(ctx);
+  caml_do_local_roots_r(ctx, f, caml_bottom_of_stack, caml_last_return_address,
                       caml_gc_regs, caml_local_roots);
   /* Global C roots */
-  caml_scan_global_roots(f);
+  caml_scan_global_roots_r(ctx, f);
   /* Finalised values */
-  caml_final_do_strong_roots (f);
+  caml_final_do_strong_roots_r (ctx, f);
   /* Hook */
   if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(f);
 }
 
-void caml_do_local_roots(scanning_action f, char * bottom_of_stack,
+void caml_do_local_roots_r(CAML_R, scanning_action f, char * bottom_of_stack,
                          uintnat last_retaddr, value * gc_regs,
                          struct caml__roots_block * local_roots)
 {
@@ -322,7 +304,7 @@ void caml_do_local_roots(scanning_action f, char * bottom_of_stack,
           } else {
             root = (value *)(sp + ofs);
           }
-          f (*root, root);
+          f (ctx, *root, root);
         }
         /* Move to next frame */
 #ifndef Stack_grows_upwards
@@ -351,19 +333,23 @@ void caml_do_local_roots(scanning_action f, char * bottom_of_stack,
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);
-        f (*root, root);
+        f (ctx, *root, root);
       }
     }
   }
 }
 
-uintnat (*caml_stack_usage_hook)(void) = NULL;
-
-uintnat caml_stack_usage (void)
+uintnat caml_stack_usage_r (CAML_R)
 {
   uintnat sz;
   sz = (value *) caml_top_of_stack - (value *) caml_bottom_of_stack;
   if (caml_stack_usage_hook != NULL)
     sz += (*caml_stack_usage_hook)();
   return sz;
+}
+
+CAMLprim value caml_incr_globals_inited_r(CAML_R)
+{
+  caml_globals_inited++;
+  return Val_unit;
 }

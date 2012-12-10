@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Translation from typed abstract syntax to lambda terms,
    for the core language *)
 

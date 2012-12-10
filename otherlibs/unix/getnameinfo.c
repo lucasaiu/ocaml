@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <string.h>
 #include <mlvalues.h>
 #include <alloc.h>
@@ -31,7 +35,7 @@ static int getnameinfo_flag_table[] = {
   NI_NOFQDN, NI_NUMERICHOST, NI_NAMEREQD, NI_NUMERICSERV, NI_DGRAM
 };
 
-CAMLprim value unix_getnameinfo(value vaddr, value vopts)
+CAMLprim value unix_getnameinfo_r(CAML_R, value vaddr, value vopts)
 {
   CAMLparam0();
   CAMLlocal3(vhost, vserv, vres);
@@ -41,17 +45,17 @@ CAMLprim value unix_getnameinfo(value vaddr, value vopts)
   char serv[1024];
   int opts, retcode;
 
-  get_sockaddr(vaddr, &addr, &addr_len);
+  get_sockaddr_r(ctx, vaddr, &addr, &addr_len);
   opts = convert_flag_list(vopts, getnameinfo_flag_table);
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   retcode =
     getnameinfo((const struct sockaddr *) &addr.s_gen, addr_len,
                 host, sizeof(host), serv, sizeof(serv), opts);
-  leave_blocking_section();
-  if (retcode != 0) raise_not_found(); /* TODO: detailed error reporting? */
-  vhost = copy_string(host);
-  vserv = copy_string(serv);
-  vres = alloc_small(2, 0);
+  caml_leave_blocking_section_r(ctx);
+  if (retcode != 0) caml_raise_not_found_r(ctx); /* TODO: detailed error reporting? */
+  vhost = caml_copy_string_r(ctx, host);
+  vserv = caml_copy_string_r(ctx, serv);
+  vres = caml_alloc_small_r(ctx, 2, 0);
   Field(vres, 0) = vhost;
   Field(vres, 1) = vserv;
   CAMLreturn(vres);
@@ -59,7 +63,7 @@ CAMLprim value unix_getnameinfo(value vaddr, value vopts)
 
 #else
 
-CAMLprim value unix_getnameinfo(value vaddr, value vopts)
-{ invalid_argument("getnameinfo not implemented"); }
+CAMLprim value unix_getnameinfo_r(CAML_R, value vaddr, value vopts)
+{ caml_invalid_argument_r(ctx, "getnameinfo not implemented"); }
 
 #endif

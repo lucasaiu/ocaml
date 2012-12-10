@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 struct grimage {
   int width, height;            /* Dimensions of the image */
   Pixmap data;                  /* Pixels */
@@ -24,4 +26,4 @@ struct grimage {
 
 #define Transparent (-1)
 
-value caml_gr_new_image(int w, int h);
+value caml_gr_new_image_r(CAML_R, int w, int h);

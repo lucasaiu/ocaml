@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -24,7 +26,7 @@
 #include <limits.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_getgroups(value unit)
+CAMLprim value unix_getgroups_r(CAML_R, value unit)
 {
   gid_t gidset[NGROUPS_MAX];
   int n;
@@ -32,8 +34,8 @@ CAMLprim value unix_getgroups(value unit)
   int i;
 
   n = getgroups(NGROUPS_MAX, gidset);
-  if (n == -1) uerror("getgroups", Nothing);
-  res = alloc_tuple(n);
+  if (n == -1) uerror_r(ctx,"getgroups", Nothing);
+  res = caml_alloc_tuple_r(ctx,n);
   for (i = 0; i < n; i++)
     Field(res, i) = Val_int(gidset[i]);
   return res;
@@ -41,7 +43,7 @@ CAMLprim value unix_getgroups(value unit)
 
 #else
 
-CAMLprim value unix_getgroups(value unit)
-{ invalid_argument("getgroups not implemented"); }
+CAMLprim value unix_getgroups_r(CAML_R, value unit)
+{ caml_invalid_argument_r(ctx,"getgroups not implemented"); }
 
 #endif

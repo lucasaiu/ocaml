@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* To assign numbers to globals and primitives *)
 
 open Misc
@@ -364,7 +366,7 @@ let report_error ppf = function
   | Undefined_global s ->
       fprintf ppf "Reference to undefined global `%s'" s
   | Unavailable_primitive s ->
-      fprintf ppf "The external function `%s' is not available" s
+      fprintf ppf "Symbtable: The external function `%s' is not available" s (* FIXME: remove the "Symtable" prefix *)
   | Wrong_vm s ->
       fprintf ppf "Cannot find or execute the runtime system %s" s
   | Uninitialized_global s ->

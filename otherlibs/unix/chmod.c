@@ -11,15 +11,17 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_chmod(value path, value perm)
+CAMLprim value unix_chmod_r(CAML_R, value path, value perm)
 {
   int ret;
   ret = chmod(String_val(path), Int_val(perm));
-  if (ret == -1) uerror("chmod", path);
+  if (ret == -1) uerror_r(ctx, "chmod", path);
   return Val_unit;
 }

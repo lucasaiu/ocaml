@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Analysis of implementation files. *)
 open Misc
 open Asttypes
@@ -265,7 +267,7 @@ module Analyser =
               (List.map iter_pattern patlist,
                Odoc_env.subst_type env pat.pat_type)
 
-        | Typedtree.Tpat_construct (_, cons_desc, _, _) when
+        | Typedtree.Tpat_construct (_, _, cons_desc, _, _) when
             (* we give a name to the parameter only if it unit *)
             (match cons_desc.cstr_res.desc with
               Tconstr (p, _, _) ->
@@ -560,8 +562,8 @@ module Analyser =
             let complete_name = Name.concat current_class_name label in
             let (info_opt, ele_comments) = get_comments_in_class last_pos loc.Location.loc_start.Lexing.pos_cnum in
             let type_exp =
-              try Typedtree_search.search_attribute_type tt_cls label
-              with Not_found ->
+            try Typedtree_search.search_attribute_type tt_cls label
+            with Not_found ->
                 raise (Failure (Odoc_messages.attribute_not_found_in_typedtree complete_name))
           in
           let code =

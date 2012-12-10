@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 exception Graphic_failure of string
 
 (* Initializations *)

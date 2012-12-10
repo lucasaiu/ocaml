@@ -11,11 +11,13 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_setuid(value uid)
+CAMLprim value unix_setuid_r(CAML_R, value uid)
 {
-  if (setuid(Int_val(uid)) == -1) uerror("setuid", Nothing);
+  if (setuid(Int_val(uid)) == -1) uerror_r(ctx,"setuid", Nothing);
   return Val_unit;
 }

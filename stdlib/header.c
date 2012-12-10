@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* The launcher for bytecode executables (if #! is not working) */
 
 #include <stdio.h>

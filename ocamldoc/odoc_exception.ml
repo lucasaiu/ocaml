@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Representation and manipulation of exceptions. *)
 
 module Name = Odoc_name

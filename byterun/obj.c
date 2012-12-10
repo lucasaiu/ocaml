@@ -11,7 +11,17 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Operations on objects */
+
+#define CAML_CONTEXT_STARTUP
+/* for caml_local_roots  CAMLparam1 */
+#define CAML_CONTEXT_ROOTS
+/* for caml_gc_phase, macro Modify */
+#define CAML_CONTEXT_MAJOR_GC
+/* for caml_young_end, macro Modify */
+#define CAML_CONTEXT_MINOR_GC
 
 #include <string.h>
 #include "alloc.h"
@@ -40,16 +50,21 @@ CAMLprim value caml_static_free(value blk)
    needed (before freeing it) - this might be useful for a JIT
    implementation */
 
-CAMLprim value caml_static_release_bytecode(value blk, value size)
+CAMLprim value caml_static_release_bytecode_r(CAML_R, value blk, value size)
 {
 #ifndef NATIVE_CODE
   caml_release_bytecode((code_t) blk, (asize_t) Long_val(size));
 #else
-  caml_failwith("Meta.static_release_bytecode impossible with native code");
+  caml_failwith_r(ctx, "Meta.static_release_bytecode impossible with native code");
 #endif
   return Val_unit;
 }
 
+ value caml_static_release_bytecode(value blk, value size)
+{
+  INIT_CAML_R;
+  return caml_static_release_bytecode_r(ctx, blk, size);
+}
 
 CAMLprim value caml_static_resize(value blk, value new_size)
 {
@@ -61,7 +76,7 @@ CAMLprim value caml_obj_is_block(value arg)
   return Val_bool(Is_block(arg));
 }
 
-CAMLprim value caml_obj_tag(value arg)
+CAMLprim value caml_obj_tag_r(CAML_R, value arg)
 {
   if (Is_long (arg)){
     return Val_int (1000);   /* int_tag */
@@ -80,7 +95,7 @@ CAMLprim value caml_obj_set_tag (value arg, value new_tag)
   return Val_unit;
 }
 
-CAMLprim value caml_obj_block(value tag, value size)
+CAMLprim value caml_obj_block_r(CAML_R, value tag, value size)
 {
   value res;
   mlsize_t sz, i;
@@ -89,14 +104,14 @@ CAMLprim value caml_obj_block(value tag, value size)
   sz = Long_val(size);
   tg = Long_val(tag);
   if (sz == 0) return Atom(tg);
-  res = caml_alloc(sz, tg);
+  res = caml_alloc_r(ctx, sz, tg);
   for (i = 0; i < sz; i++)
     Field(res, i) = Val_long(0);
 
   return res;
 }
 
-CAMLprim value caml_obj_dup(value arg)
+CAMLprim value caml_obj_dup_r(CAML_R, value arg)
 {
   CAMLparam1 (arg);
   CAMLlocal1 (res);
@@ -107,14 +122,14 @@ CAMLprim value caml_obj_dup(value arg)
   if (sz == 0) CAMLreturn (arg);
   tg = Tag_val(arg);
   if (tg >= No_scan_tag) {
-    res = caml_alloc(sz, tg);
+    res = caml_alloc_r(ctx, sz, tg);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
-    res = caml_alloc_small(sz, tg);
+    res = caml_alloc_small_r(ctx, sz, tg);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
-    res = caml_alloc_shr(sz, tg);
-    for (i = 0; i < sz; i++) caml_initialize(&Field(res, i), Field(arg, i));
+    res = caml_alloc_shr_r(ctx, sz, tg);
+    for (i = 0; i < sz; i++) caml_initialize_r(ctx, &Field(res, i), Field(arg, i));
   }
   CAMLreturn (res);
 }
@@ -128,7 +143,7 @@ CAMLprim value caml_obj_dup(value arg)
    with the leftover part of the object: this is needed in the major
    heap and harmless in the minor heap.
 */
-CAMLprim value caml_obj_truncate (value v, value newsize)
+CAMLprim value caml_obj_truncate_r (CAML_R, value v, value newsize)
 {
   mlsize_t new_wosize = Long_val (newsize);
   header_t hd = Hd_val (v);
@@ -140,7 +155,7 @@ CAMLprim value caml_obj_truncate (value v, value newsize)
   if (tag == Double_array_tag) new_wosize *= Double_wosize;  /* PR#156 */
 
   if (new_wosize <= 0 || new_wosize > wosize){
-    caml_invalid_argument ("Obj.truncate");
+    caml_invalid_argument_r (ctx, "Obj.truncate");
   }
   if (new_wosize == wosize) return Val_unit;
   /* PR#61: since we're about to lose our references to the elements
@@ -148,7 +163,7 @@ CAMLprim value caml_obj_truncate (value v, value newsize)
      can darken them as appropriate. */
   if (tag < No_scan_tag) {
     for (i = new_wosize; i < wosize; i++){
-      caml_modify(&Field(v, i), Val_unit);
+      caml_modify_r(ctx, &Field(v, i), Val_unit);
 #ifdef DEBUG
       Field (v, i) = Debug_free_truncate;
 #endif
@@ -173,7 +188,7 @@ CAMLprim value caml_obj_add_offset (value v, value offset)
    to the GC.
  */
 
-CAMLprim value caml_lazy_follow_forward (value v)
+CAMLprim value caml_lazy_follow_forward_r (CAML_R, value v)
 {
   if (Is_block (v) && Is_in_value_area(v)
       && Tag_val (v) == Forward_tag){
@@ -183,12 +198,12 @@ CAMLprim value caml_lazy_follow_forward (value v)
   }
 }
 
-CAMLprim value caml_lazy_make_forward (value v)
+CAMLprim value caml_lazy_make_forward_r (CAML_R, value v)
 {
   CAMLparam1 (v);
   CAMLlocal1 (res);
 
-  res = caml_alloc_small (1, Forward_tag);
+  res = caml_alloc_small_r (ctx, 1, Forward_tag);
   Field (res, 0) = v;
   CAMLreturn (res);
 }

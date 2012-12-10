@@ -1,15 +1,3 @@
-#########################################################################
-#                                                                       #
-#                                 OCaml                                 #
-#                                                                       #
-#                 Xavier Clerc, SED, INRIA Rocquencourt                 #
-#                                                                       #
-#   Copyright 2010 Institut National de Recherche en Informatique et    #
-#   en Automatique.  All rights reserved.  This file is distributed     #
-#   under the terms of the Q Public License version 1.0.                #
-#                                                                       #
-#########################################################################
-
 BASEDIR=../..
 
 CC=$(NATIVECC)
@@ -103,7 +91,6 @@ OTHEROBJS=\
   $(TOPDIR)/asmcomp/scheduling.cmo \
   $(TOPDIR)/asmcomp/emitaux.cmo \
   $(TOPDIR)/asmcomp/emit.cmo \
-  $(TOPDIR)/asmcomp/printclambda.cmo \
   $(TOPDIR)/asmcomp/asmgen.cmo
 
 OBJS=parsecmmaux.cmo parsecmm.cmo lexcmm.cmo

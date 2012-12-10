@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Thread-compatible system calls.
 
    @deprecated The functionality of this module has been merged back into

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Read and output terminal commands */
 
 #include "config.h"
@@ -39,7 +41,9 @@ static char *down = NULL;
 static char *standout = NULL;
 static char *standend = NULL;
 
-CAMLprim value caml_terminfo_setup (value vchan)
+static caml_global_context *current_ctx = NULL;
+
+CAMLprim value caml_terminfo_setup_r (CAML_R, value vchan)
 {
   value result;
   static char buffer[1024];
@@ -65,37 +69,41 @@ CAMLprim value caml_terminfo_setup (value vchan)
       || standout == NULL || standend == NULL){
     return Bad_term;
   }
-  result = caml_alloc_small (1, Good_term_tag);
+  result = caml_alloc_small_r (ctx, 1, Good_term_tag);
   Field (result, 0) = Val_int (num_lines);
   return result;
 }
 
 static int terminfo_putc (int c)
 {
+  CAML_R = current_ctx;
   putch (chan, c);
   return c;
 }
 
-CAMLprim value caml_terminfo_backup (value lines)
+CAMLprim value caml_terminfo_backup_r (CAML_R, value lines)
 {
   int i;
 
+  current_ctx = ctx;
   for (i = 0; i < Int_val (lines); i++){
     tputs (up, 1, terminfo_putc);
   }
   return Val_unit;
 }
 
-CAMLprim value caml_terminfo_standout (value start)
+CAMLprim value caml_terminfo_standout_r (CAML_R, value start)
 {
+  current_ctx = ctx;
   tputs (Bool_val (start) ? standout : standend, 1, terminfo_putc);
   return Val_unit;
 }
 
-CAMLprim value caml_terminfo_resume (value lines)
+CAMLprim value caml_terminfo_resume_r (CAML_R, value lines)
 {
   int i;
 
+  current_ctx = ctx;
   for (i = 0; i < Int_val (lines); i++){
     tputs (down, 1, terminfo_putc);
   }
@@ -104,26 +112,26 @@ CAMLprim value caml_terminfo_resume (value lines)
 
 #else /* defined (HAS_TERMCAP) && !defined (NATIVE_CODE) */
 
-CAMLexport value caml_terminfo_setup (value vchan)
+CAMLexport value caml_terminfo_setup_r (CAML_R, value vchan)
 {
   return Bad_term;
 }
 
-CAMLexport value caml_terminfo_backup (value lines)
+CAMLexport value caml_terminfo_backup_r (CAML_R, value lines)
 {
-  caml_invalid_argument("Terminfo.backup");
+  caml_invalid_argument_r(ctx, "Terminfo.backup");
   return Val_unit;
 }
 
-CAMLexport value caml_terminfo_standout (value start)
+CAMLexport value caml_terminfo_standout_r (CAML_R, value start)
 {
-  caml_invalid_argument("Terminfo.standout");
+  caml_invalid_argument_r(ctx, "Terminfo.standout");
   return Val_unit;
 }
 
-CAMLexport value caml_terminfo_resume (value lines)
+CAMLexport value caml_terminfo_resume_r (CAML_R, value lines)
 {
-  caml_invalid_argument("Terminfo.resume");
+  caml_invalid_argument_r(ctx, "Terminfo.resume");
   return Val_unit;
 }
 

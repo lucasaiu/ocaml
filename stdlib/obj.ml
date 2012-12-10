@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Operations on internal representations of values *)
 
 type t
@@ -20,16 +22,16 @@ external obj : t -> 'a = "%identity"
 external magic : 'a -> 'b = "%identity"
 external is_block : t -> bool = "caml_obj_is_block"
 external is_int : t -> bool = "%obj_is_int"
-external tag : t -> int = "caml_obj_tag"
+external tag : t -> int = "caml_obj_tag_r" "reentrant" "noalloc"
 external set_tag : t -> int -> unit = "caml_obj_set_tag"
 external size : t -> int = "%obj_size"
 external field : t -> int -> t = "%obj_field"
 external set_field : t -> int -> t -> unit = "%obj_set_field"
 let double_field x i = Array.get (obj x : float array) i
 let set_double_field x i v = Array.set (obj x : float array) i v
-external new_block : int -> int -> t = "caml_obj_block"
-external dup : t -> t = "caml_obj_dup"
-external truncate : t -> int -> unit = "caml_obj_truncate"
+external new_block : int -> int -> t = "caml_obj_block_r" "reentrant"
+external dup : t -> t = "caml_obj_dup_r" "reentrant"
+external truncate : t -> int -> unit = "caml_obj_truncate_r" "reentrant"
 external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
 
 let marshal (obj : t) =
@@ -56,3 +58,9 @@ let final_tag = custom_tag
 let int_tag = 1000
 let out_of_heap_tag = 1001
 let unaligned_tag = 1002
+
+(* (\* FIXME: untyped globals. experimental --Luca Saiu REENTRANTRUNTIME *\) *)
+(* type variable = int;; *)
+(* external make_global : 'a -> variable = "caml_make_caml_global_r" "reentrant";; *)
+(* external get_global : variable -> 'a = "caml_get_caml_global_r" "reentrant";; *)
+(* external set_global : variable -> 'a -> unit  = "caml_set_caml_global_r" "reentrant";; *)

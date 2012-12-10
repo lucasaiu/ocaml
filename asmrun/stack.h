@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Machine-dependent interface with the asm code */
 
 #ifndef CAML_STACK_H
@@ -80,21 +82,24 @@ extern int caml_frame_descriptors_mask;
 #define Hash_retaddr(addr) \
   (((uintnat)(addr) >> 3) & caml_frame_descriptors_mask)
 
-extern void caml_init_frame_descriptors(void);
-extern void caml_register_frametable(intnat *);
-extern void caml_register_dyn_global(void *);
+extern void caml_init_frame_descriptors(dont_use);
+extern void caml_init_frame_descriptors_r(CAML_R);
+extern void caml_register_frametable(dont_use, intnat *);
+extern void caml_register_frametable_r(CAML_R, intnat *);
+extern void caml_register_dyn_global(dont_use, void *);
+extern void caml_register_dyn_global_r(CAML_R, void *);
 
-extern uintnat caml_stack_usage (void);
-extern uintnat (*caml_stack_usage_hook)(void);
+extern uintnat caml_stack_usage_r (CAML_R);
+/* extern uintnat (*caml_stack_usage_hook)(void); */
 
 /* Declaration of variables used in the asm code */
-extern char * caml_top_of_stack;
-extern char * caml_bottom_of_stack;
-extern uintnat caml_last_return_address;
-extern value * caml_gc_regs;
-extern char * caml_exception_pointer;
+/* extern char * caml_top_of_stack; */
+/* extern char * caml_bottom_of_stack; */
+/* extern uintnat caml_last_return_address; */
+/* extern value * caml_gc_regs; */
+/* extern char * caml_exception_pointer; */
 extern value caml_globals[];
-extern intnat caml_globals_inited;
+/* extern intnat caml_globals_inited; */
 extern intnat * caml_frametable[];
 
 #endif /* CAML_STACK_H */

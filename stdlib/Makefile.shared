@@ -11,8 +11,12 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 include ../config/Makefile
-RUNTIME=../boot/ocamlrun
+RUNTIME=../byterun/ocamlrun
+# RUNTIME=../boot/ocamlrun # FIXME: this was working with my bootstrapping script --Luca Saiu REENTRANTRUNTIME
+# #RUNTIME=../boot-from-unpatched-version/ocamlrun
 COMPILER=../ocamlc
 CAMLC=$(RUNTIME) $(COMPILER)
 COMPFLAGS=-strict-sequence -w +33..39 -g -warn-error A -nostdlib
@@ -20,6 +24,7 @@ OPTCOMPILER=../ocamlopt
 CAMLOPT=$(RUNTIME) $(OPTCOMPILER)
 OPTCOMPFLAGS=-warn-error A -nostdlib -g
 CAMLDEP=../boot/ocamlrun ../tools/ocamldep
+#CAMLDEP=../boot-from-unpatched-version/ocamlrun ../tools/ocamldep
 
 OBJS=pervasives.cmo $(OTHERS)
 OTHERS=array.cmo list.cmo char.cmo string.cmo sys.cmo \
@@ -34,9 +39,16 @@ OTHERS=array.cmo list.cmo char.cmo string.cmo sys.cmo \
   camlinternalOO.cmo oo.cmo camlinternalMod.cmo \
   genlex.cmo weak.cmo \
   filename.cmo complex.cmo \
+  context.cmo \
   arrayLabels.cmo listLabels.cmo stringLabels.cmo moreLabels.cmo stdLabels.cmo
 
 all: stdlib.cma std_exit.cmo camlheader camlheader_ur
+
+test: all
+	$(CAMLC) -o test -linkall -nostdlib -nopervasives ./stdlib.cma
+
+test.opt: stdlib.cmxa ../asmrun/libasmrund.a
+	$(CAMLOPT) -o test.opt -linkall -nostdlib -nopervasives -cclib ../asmrun/libasmrund.a ./stdlib.cmxa -cclib "-lm -ldl"
 
 install: install-$(RUNTIMED)
 	cp stdlib.cma std_exit.cmo *.cmi *.mli *.ml camlheader camlheader_ur \

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -35,20 +37,20 @@ int socket_type_table[] = {
   SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, SOCK_SEQPACKET
 };
 
-CAMLprim value unix_socket(value domain, value type, value proto)
+CAMLprim value unix_socket_r(CAML_R, value domain, value type, value proto)
 {
   int retcode;
   retcode = socket(socket_domain_table[Int_val(domain)],
                    socket_type_table[Int_val(type)],
                    Int_val(proto));
-  if (retcode == -1) uerror("socket", Nothing);
+  if (retcode == -1) uerror_r(ctx,"socket", Nothing);
   return Val_int(retcode);
 
 }
 
 #else
 
-CAMLprim value unix_socket(value domain, value type, value proto)
-{ invalid_argument("socket not implemented"); }
+CAMLprim value unix_socket_r(CAML_R, value domain, value type, value proto)
+{ caml_invalid_argument_r(ctx,"socket not implemented"); }
 
 #endif

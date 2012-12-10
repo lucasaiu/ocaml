@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Link a set of .cmo files and produce a bytecode executable. *)
 
 open Misc
@@ -212,7 +214,10 @@ let link_object ppf output_fun currpos_fun file_name compunit =
     close_in inchan
   with
     Symtable.Error msg ->
-      close_in inchan; raise(Error(Symbol_error(file_name, msg)))
+      (
+       (* Printf.printf "WARNING [1] about %s: the linker is not happy.  Going on anyway.  REENTRANTRUNTIME\n" file_name; *)
+       close_in inchan; raise(Error(Symbol_error(file_name, msg)))
+      )
   | x ->
       close_in inchan; raise x
 
@@ -226,8 +231,9 @@ let link_archive ppf output_fun currpos_fun file_name units_required =
          let name = file_name ^ "(" ^ cu.cu_name ^ ")" in
          try
            link_compunit ppf output_fun currpos_fun inchan name cu
-         with Symtable.Error msg ->
-           raise(Error(Symbol_error(name, msg))))
+         with Symtable.Error msg ->(
+           (* Printf.printf "WARNING [2] about %s: the linker is not happy.  Going on anyway.  REENTRANTRUNTIME\n" name); *)
+           raise(Error(Symbol_error(name, msg)))))
       units_required;
     close_in inchan
   with x -> close_in inchan; raise x
@@ -589,8 +595,8 @@ let report_error ppf = function
   | Wrong_object_name name ->
       fprintf ppf "The output file %s has a wrong name. The extension implies object file when the link step was requested" name
   | Symbol_error(name, err) ->
-      fprintf ppf "Error while linking %a:@ %a" Location.print_filename name
-      Symtable.report_error err
+      fprintf ppf "Bytelink: Error while linking %a:@ %a" Location.print_filename name
+      Symtable.report_error err (* FIXME: remove the "Bytelink:" prefix *)
   | Inconsistent_import(intf, file1, file2) ->
       fprintf ppf
         "@[<hov>Files %a@ and %a@ \

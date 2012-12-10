@@ -11,11 +11,14 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_GC_CTRL_H
 #define CAML_GC_CTRL_H
 
 #include "misc.h"
 
+/*
 extern double
      caml_stat_minor_words,
      caml_stat_promoted_words,
@@ -28,13 +31,14 @@ extern intnat
      caml_stat_top_heap_size,
      caml_stat_compactions,
      caml_stat_heap_chunks;
+*/
 
-void caml_init_gc (uintnat, uintnat, uintnat,
+void caml_init_gc_r (CAML_R, uintnat, uintnat, uintnat,
                    uintnat, uintnat);
 
 
 #ifdef DEBUG
-void caml_heap_check (void);
+void caml_heap_check_r (CAML_R);
 #endif
 
 #endif /* CAML_GC_CTRL_H */

@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 exception Text_syntax of int * int * string (* line, char, string *)
 
 open Odoc_types

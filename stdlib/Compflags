@@ -12,6 +12,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 case $1 in
   pervasives.cm[iox]|pervasives.p.cmx) echo ' -nopervasives';;
   camlinternalOO.cmi) echo ' -nopervasives';;

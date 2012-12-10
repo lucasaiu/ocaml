@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Analysis of the command line arguments. *)
 
 (** The current module defining the generator to use. *)

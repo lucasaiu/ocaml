@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Module [Outcometree]: results displayed by the toplevel *)
 
 (* These types represent messages that the toplevel displays as normal

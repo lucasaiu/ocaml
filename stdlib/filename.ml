@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 let generic_quote quotequote s =
   let l = String.length s in
   let b = Buffer.create (l + 20) in
@@ -205,7 +207,7 @@ let chop_extension name =
     else search_dot (i - 1) in
   search_dot (String.length name - 1)
 
-external open_desc: string -> open_flag list -> int -> int = "caml_sys_open"
+external open_desc: string -> open_flag list -> int -> int = "caml_sys_open_r" "reentrant"
 external close_desc: int -> unit = "caml_sys_close"
 
 let prng = lazy(Random.State.make_self_init ());;

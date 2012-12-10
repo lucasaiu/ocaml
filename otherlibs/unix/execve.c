@@ -11,13 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <memory.h>
 #include "unixsupport.h"
 
 extern char ** cstringvect();
 
-CAMLprim value unix_execve(value path, value args, value env)
+CAMLprim value unix_execve_r(CAML_R, value path, value args, value env)
 {
   char ** argv;
   char ** envp;
@@ -26,7 +28,7 @@ CAMLprim value unix_execve(value path, value args, value env)
   (void) execve(String_val(path), argv, envp);
   stat_free((char *) argv);
   stat_free((char *) envp);
-  uerror("execve", path);
+  uerror_r(ctx, "execve", path);
   return Val_unit;                  /* never reached, but suppress warnings */
                                 /* from smart compilers */
 }

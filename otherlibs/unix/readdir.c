@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <fail.h>
 #include <alloc.h>
@@ -25,13 +27,13 @@ typedef struct dirent directory_entry;
 typedef struct direct directory_entry;
 #endif
 
-CAMLprim value unix_readdir(value vd)
+CAMLprim value unix_readdir_r(CAML_R, value vd)
 {
   DIR * d;
   directory_entry * e;
   d = DIR_Val(vd);
-  if (d == (DIR *) NULL) unix_error(EBADF, "readdir", Nothing);
+  if (d == (DIR *) NULL) unix_error_r(ctx,EBADF, "readdir", Nothing);
   e = readdir((DIR *) d);
-  if (e == (directory_entry *) NULL) raise_end_of_file();
-  return copy_string(e->d_name);
+  if (e == (directory_entry *) NULL) caml_raise_end_of_file_r(ctx);
+  return caml_copy_string_r(ctx,e->d_name);
 }

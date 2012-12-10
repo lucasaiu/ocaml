@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* An alternate implementation of the Unix module from ../unix
    which is safe in conjunction with bytecode threads. *)
 
@@ -235,7 +237,7 @@ let rec single_write fd buf ofs len =
     wait_write fd; single_write fd buf ofs len
 
 external in_channel_of_descr : file_descr -> in_channel
-                             = "caml_ml_open_descriptor_in"
+                             = "caml_ml_open_descriptor_in_r" "reentrant"
 external out_channel_of_descr : file_descr -> out_channel
                               = "caml_ml_open_descriptor_out"
 external descr_of_in_channel : in_channel -> file_descr

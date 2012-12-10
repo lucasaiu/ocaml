@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
@@ -24,7 +26,7 @@ type environment = (Ident.t, Reg.t array) Tbl.t
 
 let oper_result_type = function
     Capply(ty, _) -> ty
-  | Cextcall(s, ty, alloc, _) -> ty
+  | Cextcall(s, ty, alloc, _,  _) -> ty
   | Cload c ->
       begin match c with
         Word -> typ_addr
@@ -152,7 +154,7 @@ let join_array rs =
 (* Extract debug info contained in a C-- operation *)
 let debuginfo_op = function
   | Capply(_, dbg) -> dbg
-  | Cextcall(_, _, _, dbg) -> dbg
+  | Cextcall(_, _, _, _, dbg) -> dbg
   | Craise dbg -> dbg
   | Ccheckbound dbg -> dbg
   | _ -> Debuginfo.none
@@ -213,9 +215,11 @@ method select_store addr arg =
 
 method select_operation op args =
   match (op, args) with
-    (Capply(ty, dbg), Cconst_symbol s :: rem) -> (Icall_imm s, rem)
+    (Capply(ty, dbg), Cconst_symbol (s, _) :: rem) -> (Icall_imm s, rem)
   | (Capply(ty, dbg), _) -> (Icall_ind, args)
-  | (Cextcall(s, ty, alloc, dbg), _) -> (Iextcall(s, alloc), args)
+  | (Cextcall(s, ty, alloc, true, dbg), _) ->
+    (Iextcall(s, alloc), Cconst_symbol("caml_global_context", Cconstant_kind) :: args)
+  | (Cextcall(s, ty, alloc, false, dbg), _) -> (Iextcall(s, alloc), args)
   | (Cload chunk, [arg]) ->
       let (addr, eloc) = self#select_addressing chunk arg in
       (Iload(chunk, addr), [eloc])
@@ -401,11 +405,15 @@ method emit_expr env exp =
       let r = self#regs_for typ_int in
       Some(self#insert_op (Iconst_int n) [||] r)
   | Cconst_float n ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "selectgen.ml: emit_expr: Cconst_float \"%s\"\n" n; *)
       let r = self#regs_for typ_float in
       Some(self#insert_op (Iconst_float n) [||] r)
-  | Cconst_symbol n ->
+  | Cconst_symbol (n, k) ->
       let r = self#regs_for typ_addr in
-      Some(self#insert_op (Iconst_symbol n) [||] r)
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "selectgen.ml: emit_expr: the symbol \"%s\" is a %s\n" n (match k with Cglobal_kind -> "global" | Cconstant_kind -> "constant"); *)
+      Some(self#insert_op (Iconst_symbol(n, k)) [||] r)
   | Cconst_pointer n ->
       let r = self#regs_for typ_addr in
       Some(self#insert_op (Iconst_int(Nativeint.of_int n)) [||] r)

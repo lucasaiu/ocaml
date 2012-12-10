@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <signal.h>
 #include "libgraph.h"
 #include <alloc.h>
@@ -133,10 +135,10 @@ void caml_gr_handle_event(XEvent * event)
   }
 }
 
-static value caml_gr_wait_allocate_result(int mouse_x, int mouse_y, int button,
+static value caml_gr_wait_allocate_result_r(CAML_R, int mouse_x, int mouse_y, int button,
                                      int keypressed, int key)
 {
-  value res = alloc_small(5, 0);
+  value res = caml_alloc_small_r(ctx, 5, 0);
   Field(res, 0) = Val_int(mouse_x);
   Field(res, 1) = Val_int(mouse_y == -1 ? -1 : Wcvt(mouse_y));
   Field(res, 2) = Val_bool(button);
@@ -145,7 +147,7 @@ static value caml_gr_wait_allocate_result(int mouse_x, int mouse_y, int button,
   return res;
 }
 
-static value caml_gr_wait_event_poll(void)
+static value caml_gr_wait_event_poll_r(CAML_R)
 {
   int mouse_x, mouse_y, button, key, keypressed;
   Window rootwin, childwin;
@@ -175,10 +177,10 @@ static value caml_gr_wait_event_poll(void)
       break;
     }
   }
-  return caml_gr_wait_allocate_result(mouse_x, mouse_y, button, keypressed, key);
+  return caml_gr_wait_allocate_result_r(ctx, mouse_x, mouse_y, button, keypressed, key);
 }
 
-static value caml_gr_wait_event_in_queue(long mask)
+static value caml_gr_wait_event_in_queue_r(CAML_R, long mask)
 {
   struct event_data * ev;
   /* Pop events in queue until one matches mask. */
@@ -189,21 +191,21 @@ static value caml_gr_wait_event_in_queue(long mask)
         || (ev->kind == ButtonPress && (mask & ButtonPressMask))
         || (ev->kind == ButtonRelease && (mask & ButtonReleaseMask))
         || (ev->kind == MotionNotify && (mask & PointerMotionMask)))
-      return caml_gr_wait_allocate_result(ev->mouse_x, ev->mouse_y,
-                                     ev->button, ev->kind == KeyPress,
-                                     ev->key);
+      return caml_gr_wait_allocate_result_r(ctx, ev->mouse_x, ev->mouse_y,
+                                            ev->button, ev->kind == KeyPress,
+                                            ev->key);
   }
   return Val_false;
 }
 
-static value caml_gr_wait_event_blocking(long mask)
+static value caml_gr_wait_event_blocking_r(CAML_R, long mask)
 {
   XEvent event;
   fd_set readfds;
   value res;
 
   /* First see if we have a matching event in the queue */
-  res = caml_gr_wait_event_in_queue(mask);
+  res = caml_gr_wait_event_in_queue_r(ctx, mask);
   if (res != Val_false) return res;
 
   /* Increase the selected events if required */
@@ -219,15 +221,15 @@ static value caml_gr_wait_event_blocking(long mask)
       /* One event available: add it to our queue */
       caml_gr_handle_event(&event);
       /* See if we now have a matching event */
-      res = caml_gr_wait_event_in_queue(mask);
+      res = caml_gr_wait_event_in_queue_r(ctx, mask);
       if (res != Val_false) break;
     } else {
       /* No event available: block on input socket until one is */
       FD_ZERO(&readfds);
       FD_SET(ConnectionNumber(caml_gr_display), &readfds);
-      enter_blocking_section();
+      caml_enter_blocking_section_r(ctx);
       select(FD_SETSIZE, &readfds, NULL, NULL, NULL);
-      leave_blocking_section();
+      caml_leave_blocking_section_r(ctx);
       caml_gr_check_open(); /* in case another thread closed the display */
     }
   }
@@ -237,7 +239,7 @@ static value caml_gr_wait_event_blocking(long mask)
   return res;
 }
 
-value caml_gr_wait_event(value eventlist) /* ML */
+value caml_gr_wait_event_r(CAML_R, value eventlist) /* ML */
 {
   int mask;
   Bool poll;
@@ -261,7 +263,7 @@ value caml_gr_wait_event(value eventlist) /* ML */
     eventlist = Field(eventlist, 1);
   }
   if (poll)
-    return caml_gr_wait_event_poll();
+    return caml_gr_wait_event_poll_r(ctx);
   else
-    return caml_gr_wait_event_blocking(mask);
+    return caml_gr_wait_event_blocking_r(ctx, mask);
 }

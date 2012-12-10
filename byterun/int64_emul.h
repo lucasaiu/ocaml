@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Software emulation of 64-bit integer arithmetic, for C compilers
    that do not support it.  */
 

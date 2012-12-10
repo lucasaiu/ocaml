@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* "Package" a set of .cmx/.o files into one .cmx/.o file having the
    original compilation units as sub-modules. *)
 

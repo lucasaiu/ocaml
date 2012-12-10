@@ -11,6 +11,14 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_GC_CTRL
+#define CAML_CONTEXT_WEAK
+#define CAML_CONTEXT_FREELIST
+#define CAML_CONTEXT_COMPACT
+#define CAML_CONTEXT_MAJOR_GC
+
 #include <string.h>
 
 #include "config.h"
@@ -23,9 +31,6 @@
 #include "mlvalues.h"
 #include "roots.h"
 #include "weak.h"
-
-extern uintnat caml_percent_free;                   /* major_gc.c */
-extern void caml_shrink_heap (char *);              /* memory.c */
 
 /* Encoded headers: the color is stored in the 2 least significant bits.
    (For pointer inversion, we need to distinguish headers from pointers.)
@@ -51,7 +56,7 @@ extern void caml_shrink_heap (char *);              /* memory.c */
 
 typedef uintnat word;
 
-static void invert_pointer_at (word *p)
+static void invert_pointer_at_r (CAML_R, word *p)
 {
   word q = *p;
                                             Assert (Ecolor ((intnat) p) == 0);
@@ -105,14 +110,14 @@ static void invert_pointer_at (word *p)
   }
 }
 
-static void invert_root (value v, value *p)
+static void invert_root_r (CAML_R, value v, value *p)
 {
-  invert_pointer_at ((word *) p);
+  invert_pointer_at_r (ctx, (word *) p);
 }
 
 static char *compact_fl;
 
-static void init_compact_allocate (void)
+static void init_compact_allocate_r (CAML_R)
 {
   char *ch = caml_heap_start;
   while (ch != NULL){
@@ -122,7 +127,7 @@ static void init_compact_allocate (void)
   compact_fl = caml_heap_start;
 }
 
-static char *compact_allocate (mlsize_t size)
+static char *compact_allocate_r (CAML_R, mlsize_t size)
                                       /* in bytes, including header */
 {
   char *chunk, *adr;
@@ -142,14 +147,14 @@ static char *compact_allocate (mlsize_t size)
   return adr;
 }
 
-static void do_compaction (void)
+static void do_compaction_r (CAML_R)
 {
   char *ch, *chend;
                                           Assert (caml_gc_phase == Phase_idle);
   caml_gc_message (0x10, "Compacting heap...\n", 0);
 
 #ifdef DEBUG
-  caml_heap_check ();
+  caml_heap_check_r (ctx);
 #endif
 
   /* First pass: encode all noninfix headers. */
@@ -184,8 +189,8 @@ static void do_compaction (void)
     /* Invert roots first because the threads library needs some heap
        data structures to find its roots.  Fortunately, it doesn't need
        the headers (see above). */
-    caml_do_roots (invert_root);
-    caml_final_do_weak_roots (invert_root);
+    caml_do_roots_r (ctx, invert_root_r);
+    caml_final_do_weak_roots_r (ctx, invert_root_r);
 
     ch = caml_heap_start;
     while (ch != NULL){
@@ -212,7 +217,7 @@ static void do_compaction (void)
         }
 
         if (t < No_scan_tag){
-          for (i = 1; i < sz; i++) invert_pointer_at (&(p[i]));
+          for (i = 1; i < sz; i++) invert_pointer_at_r (ctx, &(p[i]));
         }
         p += sz;
       }
@@ -233,10 +238,10 @@ static void do_compaction (void)
         sz = Wosize_ehd (q);
         for (i = 1; i < sz; i++){
           if (Field (p,i) != caml_weak_none){
-            invert_pointer_at ((word *) &(Field (p,i)));
+            invert_pointer_at_r (ctx, (word *) &(Field (p,i)));
           }
         }
-        invert_pointer_at ((word *) pp);
+        invert_pointer_at_r (ctx, (word *) pp);
         pp = &Field (p, 0);
       }
     }
@@ -246,7 +251,7 @@ static void do_compaction (void)
   /* Third pass: reallocate virtually; revert pointers; decode headers.
      Rebuild infix headers. */
   {
-    init_compact_allocate ();
+    init_compact_allocate_r (ctx);
     ch = caml_heap_start;
     while (ch != NULL){
       word *p = (word *) ch;
@@ -275,7 +280,7 @@ static void do_compaction (void)
             t = Tag_ehd (q);
           }
 
-          newadr = compact_allocate (Bsize_wsize (sz));
+          newadr = compact_allocate_r (ctx, Bsize_wsize (sz));
           q = *p;
           while (Ecolor (q) == 0){
             word next = * (word *) q;
@@ -319,7 +324,7 @@ static void do_compaction (void)
   /* Fourth pass: reallocate and move objects.
      Use the exact same allocation algorithm as pass 3. */
   {
-    init_compact_allocate ();
+    init_compact_allocate_r (ctx);
     ch = caml_heap_start;
     while (ch != NULL){
       word *p = (word *) ch;
@@ -329,7 +334,7 @@ static void do_compaction (void)
         word q = *p;
         if (Color_hd (q) == Caml_white){
           size_t sz = Bhsize_hd (q);
-          char *newadr = compact_allocate (sz);
+          char *newadr = compact_allocate_r (ctx, sz);
           memmove (newadr, p, sz);
           p += Wsize_bsize (sz);
         }else{
@@ -368,7 +373,7 @@ static void do_compaction (void)
         if (free < wanted){
           free += Wsize_bsize (Chunk_size (ch));
         }else{
-          caml_shrink_heap (ch);
+          caml_shrink_heap_r (ctx, ch);
         }
       }
       ch = next_chunk;
@@ -378,12 +383,12 @@ static void do_compaction (void)
   /* Rebuild the free list. */
   {
     ch = caml_heap_start;
-    caml_fl_reset ();
+    caml_fl_reset_r (ctx);
     while (ch != NULL){
       if (Chunk_size (ch) > Chunk_alloc (ch)){
-        caml_make_free_blocks ((value *) (ch + Chunk_alloc (ch)),
-                               Wsize_bsize (Chunk_size(ch)-Chunk_alloc(ch)), 1,
-                               Caml_white);
+        caml_make_free_blocks_r (ctx, (value *) (ch + Chunk_alloc (ch)),
+                                 Wsize_bsize (Chunk_size(ch)-Chunk_alloc(ch)), 1,
+                                 Caml_white);
       }
       ch = Chunk_next (ch);
     }
@@ -392,13 +397,11 @@ static void do_compaction (void)
   caml_gc_message (0x10, "done.\n", 0);
 }
 
-uintnat caml_percent_max;  /* used in gc_ctrl.c and memory.c */
-
-void caml_compact_heap (void)
+void caml_compact_heap_r (CAML_R)
 {
   uintnat target_words, target_size, live;
 
-  do_compaction ();
+  do_compaction_r (ctx);
   /* Compaction may fail to shrink the heap to a reasonable size
      because it deals in complete chunks: if a very large chunk
      is at the beginning of the heap, everything gets moved to
@@ -427,7 +430,7 @@ void caml_compact_heap (void)
   live = Wsize_bsize (caml_stat_heap_size) - caml_fl_cur_size;
   target_words = live + caml_percent_free * (live / 100 + 1)
                  + Wsize_bsize (Page_size);
-  target_size = caml_round_heap_chunk_size (Bsize_wsize (target_words));
+  target_size = caml_round_heap_chunk_size_r (ctx, Bsize_wsize (target_words));
   if (target_size < caml_stat_heap_size / 2){
     char *chunk;
 
@@ -438,9 +441,9 @@ void caml_compact_heap (void)
     if (chunk == NULL) return;
     /* PR#5757: we need to make the new blocks blue, or they won't be
        recognized as free by the recompaction. */
-    caml_make_free_blocks ((value *) chunk,
+    caml_make_free_blocks_r (ctx, (value *) chunk,
                            Wsize_bsize (Chunk_size (chunk)), 0, Caml_blue);
-    if (caml_page_table_add (In_heap, chunk, chunk + Chunk_size (chunk)) != 0){
+    if (caml_page_table_add_r (ctx, In_heap, chunk, chunk + Chunk_size (chunk)) != 0){
       caml_free_for_heap (chunk);
       return;
     }
@@ -451,14 +454,14 @@ void caml_compact_heap (void)
     if (caml_stat_heap_size > caml_stat_top_heap_size){
       caml_stat_top_heap_size = caml_stat_heap_size;
     }
-    do_compaction ();
+    do_compaction_r (ctx);
     Assert (caml_stat_heap_chunks == 1);
     Assert (Chunk_next (caml_heap_start) == NULL);
     Assert (caml_stat_heap_size == Chunk_size (chunk));
   }
 }
 
-void caml_compact_heap_maybe (void)
+void caml_compact_heap_maybe_r (CAML_R)
 {
   /* Estimated free words in the heap:
          FW = fl_size_at_change + 3 * (caml_fl_cur_size
@@ -490,7 +493,7 @@ void caml_compact_heap_maybe (void)
                    (uintnat) fp);
   if (fp >= caml_percent_max){
     caml_gc_message (0x200, "Automatic compaction triggered.\n", 0);
-    caml_finish_major_cycle ();
+    caml_finish_major_cycle_r (ctx);
 
     /* We just did a complete GC, so we can measure the overhead exactly. */
     fw = caml_fl_cur_size;
@@ -499,6 +502,6 @@ void caml_compact_heap_maybe (void)
                             ARCH_INTNAT_PRINTF_FORMAT "u%%\n",
                      (uintnat) fp);
 
-    caml_compact_heap ();
+    caml_compact_heap_r (ctx);
   }
 }

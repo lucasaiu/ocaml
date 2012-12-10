@@ -10,18 +10,20 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* To control the runtime system and bytecode interpreter *)
 
-external global_data : unit -> Obj.t array = "caml_get_global_data"
-external realloc_global_data : int -> unit = "caml_realloc_global"
+external global_data : unit -> Obj.t array = "caml_get_global_data_r" "reentrant"
+external realloc_global_data : int -> unit = "caml_realloc_global_r" "reentrant"
 external static_alloc : int -> string = "caml_static_alloc"
 external static_free : string -> unit = "caml_static_free"
 external static_release_bytecode : string -> int -> unit
-                                 = "caml_static_release_bytecode"
+                                 = "caml_static_release_bytecode_r" "reentrant"
 external static_resize : string -> int -> string = "caml_static_resize"
 type closure = unit -> Obj.t
-external reify_bytecode : string -> int -> closure = "caml_reify_bytecode"
+external reify_bytecode : string -> int -> closure = "caml_reify_bytecode_r" "reentrant"
 external invoke_traced_function : Obj.t -> Obj.t -> Obj.t -> Obj.t
-                                = "caml_invoke_traced_function"
+                                = "caml_invoke_traced_function_r" "reentrant"
 external get_section_table : unit -> (string * Obj.t) list
-                           = "caml_get_section_table"
+                           = "caml_get_section_table_r" "reentrant"

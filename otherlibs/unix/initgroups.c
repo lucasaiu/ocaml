@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -25,17 +27,17 @@
 #include <grp.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_initgroups(value user, value group)
+CAMLprim value unix_initgroups_r(CAML_R, value user, value group)
 {
   if (initgroups(String_val(user), Int_val(group)) == -1) {
-    uerror("initgroups", Nothing);
+    uerror_r(ctx,"initgroups", Nothing);
   }
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_initgroups(value user, value group)
-{ invalid_argument("initgroups not implemented"); }
+CAMLprim value unix_initgroups_r(CAML_R, value user, value group)
+{ caml_invalid_argument_r(ctx,"initgroups not implemented"); }
 
 #endif

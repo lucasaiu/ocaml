@@ -12,6 +12,8 @@
 #                                                                     #
 #######################################################################
 
+# $Id$
+
 case "$1" in
   true) shift
         exec ../boot/ocamlrun  -I ../otherlibs/unix -I ../otherlibs/str \

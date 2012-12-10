@@ -11,14 +11,16 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Message digest (MD5) *)
 
 type t = string
 
 let compare = String.compare
 
-external unsafe_string: string -> int -> int -> t = "caml_md5_string"
-external channel: in_channel -> int -> t = "caml_md5_chan"
+external unsafe_string: string -> int -> int -> t = "caml_md5_string_r" "reentrant"
+external channel: in_channel -> int -> t = "caml_md5_chan_r" "reentrant"
 
 let string str =
   unsafe_string str 0 (String.length str)

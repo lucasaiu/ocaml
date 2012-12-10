@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Recording and dumping (partial) type information *)
 
 (* Clflags.save_types must be true *)

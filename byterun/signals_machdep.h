@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Processor-specific operation: atomic "read and clear" */
 
 #ifndef CAML_SIGNALS_MACHDEP_H

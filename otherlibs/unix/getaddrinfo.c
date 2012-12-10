@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <string.h>
 #include <mlvalues.h>
 #include <alloc.h>
@@ -31,7 +35,7 @@
 extern int socket_domain_table[]; /* from socket.c */
 extern int socket_type_table[];   /* from socket.c */
 
-static value convert_addrinfo(struct addrinfo * a)
+static value convert_addrinfo_r(CAML_R, struct addrinfo * a)
 {
   CAMLparam0();
   CAMLlocal3(vres,vaddr,vcanonname);
@@ -41,9 +45,9 @@ static value convert_addrinfo(struct addrinfo * a)
   len = a->ai_addrlen;
   if (len > sizeof(sa)) len = sizeof(sa);
   memcpy(&sa.s_gen, a->ai_addr, len);
-  vaddr = alloc_sockaddr(&sa, len, -1);
-  vcanonname = copy_string(a->ai_canonname == NULL ? "" : a->ai_canonname);
-  vres = alloc_small(5, 0);
+  vaddr = alloc_sockaddr_r(ctx, &sa, len, -1);
+  vcanonname = caml_copy_string_r(ctx, a->ai_canonname == NULL ? "" : a->ai_canonname);
+  vres = caml_alloc_small_r(ctx, 5, 0);
   Field(vres, 0) = cst_to_constr(a->ai_family, socket_domain_table, 3, 0);
   Field(vres, 1) = cst_to_constr(a->ai_socktype, socket_type_table, 4, 0);
   Field(vres, 2) = Val_int(a->ai_protocol);
@@ -52,7 +56,7 @@ static value convert_addrinfo(struct addrinfo * a)
   CAMLreturn(vres);
 }
 
-CAMLprim value unix_getaddrinfo(value vnode, value vserv, value vopts)
+CAMLprim value unix_getaddrinfo_r(CAML_R, value vnode, value vserv, value vopts)
 {
   CAMLparam3(vnode, vserv, vopts);
   CAMLlocal3(vres, v, e);
@@ -106,17 +110,17 @@ CAMLprim value unix_getaddrinfo(value vnode, value vserv, value vopts)
       }
   }
   /* Do the call */
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   retcode = getaddrinfo(node, serv, &hints, &res);
-  leave_blocking_section();
+  caml_leave_blocking_section_r(ctx);
   if (node != NULL) stat_free(node);
   if (serv != NULL) stat_free(serv);
   /* Convert result */
   vres = Val_int(0);
   if (retcode == 0) {
     for (r = res; r != NULL; r = r->ai_next) {
-      e = convert_addrinfo(r);
-      v = alloc_small(2, 0);
+      e = convert_addrinfo_r(ctx, r);
+      v = caml_alloc_small_r(ctx, 2, 0);
       Field(v, 0) = e;
       Field(v, 1) = vres;
       vres = v;
@@ -128,7 +132,7 @@ CAMLprim value unix_getaddrinfo(value vnode, value vserv, value vopts)
 
 #else
 
-CAMLprim value unix_getaddrinfo(value vnode, value vserv, value vopts)
-{ invalid_argument("getaddrinfo not implemented"); }
+CAMLprim value unix_getaddrinfo_r(CAML_R, value vnode, value vserv, value vopts)
+{ caml_invalid_argument_r(ctx, "getaddrinfo not implemented"); }
 
 #endif

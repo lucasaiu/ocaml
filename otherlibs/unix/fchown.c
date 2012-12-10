@@ -11,22 +11,24 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
 
 #ifdef HAS_FCHMOD
 
-CAMLprim value unix_fchown(value fd, value uid, value gid)
+CAMLprim value unix_fchown_r(CAML_R, value fd, value uid, value gid)
 {
   if (fchown(Int_val(fd), Int_val(uid), Int_val(gid)) == -1)
-    uerror("fchown", Nothing);
+    uerror_r(ctx,"fchown", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_fchown(value fd, value uid, value gid)
-{ invalid_argument("fchown not implemented"); }
+CAMLprim value unix_fchown_r(CAML_R, value fd, value uid, value gid)
+{ caml_invalid_argument_r(ctx,"fchown not implemented"); }
 
 #endif

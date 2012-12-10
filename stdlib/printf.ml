@@ -11,16 +11,18 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 external format_float: string -> float -> string
-  = "caml_format_float"
+  = "caml_format_float_r" "reentrant"
 external format_int: string -> int -> string
-  = "caml_format_int"
+  = "caml_format_int_r" "reentrant"
 external format_int32: string -> int32 -> string
-  = "caml_int32_format"
+  = "caml_int32_format_r" "reentrant"
 external format_nativeint: string -> nativeint -> string
-  = "caml_nativeint_format"
+  = "caml_nativeint_format_r" "reentrant"
 external format_int64: string -> int64 -> string
-  = "caml_int64_format"
+  = "caml_int64_format_r" "reentrant"
 
 module Sformat = struct
 

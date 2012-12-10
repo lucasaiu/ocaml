@@ -11,6 +11,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # Configuration for Windows, Mingw compiler
 
 ######### General configuration

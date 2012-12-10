@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Condition variables to synchronize between threads.
 
    Condition variables are used when one thread wants to wait until another

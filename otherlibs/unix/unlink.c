@@ -11,11 +11,13 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_unlink(value path)
+CAMLprim value unix_unlink_r(CAML_R, value path)
 {
-  if (unlink(String_val(path)) == -1) uerror("unlink", path);
+  if (unlink(String_val(path)) == -1) uerror_r(ctx,"unlink", path);
   return Val_unit;
 }

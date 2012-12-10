@@ -11,7 +11,12 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Print an uncaught exception and abort */
+
+#define CAML_CONTEXT_BACKTRACE
+#define CAML_CONTEXT_DEBUGGER
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +48,7 @@ static void add_string(struct stringbuf *buf, char *s)
   buf->ptr += len;
 }
 
-CAMLexport char * caml_format_exception(value exn)
+CAMLexport char * caml_format_exception_r(CAML_R, value exn)
 {
   mlsize_t start, i;
   value bucket, v;
@@ -59,7 +64,7 @@ CAMLexport char * caml_format_exception(value exn)
     if (Wosize_val(exn) == 2 &&
         Is_block(Field(exn, 1)) &&
         Tag_val(Field(exn, 1)) == 0 &&
-        caml_is_special_exception(Field(exn, 0))) {
+        caml_is_special_exception_r(ctx, Field(exn, 0))) {
       bucket = Field(exn, 1);
       start = 0;
     } else {
@@ -92,21 +97,21 @@ CAMLexport char * caml_format_exception(value exn)
 }
 
 
-void caml_fatal_uncaught_exception(value exn)
+void caml_fatal_uncaught_exception_r(CAML_R, value exn)
 {
   char * msg;
   value * at_exit;
   int saved_backtrace_active, saved_backtrace_pos;
 
   /* Build a string representation of the exception */
-  msg = caml_format_exception(exn);
+  msg = caml_format_exception_r(ctx, exn);
   /* Perform "at_exit" processing, ignoring all exceptions that may
      be triggered by this */
   saved_backtrace_active = caml_backtrace_active;
   saved_backtrace_pos = caml_backtrace_pos;
   caml_backtrace_active = 0;
-  at_exit = caml_named_value("Pervasives.do_at_exit");
-  if (at_exit != NULL) caml_callback_exn(*at_exit, Val_unit);
+  at_exit = caml_named_value_r(ctx, "Pervasives.do_at_exit");
+  if (at_exit != NULL) caml_callback_exn_r(ctx, *at_exit, Val_unit);
   caml_backtrace_active = saved_backtrace_active;
   caml_backtrace_pos = saved_backtrace_pos;
   /* Display the uncaught exception */
@@ -118,7 +123,7 @@ void caml_fatal_uncaught_exception(value exn)
       && !caml_debugger_in_use
 #endif
       ) {
-    caml_print_exception_backtrace();
+    caml_print_exception_backtrace_r(ctx);
   }
   /* Terminate the process */
   exit(2);

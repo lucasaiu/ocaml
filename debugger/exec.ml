@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Handling of keyboard interrupts *)
 
 let interrupted = ref false

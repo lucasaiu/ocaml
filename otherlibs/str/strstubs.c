@@ -11,6 +11,11 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_STARTUP
+
 #include <string.h>
 #include <ctype.h>
 #include <mlvalues.h>
@@ -79,19 +84,48 @@ enum {
 
 /* Record positions of matched groups */
 #define NUM_GROUPS 32
+typedef
 struct re_group {
   unsigned char * start;
   unsigned char * end;
-};
-static struct re_group re_group[NUM_GROUPS];
+}
+struct_re_group;
+
+typedef
+struct caml_str_context {
+
+  struct_re_group re_group[NUM_GROUPS];
 
 /* Record positions reached during matching; used to check progress
    in repeated matching of a regexp. */
 #define NUM_REGISTERS 64
-static unsigned char * re_register[NUM_REGISTERS];
+  unsigned char * re_register[NUM_REGISTERS];
 
 /* The initial backtracking stack */
-static struct backtrack_stack initial_stack = { NULL, };
+  struct backtrack_stack initial_stack;
+}
+caml_str_context;
+
+#define re_group uctx->re_group
+#define re_register uctx->re_register
+#define initial_stack uctx->initial_stack
+
+
+/* We need to move all static variables inside the runtime context. */
+static int caml_str_context_pos = 0;
+static void caml_str_context_init(library_context* lctx)
+{
+  caml_str_context *uctx = (caml_str_context*)lctx;
+  initial_stack.previous = NULL;
+}
+caml_str_context *caml_get_str_context_r(CAML_R){
+  return (caml_str_context*) caml_get_library_context_r(ctx,
+				    &caml_str_context_pos,
+				    sizeof(caml_str_context),
+				    &caml_str_context_init);
+
+}
+
 
 /* Free a chained list of backtracking stacks */
 static void free_backtrack_stack(struct backtrack_stack * stack)
@@ -123,7 +157,7 @@ static unsigned char re_word_letters[32] = {
 #define Is_word_letter(c) ((re_word_letters[(c) >> 3] >> ((c) & 7)) & 1)
 
 /* The bytecode interpreter for the NFA */
-static int re_match(value re,
+static int re_match_r(CAML_R, value re,
                     unsigned char * starttxt,
                     register unsigned char * txt,
                     register unsigned char * endtxt,
@@ -137,9 +171,10 @@ static int re_match(value re,
   value normtable;
   unsigned char c;
   union backtrack_point back;
+  caml_str_context *uctx = caml_get_str_context_r(ctx);
 
   { int i;
-    struct re_group * p;
+    struct_re_group * p;
     unsigned char ** q;
     for (p = &re_group[1], i = Numgroups(re); i > 1; i--, p++)
       p->start = p->end = NULL;
@@ -219,7 +254,7 @@ static int re_match(value re,
       }
     case BEGGROUP: {
       int group_no = Arg(instr);
-      struct re_group * group = &(re_group[group_no]);
+      struct_re_group * group = &(re_group[group_no]);
       back.undo.loc = &(group->start);
       back.undo.val = group->start;
       group->start = txt;
@@ -227,7 +262,7 @@ static int re_match(value re,
     }
     case ENDGROUP: {
       int group_no = Arg(instr);
-      struct re_group * group = &(re_group[group_no]);
+      struct_re_group * group = &(re_group[group_no]);
       back.undo.loc = &(group->end);
       back.undo.val = group->end;
       group->end = txt;
@@ -235,7 +270,7 @@ static int re_match(value re,
     }
     case REFGROUP: {
       int group_no = Arg(instr);
-      struct re_group * group = &(re_group[group_no]);
+      struct_re_group * group = &(re_group[group_no]);
       unsigned char * s;
       if (group->start == NULL || group->end == NULL) goto backtrack;
       for (s = group->start; s < group->end; s++) {
@@ -346,16 +381,17 @@ static int re_match(value re,
    Beginning of group #N is at 2N, end is at 2N+1.
    Take position = -1 when group wasn't matched. */
 
-static value re_alloc_groups(value re, value str)
+static value re_alloc_groups_r(CAML_R, value re, value str)
 {
   CAMLparam1(str);
   CAMLlocal1(res);
   unsigned char * starttxt = (unsigned char *) String_val(str);
   int n = Numgroups(re);
   int i;
-  struct re_group * group;
+  struct_re_group * group;
+  caml_str_context *uctx = caml_get_str_context_r(ctx);
 
-  res = alloc(n * 2, 0);
+  res = caml_alloc_r(ctx, n * 2, 0);
   for (i = 0; i < n; i++) {
     group = &(re_group[i]);
     if (group->start == NULL || group->end == NULL) {
@@ -372,37 +408,37 @@ static value re_alloc_groups(value re, value str)
 /* String matching and searching.  All functions return the empty array
    on failure, and an array of positions on success. */
 
-CAMLprim value re_string_match(value re, value str, value pos)
+CAMLprim value re_string_match_r(CAML_R, value re, value str, value pos)
 {
   unsigned char * starttxt = &Byte_u(str, 0);
   unsigned char * txt = &Byte_u(str, Long_val(pos));
   unsigned char * endtxt = &Byte_u(str, string_length(str));
 
   if (txt < starttxt || txt > endtxt)
-    invalid_argument("Str.string_match");
-  if (re_match(re, starttxt, txt, endtxt, 0)) {
-    return re_alloc_groups(re, str);
+    caml_invalid_argument_r(ctx,"Str.string_match");
+  if (re_match_r(ctx, re, starttxt, txt, endtxt, 0)) {
+    return re_alloc_groups_r(ctx,re, str);
   } else {
     return Atom(0);
   }
 }
 
-CAMLprim value re_partial_match(value re, value str, value pos)
+CAMLprim value re_partial_match_r(CAML_R, value re, value str, value pos)
 {
   unsigned char * starttxt = &Byte_u(str, 0);
   unsigned char * txt = &Byte_u(str, Long_val(pos));
   unsigned char * endtxt = &Byte_u(str, string_length(str));
 
   if (txt < starttxt || txt > endtxt)
-    invalid_argument("Str.string_partial_match");
-  if (re_match(re, starttxt, txt, endtxt, 1)) {
-    return re_alloc_groups(re, str);
+    caml_invalid_argument_r(ctx,"Str.string_partial_match");
+  if (re_match_r(ctx, re, starttxt, txt, endtxt, 1)) {
+    return re_alloc_groups_r(ctx,re, str);
   } else {
     return Atom(0);
   }
 }
 
-CAMLprim value re_search_forward(value re, value str, value startpos)
+CAMLprim value re_search_forward_r(CAML_R, value re, value str, value startpos)
 {
   unsigned char * starttxt = &Byte_u(str, 0);
   unsigned char * txt = &Byte_u(str, Long_val(startpos));
@@ -410,11 +446,11 @@ CAMLprim value re_search_forward(value re, value str, value startpos)
   unsigned char * startchars;
 
   if (txt < starttxt || txt > endtxt)
-    invalid_argument("Str.search_forward");
+    caml_invalid_argument_r(ctx,"Str.search_forward");
   if (Startchars(re) == -1) {
     do {
-      if (re_match(re, starttxt, txt, endtxt, 0))
-        return re_alloc_groups(re, str);
+      if (re_match_r(ctx, re, starttxt, txt, endtxt, 0))
+        return re_alloc_groups_r(ctx,re, str);
       txt++;
     } while (txt <= endtxt);
     return Atom(0);
@@ -423,15 +459,15 @@ CAMLprim value re_search_forward(value re, value str, value startpos)
       (unsigned char *) String_val(Field(Cpool(re), Startchars(re)));
     do {
       while (txt < endtxt && startchars[*txt] == 0) txt++;
-      if (re_match(re, starttxt, txt, endtxt, 0))
-        return re_alloc_groups(re, str);
+      if (re_match_r(ctx, re, starttxt, txt, endtxt, 0))
+        return re_alloc_groups_r(ctx,re, str);
       txt++;
     } while (txt <= endtxt);
     return Atom(0);
   }
 }
 
-CAMLprim value re_search_backward(value re, value str, value startpos)
+CAMLprim value re_search_backward_r(CAML_R, value re, value str, value startpos)
 {
   unsigned char * starttxt = &Byte_u(str, 0);
   unsigned char * txt = &Byte_u(str, Long_val(startpos));
@@ -439,11 +475,11 @@ CAMLprim value re_search_backward(value re, value str, value startpos)
   unsigned char * startchars;
 
   if (txt < starttxt || txt > endtxt)
-    invalid_argument("Str.search_backward");
+    caml_invalid_argument_r(ctx,"Str.search_backward");
   if (Startchars(re) == -1) {
     do {
-      if (re_match(re, starttxt, txt, endtxt, 0))
-        return re_alloc_groups(re, str);
+      if (re_match_r(ctx, re, starttxt, txt, endtxt, 0))
+        return re_alloc_groups_r(ctx,re, str);
       txt--;
     } while (txt >= starttxt);
     return Atom(0);
@@ -452,8 +488,8 @@ CAMLprim value re_search_backward(value re, value str, value startpos)
       (unsigned char *) String_val(Field(Cpool(re), Startchars(re)));
     do {
       while (txt > starttxt && startchars[*txt] == 0) txt--;
-      if (re_match(re, starttxt, txt, endtxt, 0))
-        return re_alloc_groups(re, str);
+      if (re_match_r(ctx, re, starttxt, txt, endtxt, 0))
+        return re_alloc_groups_r(ctx,re, str);
       txt--;
     } while (txt >= starttxt);
     return Atom(0);
@@ -462,7 +498,7 @@ CAMLprim value re_search_backward(value re, value str, value startpos)
 
 /* Replacement */
 
-CAMLprim value re_replacement_text(value repl, value groups, value orig)
+CAMLprim value re_replacement_text_r(CAML_R, value repl, value groups, value orig)
 {
   CAMLparam3(repl, groups, orig);
   CAMLlocal1(res);
@@ -478,7 +514,7 @@ CAMLprim value re_replacement_text(value repl, value groups, value orig)
     if(c != '\\')
       len++;
     else {
-      if (n == 0) failwith("Str.replace: illegal backslash sequence");
+      if (n == 0) caml_failwith_r(ctx,"Str.replace: illegal backslash sequence");
       c = *p++; n--;
       switch (c) {
       case '\\':
@@ -487,11 +523,11 @@ CAMLprim value re_replacement_text(value repl, value groups, value orig)
       case '5': case '6': case '7': case '8': case '9':
         c -= '0';
         if (c*2 >= Wosize_val(groups))
-          failwith("Str.replace: reference to unmatched group");
+          caml_failwith_r(ctx,"Str.replace: reference to unmatched group");
         start = Long_val(Field(groups, c*2));
         end = Long_val(Field(groups, c*2 + 1));
         if (start == (mlsize_t) -1)
-          failwith("Str.replace: reference to unmatched group");
+          caml_failwith_r(ctx,"Str.replace: reference to unmatched group");
         len += end - start;
         break;
       default:
@@ -499,7 +535,7 @@ CAMLprim value re_replacement_text(value repl, value groups, value orig)
       }
     }
   }
-  res = alloc_string(len);
+  res = caml_alloc_string_r(ctx, len);
   p = String_val(repl);
   q = String_val(res);
   n = string_length(repl);

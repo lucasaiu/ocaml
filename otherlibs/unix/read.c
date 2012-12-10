@@ -11,13 +11,17 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <string.h>
 #include <mlvalues.h>
 #include <memory.h>
 #include <signals.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_read(value fd, value buf, value ofs, value len)
+CAMLprim value unix_read_r(CAML_R, value fd, value buf, value ofs, value len)
 {
   long numbytes;
   int ret;
@@ -26,10 +30,10 @@ CAMLprim value unix_read(value fd, value buf, value ofs, value len)
   Begin_root (buf);
     numbytes = Long_val(len);
     if (numbytes > UNIX_BUFFER_SIZE) numbytes = UNIX_BUFFER_SIZE;
-    enter_blocking_section();
+    caml_enter_blocking_section_r(ctx);
     ret = read(Int_val(fd), iobuf, (int) numbytes);
-    leave_blocking_section();
-    if (ret == -1) uerror("read", Nothing);
+    caml_leave_blocking_section_r(ctx);
+    if (ret == -1) uerror_r(ctx,"read", Nothing);
     memmove (&Byte(buf, Long_val(ofs)), iobuf, ret);
   End_roots();
   return Val_int(ret);

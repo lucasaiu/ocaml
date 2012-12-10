@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef _REENTRANT
 /* This helps detection on Digital Unix... */
 #define _REENTRANT

@@ -10,6 +10,8 @@
 ;(*                                                                     *)
 ;(***********************************************************************)
 
+;(* $Id$ *)
+
 ; An emacs-lisp complement to the "-annot" option of ocamlc and ocamlopt.
 
 ;; XEmacs compatibility

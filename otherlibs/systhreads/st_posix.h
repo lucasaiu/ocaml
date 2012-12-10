@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* POSIX thread implementation of the "st" interface */
 
 #include <errno.h>
@@ -294,22 +296,22 @@ static int st_event_wait(st_event e)
 
 /* Reporting errors */
 
-static void st_check_error(int retcode, char * msg)
+static void st_check_error_r(CAML_R, int retcode, char * msg)
 {
   char * err;
   int errlen, msglen;
   value str;
 
   if (retcode == 0) return;
-  if (retcode == ENOMEM) raise_out_of_memory();
+  if (retcode == ENOMEM) caml_raise_out_of_memory_r(ctx);
   err = strerror(retcode);
   msglen = strlen(msg);
   errlen = strlen(err);
-  str = alloc_string(msglen + 2 + errlen);
+  str = caml_alloc_string_r(ctx, msglen + 2 + errlen);
   memmove (&Byte(str, 0), msg, msglen);
   memmove (&Byte(str, msglen), ": ", 2);
   memmove (&Byte(str, msglen + 2), err, errlen);
-  raise_sys_error(str);
+  caml_raise_sys_error_r(ctx, str);
 }
 
 /* The tick thread: posts a SIGPREEMPTION signal periodically */

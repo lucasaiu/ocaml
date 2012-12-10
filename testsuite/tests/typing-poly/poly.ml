@@ -1,3 +1,4 @@
+(* $Id$ *)
 (*
    Polymorphic methods are now available in the main branch.
    Enjoy.

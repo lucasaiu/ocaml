@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <string.h>
 #include <mlvalues.h>
 #include <alloc.h>
@@ -26,30 +30,30 @@
 #define EAFNOSUPPORT WSAEAFNOSUPPORT
 #endif
 
-CAMLexport value alloc_inet_addr(struct in_addr * a)
+CAMLexport value alloc_inet_addr_r(CAML_R, struct in_addr * a)
 {
   value res;
   /* Use a string rather than an abstract block so that it can be
      marshaled safely.  Remember that a is in network byte order,
      hence is marshaled in an endian-independent manner. */
-  res = alloc_string(4);
+  res = caml_alloc_string_r(ctx, 4);
   memcpy(String_val(res), a, 4);
   return res;
 }
 
 #ifdef HAS_IPV6
 
-CAMLexport value alloc_inet6_addr(struct in6_addr * a)
+CAMLexport value alloc_inet6_addr_r(CAML_R, struct in6_addr * a)
 {
   value res;
-  res = alloc_string(16);
+  res = caml_alloc_string_r(ctx,16);
   memcpy(String_val(res), a, 16);
   return res;
 }
 
 #endif
 
-void get_sockaddr(value mladr,
+void get_sockaddr_r(CAML_R, value mladr,
                   union sock_addr_union * adr /*out*/,
                   socklen_param_type * adr_len /*out*/)
 {
@@ -62,7 +66,7 @@ void get_sockaddr(value mladr,
       len = string_length(path);
       adr->s_unix.sun_family = AF_UNIX;
       if (len >= sizeof(adr->s_unix.sun_path)) {
-        unix_error(ENAMETOOLONG, "", path);
+        unix_error_r(ctx,ENAMETOOLONG, "", path);
       }
       memmove (adr->s_unix.sun_path, String_val(path), len + 1);
       *adr_len =
@@ -97,25 +101,25 @@ void get_sockaddr(value mladr,
   }
 }
 
-value alloc_sockaddr(union sock_addr_union * adr /*in*/,
+value alloc_sockaddr_r(CAML_R, union sock_addr_union * adr /*in*/,
                      socklen_param_type adr_len, int close_on_error)
 {
   value res;
   switch(adr->s_gen.sa_family) {
 #ifndef _WIN32
   case AF_UNIX:
-    { value n = copy_string(adr->s_unix.sun_path);
+    { value n = caml_copy_string_r(ctx,adr->s_unix.sun_path);
       Begin_root (n);
-        res = alloc_small(1, 0);
+        res = caml_alloc_small_r(ctx,1, 0);
         Field(res,0) = n;
       End_roots();
       break;
     }
 #endif
   case AF_INET:
-    { value a = alloc_inet_addr(&adr->s_inet.sin_addr);
+    { value a = alloc_inet_addr_r(ctx, &adr->s_inet.sin_addr);
       Begin_root (a);
-        res = alloc_small(2, 1);
+        res = caml_alloc_small_r(ctx,2, 1);
         Field(res,0) = a;
         Field(res,1) = Val_int(ntohs(adr->s_inet.sin_port));
       End_roots();
@@ -123,9 +127,9 @@ value alloc_sockaddr(union sock_addr_union * adr /*in*/,
     }
 #ifdef HAS_IPV6
   case AF_INET6:
-    { value a = alloc_inet6_addr(&adr->s_inet6.sin6_addr);
+    { value a = alloc_inet6_addr_r(ctx, &adr->s_inet6.sin6_addr);
       Begin_root (a);
-        res = alloc_small(2, 1);
+        res = caml_alloc_small_r(ctx,2, 1);
         Field(res,0) = a;
         Field(res,1) = Val_int(ntohs(adr->s_inet6.sin6_port));
       End_roots();
@@ -134,7 +138,7 @@ value alloc_sockaddr(union sock_addr_union * adr /*in*/,
 #endif
   default:
     if (close_on_error != -1) close (close_on_error);
-    unix_error(EAFNOSUPPORT, "", Nothing);
+    unix_error_r(ctx,EAFNOSUPPORT, "", Nothing);
   }
   return res;
 }

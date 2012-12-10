@@ -10,6 +10,8 @@
 ;(*                                                                     *)
 ;(***********************************************************************)
 
+;(* $Id$ *)
+
 ;; for caml-help.el
 (defalias 'caml-info-other-window 'info-other-window)
 

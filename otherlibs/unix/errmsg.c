@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <errno.h>
 #include <string.h>
 #include <mlvalues.h>
@@ -18,9 +20,9 @@
 
 extern int error_table[];
 
-CAMLprim value unix_error_message(value err)
+CAMLprim value unix_error_message_r(CAML_R, value err)
 {
   int errnum;
   errnum = Is_block(err) ? Int_val(Field(err, 0)) : error_table[Int_val(err)];
-  return copy_string(strerror(errnum));
+  return caml_copy_string_r(ctx,strerror(errnum));
 }

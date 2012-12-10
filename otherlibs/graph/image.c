@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include "libgraph.h"
 #include "image.h"
 #include <alloc.h>
@@ -29,13 +31,16 @@ static struct custom_operations image_ops = {
   custom_hash_default,
   custom_serialize_default,
   custom_deserialize_default,
-  custom_compare_ext_default
+  custom_compare_ext_default,
+  custom_serialize_default,
+  custom_deserialize_default
 };
 
 #define Max_image_mem 2000000
 
-value caml_gr_new_image(int w, int h)
+value caml_gr_new_image_r(CAML_R, int w, int h)
 {
+  // FIXME: alloc_custom doesn't support contexts yet, but it will.
   value res = alloc_custom(&image_ops, sizeof(struct grimage),
                            w * h, Max_image_mem);
   Width_im(res) = w;
@@ -46,10 +51,10 @@ value caml_gr_new_image(int w, int h)
   return res;
 }
 
-value caml_gr_create_image(value vw, value vh)
+value caml_gr_create_image_r(CAML_R, value vw, value vh)
 {
   caml_gr_check_open();
-  return caml_gr_new_image(Int_val(vw), Int_val(vh));
+  return caml_gr_new_image_r(ctx, Int_val(vw), Int_val(vh));
 }
 
 value caml_gr_blit_image(value im, value vx, value vy)
@@ -102,3 +107,5 @@ value caml_gr_draw_image(value im, value vx, value vy)
     XFlush(caml_gr_display);
   return Val_unit;
 }
+
+/* eof $Id$ */

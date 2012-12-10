@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* structure of the stacks */
 
 #ifndef CAML_STACKS_H
@@ -21,21 +23,20 @@
 #include "mlvalues.h"
 #include "memory.h"
 
-CAMLextern value * caml_stack_low;
+/* CAMLextern value * caml_stack_low;
 CAMLextern value * caml_stack_high;
 CAMLextern value * caml_stack_threshold;
 CAMLextern value * caml_extern_sp;
 CAMLextern value * caml_trapsp;
 CAMLextern value * caml_trap_barrier;
+*/
 
 #define Trap_pc(tp) (((code_t *)(tp))[0])
 #define Trap_link(tp) (((value **)(tp))[1])
 
-void caml_init_stack (uintnat init_max_size);
-void caml_realloc_stack (asize_t required_size);
-void caml_change_max_stack_size (uintnat new_max_size);
-uintnat caml_stack_usage (void);
-
-CAMLextern uintnat (*caml_stack_usage_hook)(void);
+void caml_init_stack_r (CAML_R, uintnat init_max_size);
+void caml_realloc_stack_r (CAML_R, asize_t required_size);
+void caml_change_max_stack_size_r (CAML_R, uintnat new_max_size);
+uintnat caml_stack_usage_r (CAML_R);
 
 #endif /* CAML_STACKS_H */

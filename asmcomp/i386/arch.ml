@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Machine-specific command-line options *)
 
 let fast_math = ref false

@@ -1,0 +1,169 @@
+#!/bin/bash
+
+#MAKEFLAGS='-j 4'
+
+# This assumes we have already configured the sources in $UNPATCHED and $PATCHED .
+
+# cd ...
+# make clean
+# cp "$UNPATCHED/ocamlc" "$PATCHED/ocamlc"
+# cp "$UNPATCHED/boot/"* boot/
+# make -C byterun
+# make -C "$PATCHED/stdlib" CAMLC="$UNPATCHED/ocamlc" COMPILER="$UNPATCHED/ocamlc"
+# for t in compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo; do
+#     make CAMLC="$UNPATCHED/ocamlc" $t
+# done
+# # This fails
+# ocamlc -o ocamlc stdlib/stdlib.cma compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo -use-runtime byterun/ocamlrun
+set -ex
+
+# # This assumes ../unpatched-trunk contains an unpatched, configured
+# # and compiled version of the OCaml source.
+# PATCHED="$(pwd)"
+PATCHED="/home/luca/reentrant-runtime/working/trunk/"
+UNPATCHED="$PATCHED/../unpatched-trunk/"
+OLD="/tmp/old/"
+COMPILERWITHOLDRUNTIME="/tmp/compiler-with-old-runtime/"
+COMPILERWITHNEWRUNTIME="/tmp/compiler-with-new-runtime/"
+export OLDOCAMLC="$OLD/byterun/ocamlrun $OLD/ocamlc"
+export COMPILERWITHOLDRUNTIMEOCAMLC="$OLD/byterun/ocamlrun $COMPILERWITHOLDRUNTIME/ocamlc-stage1 -nostdlib -I $COMPILERWITHOLDRUNTIME/stdlib -use-runtime $COMPILERWITHOLDRUNTIME/byterun/ocamlrun"
+export COMPILERWITHNEWRUNTIMEOCAMLC="$COMPILERWITHNEWRUNTIME/byterun/ocamlrun $COMPILERWITHNEWRUNTIME/ocamlc -nostdlib -I $COMPILERWITHNEWRUNTIME/stdlib -use-runtime $COMPILERWITHNEWRUNTIME/byterun/ocamlrun"
+
+echo "Preparing temporary directories..."
+rm -rf "$OLD" "$COMPILERWITHOLDRUNTIME" "$COMPILERWITHNEWRUNTIME"
+cp -af "$UNPATCHED" "$OLD"
+cp -af "$PATCHED" "$COMPILERWITHOLDRUNTIME"
+cp -af "$PATCHED" "$COMPILERWITHNEWRUNTIME"
+
+# FIXME: this is correct: I've just disabled it to save time
+# echo "Compiling the old runtime..."
+# cd "$OLD"
+# make clean
+# make -C byterun
+# make ocamlc
+# make -C stdlib # FIXME: is this needed?
+# if (! [ -e "$OLD/byterun/ocamlrun" ]) || (! [ -e "$OLD/ocamlc" ]); then exit -1; fi
+# echo "Now $OLDOCAMLC exists"
+
+echo "Compiling the patched compiler running on the old runtime..."
+cd "$COMPILERWITHOLDRUNTIME"
+make clean
+cp "$OLD/boot/ocamllex" boot/
+
+# We can start with the part written in C:
+make -C yacc
+cp yacc/ocamlyacc boot/
+make -C byterun
+cp byterun/ocamlrun boot/
+
+#cp "$OLD/ocamlc" ocamlc
+#cp "$OLD/boot/"* boot/
+#make -C byterun
+#make -C "$COMPILERWITHOLDRUNTIME/stdlib" CAMLC="$OLDOCAMLC" COMPILER="$OLDOCAMLC"
+
+# # Copy some sources from the unpatched version, so that we don't rely
+# # on the new C primitives we lack in our old runtime:
+cp "$OLD/utils/terminfo.ml"{,i} utils/
+cp "$OLD/bytecomp/dll.ml"{,i} bytecomp/
+cp "$OLD/bytecomp/meta.ml"{,i} bytecomp/
+# #cp "$OLD/bytecomp/runtimedef.ml"{,i} bytecomp/
+
+for t in compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo; do
+    make CAMLC="$OLDOCAMLC -I $OLD/boot" CAMLLEX="$OLD/boot/ocamlrun $COMPILERWITHOLDRUNTIME/boot/ocamllex" "$t"
+done
+
+$OLDOCAMLC -I "$OLD/boot" -o ocamlc-stage1 -use-runtime "$OLD/byterun/ocamlrun" compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo
+
+make -C stdlib/ RUNTIME="$OLD/byterun/ocamlrun" COMPILER="$COMPILERWITHOLDRUNTIME/ocamlc-stage1"
+
+# The generated runtime (in byterun/) should be the same in stages 1
+# and 2.  The difference is the runtime *on top of which* the compiler
+# runs.
+
+echo "Compiling test programs with ocamlc-stage1, to be run with the new runtime..."
+$COMPILERWITHOLDRUNTIMEOCAMLC -o a ~/reentrant-runtime/tests/a.ml
+$COMPILERWITHOLDRUNTIMEOCAMLC -o b ~/reentrant-runtime/tests/b.ml
+$COMPILERWITHOLDRUNTIMEOCAMLC -o i ~/reentrant-runtime/tests/i.ml
+$COMPILERWITHOLDRUNTIMEOCAMLC -o l ~/reentrant-runtime/tests/length.ml
+
+#make -C lex CAMLC="$COMPILERWITHOLDRUNTIMEOCAMLC" 
+#make -C tools CAMLRUN="$COMPILERWITHOLDRUNTIMEOCAMLC/byterun/ocamlrun" CAMLC="$COMPILERWITHOLDRUNTIMEOCAMLC"
+
+echo Generated the compiler running on the old runtime
+
+# FIXME: I suppose that before doing this I have to clean compilerlibs, util/ and and driver/
+#$OLDOCAMLC -nostdlib -o ocamlc compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo -I stdlib/ -use-runtime byterun/ocamlrun
+#Fails with
+#Error: Error while linking stdlib/stdlib.cma(Array):
+#The external function `caml_array_concat' is not available
+
+cd "$COMPILERWITHNEWRUNTIME"
+cp "$COMPILERWITHOLDRUNTIME/ocamlc-stage1" boot/ocamlc
+cp "$COMPILERWITHOLDRUNTIME/byterun/ocamlrun" boot/ocamlrun
+#echo '#!'"$OLD/boot/ocamlrun" > boot/ocamllex; tail --lines=+2 < "$OLD/boot/ocamllex" >> boot/ocamllex
+cp "$OLD/boot/ocamlyacc" boot/ocamlyacc
+#echo '#!'"$OLD/boot/ocamlrun" > boot/ocamldep; tail --lines=+2 < "$OLD/boot/ocamldep" >> boot/ocamldep
+#echo '#!'"$OLD/boot/ocamlrun" > boot/ocamlbuild; tail --lines=+2 < "$OLD/boot/ocamlbuild" >> boot/ocamlbuild
+
+make -C byterun clean
+make -C byterun
+make -C lex CAMLC="$COMPILERWITHOLDRUNTIMEOCAMLC" CAMLLEX="$OLD/boot/ocamlrun $COMPILERWITHOLDRUNTIME/boot/ocamllex"
+cp lex/ocamllex boot/
+make -C stdlib/ RUNTIME="$OLD/byterun/ocamlrun" COMPILER="$COMPILERWITHOLDRUNTIME/ocamlc-stage1"
+for t in compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo; do
+    make CAMLC="$COMPILERWITHOLDRUNTIMEOCAMLC" "$t"
+done
+$OLDOCAMLC -nostdlib -I stdlib -o ocamlc-stage2 -use-runtime "$COMPILERWITHNEWRUNTIME/byterun/ocamlrun" compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma driver/main.cmo
+cp ocamlc-stage2 boot/ocamlc
+cp ocamlc-stage2 ocamlc
+cp byterun/ocamlrun boot/ocamlrun # This shouldn't be needed, but let's play it safe
+
+make coldstart
+
+make ocamltools
+make -C tools
+#cp tools/ocamldep boot/ocamldep
+
+echo "Compiling test programs with ocamlc-stage2, to be run with the new runtime..."
+$COMPILERWITHNEWRUNTIMEOCAMLC -o a ~/reentrant-runtime/tests/a.ml
+$COMPILERWITHNEWRUNTIMEOCAMLC -o b ~/reentrant-runtime/tests/b.ml
+$COMPILERWITHNEWRUNTIMEOCAMLC -o i ~/reentrant-runtime/tests/i.ml
+$COMPILERWITHNEWRUNTIMEOCAMLC -o l ~/reentrant-runtime/tests/length.ml
+
+#make -C lex CAMLLEX="$COMPILERWITHNEWRUNTIME/boot/ocamllex"
+cp tools/ocamldep boot/
+#cp myocamlbuild_config.ml ocamlbuild/ocamlbuild_Myocamlbuild_config.ml
+#make -C ocamlbuild/ 
+
+# What we did up to this point has built a non-working
+# boot/myocamlbuild.boot; let's replace it with something that can
+# actually be run:
+echo '#!'"$OLD/boot/ocamlrun" > boot/myocamlbuild.boot; chmod a+x boot/myocamlbuild.boot; tail --lines=+2 < "$OLD/boot/myocamlbuild.boot" >> boot/myocamlbuild.boot
+
+# # ocamlbuild complains about this if I keep it:
+# rm -rf compilerlibs-from-unpatched-version 
+
+cp $OLD/boot/ocamlrun boot/ocamlrun.boot
+
+# I can't run make world at this point, because ocamlcomp.sh is not
+# there yet.  What's the clean way of producing it?  "make bootstrap"
+# works.
+make bootstrap
+make install
+
+# Now we have bootstrapped.  From now on, if the installation prefix
+# is accessible, we can directly compile from the current directory.
+# Just copy the executables from the previous stage into boot:
+rm boot/* &> /dev/null || true
+cp $COMPILERWITHNEWRUNTIME/ocamlc boot/
+cp $COMPILERWITHNEWRUNTIME/byterun/ocamlrun boot/
+cp $COMPILERWITHNEWRUNTIME/byterun/ocamlrun boot/ocamlrun.boot # Added by me, to be used in build/boot.sh
+cp $COMPILERWITHNEWRUNTIME/tools/ocamldep boot/
+cp $COMPILERWITHNEWRUNTIME/lex/ocamllex boot/
+cp $COMPILERWITHNEWRUNTIME/yacc/ocamlyacc boot/
+cp $COMPILERWITHNEWRUNTIME/_build/myocamlbuild boot/myocamlbuild
+cp $COMPILERWITHNEWRUNTIME/_build/myocamlbuild boot/myocamlbuild.boot # Not a mistake
+
+make world
+
+echo SUCCESS

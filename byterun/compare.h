@@ -11,9 +11,11 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_COMPARE_H
 #define CAML_COMPARE_H
 
-CAMLextern int caml_compare_unordered;
+/* CAMLextern int caml_compare_unordered; */
 
 #endif /* CAML_COMPARE_H */

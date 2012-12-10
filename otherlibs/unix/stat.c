@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <errno.h>
 #include <mlvalues.h>
 #include <memory.h>
@@ -42,16 +46,16 @@ static int file_kind_table[] = {
   S_IFREG, S_IFDIR, S_IFCHR, S_IFBLK, S_IFLNK, S_IFIFO, S_IFSOCK
 };
 
-static value stat_aux(int use_64, struct stat *buf)
+static value stat_aux_r(CAML_R, int use_64, struct stat *buf)
 {
   CAMLparam0();
   CAMLlocal5(atime, mtime, ctime, offset, v);
 
-  atime = copy_double((double) buf->st_atime);
-  mtime = copy_double((double) buf->st_mtime);
-  ctime = copy_double((double) buf->st_ctime);
+  atime = caml_copy_double_r(ctx,(double) buf->st_atime);
+  mtime = caml_copy_double_r(ctx,(double) buf->st_mtime);
+  ctime = caml_copy_double_r(ctx,(double) buf->st_ctime);
   offset = use_64 ? Val_file_offset(buf->st_size) : Val_int (buf->st_size);
-  v = alloc_small(12, 0);
+  v = caml_alloc_small_r(ctx,12, 0);
   Field (v, 0) = Val_int (buf->st_dev);
   Field (v, 1) = Val_int (buf->st_ino);
   Field (v, 2) = cst_to_constr(buf->st_mode & S_IFMT, file_kind_table,
@@ -68,18 +72,18 @@ static value stat_aux(int use_64, struct stat *buf)
   CAMLreturn(v);
 }
 
-CAMLprim value unix_stat(value path)
+CAMLprim value unix_stat_r(CAML_R, value path)
 {
   int ret;
   struct stat buf;
   ret = stat(String_val(path), &buf);
-  if (ret == -1) uerror("stat", path);
+  if (ret == -1) uerror_r(ctx,"stat", path);
   if (buf.st_size > Max_long && (buf.st_mode & S_IFMT) == S_IFREG)
-    unix_error(EOVERFLOW, "stat", path);
-  return stat_aux(0, &buf);
+    unix_error_r(ctx,EOVERFLOW, "stat", path);
+  return stat_aux_r(ctx, 0, &buf);
 }
 
-CAMLprim value unix_lstat(value path)
+CAMLprim value unix_lstat_r(CAML_R, value path)
 {
   int ret;
   struct stat buf;
@@ -88,33 +92,33 @@ CAMLprim value unix_lstat(value path)
 #else
   ret = stat(String_val(path), &buf);
 #endif
-  if (ret == -1) uerror("lstat", path);
+  if (ret == -1) uerror_r(ctx,"lstat", path);
   if (buf.st_size > Max_long && (buf.st_mode & S_IFMT) == S_IFREG)
-    unix_error(EOVERFLOW, "lstat", path);
-  return stat_aux(0, &buf);
+    unix_error_r(ctx,EOVERFLOW, "lstat", path);
+  return stat_aux_r(ctx, 0, &buf);
 }
 
-CAMLprim value unix_fstat(value fd)
+CAMLprim value unix_fstat_r(CAML_R, value fd)
 {
   int ret;
   struct stat buf;
   ret = fstat(Int_val(fd), &buf);
-  if (ret == -1) uerror("fstat", Nothing);
+  if (ret == -1) uerror_r(ctx,"fstat", Nothing);
   if (buf.st_size > Max_long && (buf.st_mode & S_IFMT) == S_IFREG)
-    unix_error(EOVERFLOW, "fstat", Nothing);
-  return stat_aux(0, &buf);
+    unix_error_r(ctx,EOVERFLOW, "fstat", Nothing);
+  return stat_aux_r(ctx, 0, &buf);
 }
 
-CAMLprim value unix_stat_64(value path)
+CAMLprim value unix_stat_64_r(CAML_R, value path)
 {
   int ret;
   struct stat buf;
   ret = stat(String_val(path), &buf);
-  if (ret == -1) uerror("stat", path);
-  return stat_aux(1, &buf);
+  if (ret == -1) uerror_r(ctx,"stat", path);
+  return stat_aux_r(ctx, 1, &buf);
 }
 
-CAMLprim value unix_lstat_64(value path)
+CAMLprim value unix_lstat_64_r(CAML_R, value path)
 {
   int ret;
   struct stat buf;
@@ -123,15 +127,15 @@ CAMLprim value unix_lstat_64(value path)
 #else
   ret = stat(String_val(path), &buf);
 #endif
-  if (ret == -1) uerror("lstat", path);
-  return stat_aux(1, &buf);
+  if (ret == -1) uerror_r(ctx,"lstat", path);
+  return stat_aux_r(ctx, 1, &buf);
 }
 
-CAMLprim value unix_fstat_64(value fd)
+CAMLprim value unix_fstat_64_r(CAML_R, value fd)
 {
   int ret;
   struct stat buf;
   ret = fstat(Int_val(fd), &buf);
-  if (ret == -1) uerror("fstat", Nothing);
-  return stat_aux(1, &buf);
+  if (ret == -1) uerror_r(ctx,"fstat", Nothing);
+  return stat_aux_r(ctx, 1, &buf);
 }

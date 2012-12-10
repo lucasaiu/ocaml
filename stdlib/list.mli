@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** List operations.
 
    Some functions are flagged as not tail-recursive.  A tail-recursive

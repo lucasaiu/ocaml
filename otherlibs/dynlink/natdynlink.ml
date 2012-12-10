@@ -11,14 +11,16 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Dynamic loading of .cmx files *)
 
 type handle
 
-external ndl_open: string -> bool -> handle * string = "caml_natdynlink_open"
-external ndl_run: handle -> string -> unit = "caml_natdynlink_run"
-external ndl_getmap: unit -> string = "caml_natdynlink_getmap"
-external ndl_globals_inited: unit -> int = "caml_natdynlink_globals_inited"
+external ndl_open: string -> bool -> handle * string = "caml_natdynlink_open_r" "reentrant"
+external ndl_run: handle -> string -> unit = "caml_natdynlink_run_r" "reentrant"
+external ndl_getmap: unit -> string = "caml_natdynlink_getmap_r" "reentrant"
+external ndl_globals_inited: unit -> int = "caml_natdynlink_globals_inited_r" "reentrant"
 
 type linking_error =
     Undefined_global of string
@@ -229,8 +231,8 @@ let error_message = function
       "error while linking " ^ name ^ ".\n" ^
       "Reference to undefined global `" ^ s ^ "'"
   | Linking_error (name, Unavailable_primitive s) ->
-      "error while linking " ^ name ^ ".\n" ^
-      "The external function `" ^ s ^ "' is not available"
+      "Symtable: error while linking " ^ name ^ ".\n" ^
+      "The external function `" ^ s ^ "' is not available" (* FIXME: remove the "Symtable" prefix *) 
   | Linking_error (name, Uninitialized_global s) ->
       "error while linking " ^ name ^ ".\n" ^
       "The module `" ^ s ^ "' is not yet initialized"

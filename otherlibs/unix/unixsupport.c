@@ -11,11 +11,18 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
+#include <string.h>
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <callback.h>
 #include <memory.h>
 #include <fail.h>
+#include <signals.h>
 #include "unixsupport.h"
 #include "cst2constr.h"
 #include <errno.h>
@@ -247,9 +254,7 @@ int error_table[] = {
   EHOSTUNREACH, ELOOP, EOVERFLOW /*, EUNKNOWNERR */
 };
 
-static value * unix_error_exn = NULL;
-
-value unix_error_of_code (int errcode)
+value unix_error_of_code_r (CAML_R, int errcode)
 {
   int errconstr;
   value err;
@@ -262,7 +267,7 @@ value unix_error_of_code (int errcode)
   errconstr =
       cst_to_constr(errcode, error_table, sizeof(error_table)/sizeof(int), -1);
   if (errconstr == Val_int(-1)) {
-    err = alloc_small(1, 0);
+    err = caml_alloc_small_r(ctx,1, 0);
     Field(err, 0) = Val_int(errcode);
   } else {
     err = errconstr;
@@ -270,30 +275,50 @@ value unix_error_of_code (int errcode)
   return err;
 }
 
-void unix_error(int errcode, char *cmdname, value cmdarg)
+void unix_error_r(CAML_R, int errcode, char *cmdname, value cmdarg)
 {
   value res;
   value name = Val_unit, err = Val_unit, arg = Val_unit;
 
   Begin_roots3 (name, err, arg);
-    arg = cmdarg == Nothing ? copy_string("") : cmdarg;
-    name = copy_string(cmdname);
-    err = unix_error_of_code (errcode);
-    if (unix_error_exn == NULL) {
-      unix_error_exn = caml_named_value("Unix.Unix_error");
-      if (unix_error_exn == NULL)
-        invalid_argument("Exception Unix.Unix_error not initialized, please link unix.cma");
+    caml_unix_context *uctx = caml_get_unix_context_r(ctx);
+
+    arg = cmdarg == Nothing ? caml_copy_string_r(ctx,"") : cmdarg;
+    name = caml_copy_string_r(ctx,cmdname);
+    err = unix_error_of_code_r (ctx, errcode);
+    if (uctx->unix_error_exn == NULL) {
+      uctx->unix_error_exn = caml_named_value_r(ctx, "Unix.Unix_error");
+      if (uctx->unix_error_exn == NULL)
+        caml_invalid_argument_r(ctx,"Exception Unix.Unix_error not initialized, please link unix.cma");
     }
-    res = alloc_small(4, 0);
-    Field(res, 0) = *unix_error_exn;
+    res = caml_alloc_small_r(ctx, 4, 0);
+    Field(res, 0) = * uctx->unix_error_exn;
     Field(res, 1) = err;
     Field(res, 2) = name;
     Field(res, 3) = arg;
   End_roots();
-  mlraise(res);
+  caml_raise_r(ctx, res);
 }
 
-void uerror(char *cmdname, value cmdarg)
+void uerror_r(CAML_R, char *cmdname, value cmdarg)
 {
-  unix_error(errno, cmdname, cmdarg);
+  unix_error_r(ctx, errno, cmdname, cmdarg);
 }
+
+
+/* We need to move all the static variables inside the runtime context */
+static int caml_unix_context_pos = 0;
+static void caml_unix_context_init(library_context* lctx)
+{
+  caml_unix_context *uctx = (caml_unix_context*)lctx;
+  uctx->unix_error_exn = NULL;
+}
+
+caml_unix_context *caml_get_unix_context_r(CAML_R){
+  return (caml_unix_context*) caml_get_library_context_r(ctx,
+				    &caml_unix_context_pos,
+				    sizeof(caml_unix_context),
+				    &caml_unix_context_init);
+
+}
+

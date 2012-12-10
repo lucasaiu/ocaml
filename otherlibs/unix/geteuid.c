@@ -11,10 +11,12 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_geteuid(value unit)
+CAMLprim value unix_geteuid_r(CAML_R, value unit)
 {
   return Val_int(geteuid());
 }

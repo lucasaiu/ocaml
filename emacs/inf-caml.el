@@ -10,6 +10,8 @@
 ;(*                                                                     *)
 ;(***********************************************************************)
 
+;(* $Id$ *)
+
 ;;; inf-caml.el --- run the OCaml toplevel in an Emacs buffer
 
 ;; Xavier Leroy, july 1993.

@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Assign locations and numbers to globals and primitives *)
 
 open Cmo_format

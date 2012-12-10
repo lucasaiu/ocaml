@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -35,39 +39,39 @@
 #define TAG_WSIGNALED 1
 #define TAG_WSTOPPED 2
 
-static value alloc_process_status(int pid, int status)
+static value alloc_process_status_r(CAML_R, int pid, int status)
 {
   value st, res;
 
   if (WIFEXITED(status)) {
-    st = alloc_small(1, TAG_WEXITED);
+    st = caml_alloc_small_r(ctx,1, TAG_WEXITED);
     Field(st, 0) = Val_int(WEXITSTATUS(status));
   }
   else if (WIFSTOPPED(status)) {
-    st = alloc_small(1, TAG_WSTOPPED);
+    st = caml_alloc_small_r(ctx,1, TAG_WSTOPPED);
     Field(st, 0) = Val_int(caml_rev_convert_signal_number(WSTOPSIG(status)));
   }
   else {
-    st = alloc_small(1, TAG_WSIGNALED);
+    st = caml_alloc_small_r(ctx,1, TAG_WSIGNALED);
     Field(st, 0) = Val_int(caml_rev_convert_signal_number(WTERMSIG(status)));
   }
   Begin_root (st);
-    res = alloc_small(2, 0);
+    res = caml_alloc_small_r(ctx,2, 0);
     Field(res, 0) = Val_int(pid);
     Field(res, 1) = st;
   End_roots();
   return res;
 }
 
-CAMLprim value unix_wait(value unit)
+CAMLprim value unix_wait_r(CAML_R, value unit)
 {
   int pid, status;
 
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   pid = wait(&status);
-  leave_blocking_section();
-  if (pid == -1) uerror("wait", Nothing);
-  return alloc_process_status(pid, status);
+  caml_leave_blocking_section_r(ctx);
+  if (pid == -1) uerror_r(ctx,"wait", Nothing);
+  return alloc_process_status_r(ctx, pid, status);
 }
 
 #if defined(HAS_WAITPID) || defined(HAS_WAIT4)
@@ -80,21 +84,21 @@ static int wait_flag_table[] = {
   WNOHANG, WUNTRACED
 };
 
-CAMLprim value unix_waitpid(value flags, value pid_req)
+CAMLprim value unix_waitpid_r(CAML_R, value flags, value pid_req)
 {
   int pid, status, cv_flags;
 
   cv_flags = convert_flag_list(flags, wait_flag_table);
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   pid = waitpid(Int_val(pid_req), &status, cv_flags);
-  leave_blocking_section();
-  if (pid == -1) uerror("waitpid", Nothing);
-  return alloc_process_status(pid, status);
+  caml_leave_blocking_section_r(ctx);
+  if (pid == -1) uerror_r(ctx,"waitpid", Nothing);
+  return alloc_process_status_r(ctx, pid, status);
 }
 
 #else
 
-CAMLprim value unix_waitpid(value flags, value pid_req)
-{ invalid_argument("waitpid not implemented"); }
+CAMLprim value unix_waitpid_r(CAML_R, value flags, value pid_req)
+{ caml_invalid_argument_r(ctx,"waitpid not implemented"); }
 
 #endif

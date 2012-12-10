@@ -11,21 +11,23 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_BACKTRACE_H
 #define CAML_BACKTRACE_H
 
 #include "mlvalues.h"
 
-CAMLextern int caml_backtrace_active;
-CAMLextern int caml_backtrace_pos;
-CAMLextern code_t * caml_backtrace_buffer;
-CAMLextern value caml_backtrace_last_exn;
-CAMLextern char * caml_cds_file;
+/* CAMLextern int caml_backtrace_active; */
+/* CAMLextern int caml_backtrace_pos; */
+/* CAMLextern code_t * caml_backtrace_buffer; */
+/* CAMLextern value caml_backtrace_last_exn; */
+/* CAMLextern char * caml_cds_file; */
 
-CAMLprim value caml_record_backtrace(value vflag);
+CAMLprim value caml_record_backtrace_r(CAML_R, value vflag);
 #ifndef NATIVE_CODE
-extern void caml_stash_backtrace(value exn, code_t pc, value * sp);
+extern void caml_stash_backtrace_r(CAML_R, value exn, code_t pc, value * sp);
 #endif
-CAMLextern void caml_print_exception_backtrace(void);
+CAMLextern void caml_print_exception_backtrace_r(CAML_R);
 
 #endif /* CAML_BACKTRACE_H */

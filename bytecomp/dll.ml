@@ -10,20 +10,22 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Handling of dynamically-linked libraries *)
 
 type dll_handle
 type dll_address
 type dll_mode = For_checking | For_execution
 
-external dll_open: dll_mode -> string -> dll_handle = "caml_dynlink_open_lib"
+external dll_open: dll_mode -> string -> dll_handle = "caml_dynlink_open_lib_r" "reentrant"
 external dll_close: dll_handle -> unit = "caml_dynlink_close_lib"
 external dll_sym: dll_handle -> string -> dll_address
-                = "caml_dynlink_lookup_symbol"
+                = "caml_dynlink_lookup_symbol_r" "reentrant"
          (* returned dll_address may be Val_unit *)
-external add_primitive: dll_address -> int = "caml_dynlink_add_primitive"
+external add_primitive: dll_address -> int = "caml_dynlink_add_primitive_r" "reentrant"
 external get_current_dlls: unit -> dll_handle array
-                                           = "caml_dynlink_get_current_libs"
+                                           = "caml_dynlink_get_current_libs_r" "reentrant"
 
 (* Current search path for DLLs *)
 let search_path = ref ([] : string list)

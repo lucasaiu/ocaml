@@ -12,6 +12,8 @@
 
 /* Based on public-domain code from Berkeley Yacc */
 
+/* $Id$ */
+
 /* routines for printing error messages  */
 
 #include "defs.h"

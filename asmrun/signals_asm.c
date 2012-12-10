@@ -11,7 +11,17 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Signal handling, code specific to the native-code compiler */
+
+#define CAML_CONTEXT_STARTUP
+#define CAML_CONTEXT_MINOR_GC
+#define CAML_CONTEXT_MAJOR_GC
+#define CAML_CONTEXT_GC_CTRL
+#define CAML_CONTEXT_SIGNALS
+#define CAML_CONTEXT_SIGNALS_ASM
+#define CAML_CONTEXT_FAIL
 
 #if defined(TARGET_amd64) && defined (SYS_linux)
 #define _GNU_SOURCE
@@ -43,7 +53,6 @@ extern signal_handler caml_win32_signal(int sig, signal_handler action);
 extern void caml_win32_overflow_detection();
 #endif
 
-extern char * caml_code_area_start, * caml_code_area_end;
 extern char caml_system__code_begin, caml_system__code_end;
 
 #define Is_in_code_area(pc) \
@@ -62,13 +71,13 @@ extern char caml_system__code_begin, caml_system__code_end;
    Only generated assembly code can call [caml_garbage_collection],
    via the caml_call_gc assembly stubs.  */
 
-void caml_garbage_collection(void)
+void caml_garbage_collection_r(CAML_R)
 {
   caml_young_limit = caml_young_start;
   if (caml_young_ptr < caml_young_start || caml_force_major_slice) {
-    caml_minor_collection();
+    caml_minor_collection_r(ctx);
   }
-  caml_process_pending_signals();
+  caml_process_pending_signals_r(ctx);
 }
 
 DECLARE_SIGNAL_HANDLER(handle_signal)
@@ -77,11 +86,13 @@ DECLARE_SIGNAL_HANDLER(handle_signal)
   signal(sig, handle_signal);
 #endif
   if (sig < 0 || sig >= NSIG) return;
-  if (caml_try_leave_blocking_section_hook ()) {
-    caml_execute_signal(sig, 1);
+  {
+  INIT_CAML_R;
+  if (caml_try_leave_blocking_section_hook()) {
+    caml_execute_signal_r(ctx, sig, 1);
     caml_enter_blocking_section_hook();
   } else {
-    caml_record_signal(sig);
+    caml_record_signal_r(ctx, sig);
   /* Some ports cache [caml_young_limit] in a register.
      Use the signal context to modify that register too, but only if
      we are inside OCaml code (not inside C code). */
@@ -89,6 +100,7 @@ DECLARE_SIGNAL_HANDLER(handle_signal)
     if (Is_in_code_area(CONTEXT_PC))
       CONTEXT_YOUNG_LIMIT = (context_reg) caml_young_limit;
 #endif
+  }
   }
 }
 
@@ -165,7 +177,7 @@ DECLARE_SIGNAL_HANDLER(trap_handler)
   caml_bottom_of_stack = (char *) CONTEXT_SP;
   caml_last_return_address = (uintnat) CONTEXT_PC;
 #endif
-  caml_array_bound_error();
+  caml_array_bound_error_r(ctx);
 }
 #endif
 
@@ -190,6 +202,7 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
   struct rlimit limit;
   struct sigaction act;
   char * fault_addr;
+  INIT_CAML_R;
 
   /* Sanity checks:
      - faulting address is word-aligned
@@ -209,7 +222,7 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
     caml_exception_pointer = (char *) CONTEXT_EXCEPTION_POINTER;
     caml_young_ptr = (char *) CONTEXT_YOUNG_PTR;
 #endif
-    caml_raise_stack_overflow();
+    caml_raise_stack_overflow_r(ctx);
   }
   /* Otherwise, deactivate our exception handler and return,
      causing fatal signal to be generated at point of error. */

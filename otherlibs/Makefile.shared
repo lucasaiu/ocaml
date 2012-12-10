@@ -11,6 +11,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # Common Makefile for otherlibs
 
 ROOTDIR=../..
@@ -39,6 +41,9 @@ CAMLOBJS_NAT ?= $(CAMLOBJS:.cmo=.cmx)
 CLIBNAME ?= $(LIBNAME)
 
 all: lib$(CLIBNAME).$(A) $(LIBNAME).cma $(CMIFILES)
+
+test: $(LIBNAME).cma
+	$(CAMLC) -o test -linkall -noautolink -custom lib$(CLIBNAME).$(A) $(LIBNAME).cma
 
 allopt: lib$(CLIBNAME).$(A) $(LIBNAME).cmxa $(LIBNAME).$(CMXS) $(CMIFILES)
 

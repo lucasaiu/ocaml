@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Wrapper macros around native 64-bit integer arithmetic,
    so that it has the same interface as the software emulation
    provided in int64_emul.h */

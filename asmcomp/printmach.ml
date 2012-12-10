@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Pretty-printing of pseudo machine code *)
 
 open Format
@@ -104,7 +106,10 @@ let operation op arg ppf res =
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Iconst_float s -> fprintf ppf "%s" s
-  | Iconst_symbol s -> fprintf ppf "\"%s\"" s
+  | Iconst_symbol(s, k) ->
+      fprintf ppf "\"%s\" (%s)" s (match k with
+                                   | Cglobal_kind -> "global"
+                                   | Cconstant_kind -> "constant")
   | Icall_ind -> fprintf ppf "call %a" regs arg
   | Icall_imm lbl -> fprintf ppf "call \"%s\" %a" lbl regs arg
   | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg

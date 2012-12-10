@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -30,27 +32,27 @@
 
 #ifdef HAS_GETCWD
 
-CAMLprim value unix_getcwd(value unit)
+CAMLprim value unix_getcwd_r(CAML_R, value unit)
 {
   char buff[PATH_MAX];
-  if (getcwd(buff, sizeof(buff)) == 0) uerror("getcwd", Nothing);
-  return copy_string(buff);
+  if (getcwd(buff, sizeof(buff)) == 0) uerror_r(ctx,"getcwd", Nothing);
+  return caml_copy_string_r(ctx, buff);
 }
 
 #else
 #ifdef HAS_GETWD
 
-CAMLprim value unix_getcwd(value unit)
+CAMLprim value unix_getcwd_r(CAML_R, value unit)
 {
   char buff[PATH_MAX];
-  if (getwd(buff) == 0) uerror("getcwd", copy_string(buff));
-  return copy_string(buff);
+  if (getwd(buff) == 0) uerror_r(ctx,"getcwd", caml_copy_string_r(ctx,buff));
+  return caml_copy_string_r(ctx,buff);
 }
 
 #else
 
-CAMLprim value unix_getcwd(value unit)
-{ invalid_argument("getcwd not implemented"); }
+CAMLprim value unix_getcwd_r(CAML_R, value unit)
+{ caml_invalid_argument_r(ctx,"getcwd not implemented"); }
 
 #endif
 #endif

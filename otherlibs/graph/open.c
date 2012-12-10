@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -223,12 +225,12 @@ value caml_gr_close_graph(void)
   return Val_unit;
 }
 
-value caml_gr_id_of_window(Window win)
+value caml_gr_id_of_window(CAML_R, Window win)
 {
   char tmp[256];
 
   sprintf(tmp, "%lu", (unsigned long)win);
-  return copy_string( tmp );
+  return copy_string_r(ctx, tmp );
 }
 
 value caml_gr_window_id(void)

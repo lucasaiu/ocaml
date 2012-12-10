@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -26,7 +28,7 @@
 #include <grp.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_setgroups(value groups)
+CAMLprim value unix_setgroups_r(CAML_R, value groups)
 {
   gid_t * gidset;
   mlsize_t size, i;
@@ -39,13 +41,13 @@ CAMLprim value unix_setgroups(value groups)
   n = setgroups(size, gidset);
 
   stat_free(gidset);
-  if (n == -1) uerror("setgroups", Nothing);
+  if (n == -1) uerror_r(ctx,"setgroups", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_setgroups(value groups)
-{ invalid_argument("setgroups not implemented"); }
+CAMLprim value unix_setgroups_r(CAML_R, value groups)
+{ caml_invalid_argument_r(ctx,"setgroups not implemented"); }
 
 #endif

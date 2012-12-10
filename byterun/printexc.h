@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_PRINTEXC_H
 #define CAML_PRINTEXC_H
 
@@ -23,8 +25,8 @@ extern "C" {
 #endif
 
 
-CAMLextern char * caml_format_exception (value);
-void caml_fatal_uncaught_exception (value) Noreturn;
+CAMLextern char * caml_format_exception_r (CAML_R, value);
+void caml_fatal_uncaught_exception_r (CAML_R, value) Noreturn;
 
 #ifdef __cplusplus
 }

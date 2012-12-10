@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Environment for finding complete names from relative names. *)
 
 (** An environment of known names,

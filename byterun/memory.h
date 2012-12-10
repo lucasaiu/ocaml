@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Allocation macros and functions */
 
 #ifndef CAML_MEMORY_H
@@ -33,22 +35,22 @@ extern "C" {
 #endif
 
 
-CAMLextern value caml_alloc_shr (mlsize_t, tag_t);
-CAMLextern void caml_adjust_gc_speed (mlsize_t, mlsize_t);
-CAMLextern void caml_alloc_dependent_memory (mlsize_t);
-CAMLextern void caml_free_dependent_memory (mlsize_t);
-CAMLextern void caml_modify (value *, value);
-CAMLextern void caml_initialize (value *, value);
-CAMLextern value caml_check_urgent_gc (value);
+CAMLextern value caml_alloc_shr_r (CAML_R, mlsize_t, tag_t);
+CAMLextern void caml_adjust_gc_speed_r (CAML_R, mlsize_t, mlsize_t);
+CAMLextern void caml_alloc_dependent_memory_r (CAML_R, mlsize_t);
+CAMLextern void caml_free_dependent_memory_r (CAML_R, mlsize_t);
+CAMLextern void caml_modify_r (CAML_R, value *, value);
+CAMLextern void caml_initialize_r (CAML_R, value *, value);
+CAMLextern value caml_check_urgent_gc_r (CAML_R, value);
 CAMLextern void * caml_stat_alloc (asize_t);              /* Size in bytes. */
 CAMLextern void caml_stat_free (void *);
 CAMLextern void * caml_stat_resize (void *, asize_t);     /* Size in bytes. */
 char *caml_alloc_for_heap (asize_t request);   /* Size in bytes. */
 void caml_free_for_heap (char *mem);
-int caml_add_to_heap (char *mem);
-color_t caml_allocation_color (void *hp);
+int caml_add_to_heap_r (CAML_R, char *mem);
+color_t caml_allocation_color_r (CAML_R, void *hp);
 
-/* void caml_shrink_heap (char *);        Only used in compact.c */
+extern void caml_shrink_heap_r (CAML_R, char *chunk);        /* Only used in compact.c */
 
 /* <private> */
 
@@ -61,8 +63,8 @@ color_t caml_allocation_color (void *hp);
 #ifdef ARCH_SIXTYFOUR
 
 /* 64 bits: Represent page table as a sparse hash table */
-int caml_page_table_lookup(void * addr);
-#define Classify_addr(a) (caml_page_table_lookup((void *)(a)))
+int caml_page_table_lookup_r(CAML_R, void * addr);
+#define Classify_addr(a) (caml_page_table_lookup_r(ctx, (void *)(a)))
 
 #else
 
@@ -86,9 +88,9 @@ CAMLextern unsigned char * caml_page_table[Pagetable1_size];
 #define Is_in_heap(a) (Classify_addr(a) & In_heap)
 #define Is_in_heap_or_young(a) (Classify_addr(a) & (In_heap | In_young))
 
-int caml_page_table_add(int kind, void * start, void * end);
-int caml_page_table_remove(int kind, void * start, void * end);
-int caml_page_table_initialize(mlsize_t bytesize);
+int caml_page_table_add_r(CAML_R, int kind, void * start, void * end);
+int caml_page_table_remove_r(CAML_R, int kind, void * start, void * end);
+int caml_page_table_initialize_r(CAML_R, mlsize_t bytesize);
 
 #ifdef DEBUG
 #define DEBUG_clear(result, wosize) do{ \
@@ -108,7 +110,7 @@ int caml_page_table_initialize(mlsize_t bytesize);
   if (caml_young_ptr < caml_young_start){                                   \
     caml_young_ptr += Bhsize_wosize (wosize);                               \
     Setup_for_gc;                                                           \
-    caml_minor_collection ();                                               \
+    caml_minor_collection_r (ctx);                                               \
     Restore_after_gc;                                                       \
     caml_young_ptr -= Bhsize_wosize (wosize);                               \
   }                                                                         \
@@ -132,12 +134,12 @@ int caml_page_table_initialize(mlsize_t bytesize);
   value _old_ = *(fp);                                                      \
   *(fp) = (val);                                                            \
   if (Is_in_heap (fp)){                                                     \
-    if (caml_gc_phase == Phase_mark) caml_darken (_old_, NULL);             \
+    if (caml_gc_phase == Phase_mark) caml_darken_r (ctx, _old_, NULL);	\
     if (Is_block (val) && Is_young (val)                                    \
         && ! (Is_block (_old_) && Is_young (_old_))){                       \
       if (caml_ref_table.ptr >= caml_ref_table.limit){                      \
         CAMLassert (caml_ref_table.ptr == caml_ref_table.limit);            \
-        caml_realloc_ref_table (&caml_ref_table);                           \
+        caml_realloc_ref_table_r (ctx, &caml_ref_table);			\
       }                                                                     \
       *caml_ref_table.ptr++ = (fp);                                         \
     }                                                                       \
@@ -153,7 +155,7 @@ struct caml__roots_block {
   value *tables [5];
 };
 
-CAMLextern struct caml__roots_block *caml_local_roots;  /* defined in roots.c */
+/* CAMLextern struct caml__roots_block *caml_local_roots; */  /* defined in roots.c */
 
 /* The following macros are used to declare C local variables and
    function parameters of type [value].
@@ -312,7 +314,6 @@ CAMLextern struct caml__roots_block *caml_local_roots;  /* defined in roots.c */
   value x [(size)] = { 0, /* 0, 0, ... */ }; \
   CAMLxparamN (x, (size))
 
-
 #define CAMLreturn0 do{ \
   caml_local_roots = caml__frame; \
   return; \
@@ -333,7 +334,7 @@ CAMLextern struct caml__roots_block *caml_local_roots;  /* defined in roots.c */
 #define Store_field(block, offset, val) do{ \
   mlsize_t caml__temp_offset = (offset); \
   value caml__temp_val = (val); \
-  caml_modify (&Field ((block), caml__temp_offset), caml__temp_val); \
+  caml_modify_r (ctx, &Field ((block), caml__temp_offset), caml__temp_val); \
 }while(0)
 
 /*
@@ -423,12 +424,12 @@ CAMLextern struct caml__roots_block *caml_local_roots;  /* defined in roots.c */
    for the duration of the program, or until [caml_remove_global_root] is
    called. */
 
-CAMLextern void caml_register_global_root (value *);
+CAMLextern void caml_register_global_root_r (CAML_R, value *);
 
 /* [caml_remove_global_root] removes a memory root registered on a global C
    variable with [caml_register_global_root]. */
 
-CAMLextern void caml_remove_global_root (value *);
+CAMLextern void caml_remove_global_root_r (CAML_R, value *);
 
 /* [caml_register_generational_global_root] registers a global C
    variable as a memory root for the duration of the program, or until
@@ -442,13 +443,13 @@ CAMLextern void caml_remove_global_root (value *);
    In return for these constraints, scanning of memory roots during
    minor collection is made more efficient. */
 
-CAMLextern void caml_register_generational_global_root (value *);
+CAMLextern void caml_register_generational_global_root_r (CAML_R, value *);
 
 /* [caml_remove_generational_global_root] removes a memory root
    registered on a global C variable with
    [caml_register_generational_global_root]. */
 
-CAMLextern void caml_remove_generational_global_root (value *);
+CAMLextern void caml_remove_generational_global_root_r (CAML_R, value *);
 
 /* [caml_modify_generational_global_root(r, newval)]
    modifies the value contained in [r], storing [newval] inside.
@@ -457,7 +458,7 @@ CAMLextern void caml_remove_generational_global_root (value *);
    generational global roots.  [r] must be a global memory root
    previously registered with [caml_register_generational_global_root]. */
 
-CAMLextern void caml_modify_generational_global_root(value *r, value newval);
+CAMLextern void caml_modify_generational_global_root_r(CAML_R, value *r, value newval);
 
 #ifdef __cplusplus
 }

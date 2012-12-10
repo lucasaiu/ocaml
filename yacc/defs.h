@@ -12,6 +12,8 @@
 
 /* Based on public-domain code from Berkeley Yacc */
 
+/* $Id$ */
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>

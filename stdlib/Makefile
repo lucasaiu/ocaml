@@ -11,6 +11,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 include Makefile.shared
 
 allopt: stdlib.cmxa std_exit.cmx allopt-$(PROFILING)

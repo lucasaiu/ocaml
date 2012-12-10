@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fail.h>
@@ -19,15 +21,15 @@
 
 #ifdef HAS_FCHMOD
 
-CAMLprim value unix_fchmod(value fd, value perm)
+CAMLprim value unix_fchmod_r(CAML_R, value fd, value perm)
 {
-  if (fchmod(Int_val(fd), Int_val(perm)) == -1) uerror("fchmod", Nothing);
+  if (fchmod(Int_val(fd), Int_val(perm)) == -1) uerror_r(ctx, "fchmod", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_fchmod(value fd, value perm)
-{ invalid_argument("fchmod not implemented"); }
+CAMLprim value unix_fchmod_r(CAML_R, value fd, value perm)
+{ caml_invalid_argument_r(ctx, "fchmod not implemented"); }
 
 #endif

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include <signals.h>
@@ -20,23 +22,23 @@
 
 #include "socketaddr.h"
 
-CAMLprim value unix_connect(value socket, value address)
+CAMLprim value unix_connect_r(CAML_R, value socket, value address)
 {
   int retcode;
   union sock_addr_union addr;
   socklen_param_type addr_len;
 
-  get_sockaddr(address, &addr, &addr_len);
-  enter_blocking_section();
+  get_sockaddr_r(ctx, address, &addr, &addr_len);
+  caml_enter_blocking_section_r(ctx);
   retcode = connect(Int_val(socket), &addr.s_gen, addr_len);
-  leave_blocking_section();
-  if (retcode == -1) uerror("connect", Nothing);
+  caml_leave_blocking_section_r(ctx);
+  if (retcode == -1) uerror_r(ctx, "connect", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_connect(value socket, value address)
-{ invalid_argument("connect not implemented"); }
+CAMLprim value unix_connect_r(CAML_R, value socket, value address)
+{ caml_invalid_argument_r(ctx,ctx, "connect not implemented"); }
 
 #endif

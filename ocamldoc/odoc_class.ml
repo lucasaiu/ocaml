@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Representation and manipulation of classes and class types.*)
 
 module Name = Odoc_name
@@ -247,3 +249,6 @@ let class_type_parameter_text_by_name clt label =
       with
         Not_found ->
           None
+
+
+(* eof $Id$ *)

@@ -11,12 +11,14 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <time.h>
 #include <mlvalues.h>
 #include <alloc.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_time(value unit)
+CAMLprim value unix_time_r(CAML_R, value unit)
 {
-  return copy_double((double) time((time_t *) NULL));
+  return caml_copy_double_r(ctx,(double) time((time_t *) NULL));
 }

@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 open Format
 open Asttypes
 open Primitive
@@ -182,7 +184,6 @@ let primitive ppf = function
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, n, kind, layout) ->
       print_bigarray "set" unsafe kind ppf layout
-  | Pbigarraydim(n) -> fprintf ppf "Bigarray.dim_%i" n
 
 let rec lam ppf = function
   | Lvar id ->

@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <string.h>
 #include "alloc.h"
 #include "fail.h"
@@ -22,46 +26,46 @@
 
 /* MD5 message digest */
 
-CAMLprim value caml_md5_string(value str, value ofs, value len)
+CAMLprim value caml_md5_string_r(CAML_R, value str, value ofs, value len)
 {
-  struct MD5Context ctx;
+  struct MD5Context md5_ctx;
   value res;
-  caml_MD5Init(&ctx);
-  caml_MD5Update(&ctx, &Byte_u(str, Long_val(ofs)), Long_val(len));
-  res = caml_alloc_string(16);
-  caml_MD5Final(&Byte_u(res, 0), &ctx);
+  caml_MD5Init(&md5_ctx);
+  caml_MD5Update(&md5_ctx, &Byte_u(str, Long_val(ofs)), Long_val(len));
+  res = caml_alloc_string_r(ctx, 16);
+  caml_MD5Final(&Byte_u(res, 0), &md5_ctx);
   return res;
 }
 
-CAMLprim value caml_md5_chan(value vchan, value len)
+CAMLprim value caml_md5_chan_r(CAML_R, value vchan, value len)
 {
   CAMLparam2 (vchan, len);
   struct channel * chan = Channel(vchan);
-  struct MD5Context ctx;
+  struct MD5Context md5_ctx;
   value res;
   intnat toread, read;
   char buffer[4096];
 
   Lock(chan);
-  caml_MD5Init(&ctx);
+  caml_MD5Init(&md5_ctx);
   toread = Long_val(len);
   if (toread < 0){
     while (1){
-      read = caml_getblock (chan, buffer, sizeof(buffer));
+      read = caml_getblock_r (ctx, chan, buffer, sizeof(buffer));
       if (read == 0) break;
-      caml_MD5Update (&ctx, (unsigned char *) buffer, read);
+      caml_MD5Update (&md5_ctx, (unsigned char *) buffer, read);
     }
   }else{
     while (toread > 0) {
-      read = caml_getblock(chan, buffer,
+      read = caml_getblock_r(ctx, chan, buffer,
                            toread > sizeof(buffer) ? sizeof(buffer) : toread);
-      if (read == 0) caml_raise_end_of_file();
-      caml_MD5Update(&ctx, (unsigned char *) buffer, read);
+      if (read == 0) caml_raise_end_of_file_r(ctx);
+      caml_MD5Update(&md5_ctx, (unsigned char *) buffer, read);
       toread -= read;
     }
   }
-  res = caml_alloc_string(16);
-  caml_MD5Final(&Byte_u(res, 0), &ctx);
+  res = caml_alloc_string_r(ctx, 16);
+  caml_MD5Final(&Byte_u(res, 0), &md5_ctx);
   Unlock(chan);
   CAMLreturn (res);
 }
@@ -69,10 +73,10 @@ CAMLprim value caml_md5_chan(value vchan, value len)
 CAMLexport void caml_md5_block(unsigned char digest[16],
                                void * data, uintnat len)
 {
-  struct MD5Context ctx;
-  caml_MD5Init(&ctx);
-  caml_MD5Update(&ctx, data, len);
-  caml_MD5Final(digest, &ctx);
+  struct MD5Context md5_ctx;
+  caml_MD5Init(&md5_ctx);
+  caml_MD5Update(&md5_ctx, data, len);
+  caml_MD5Final(digest, &md5_ctx);
 }
 
 /*
@@ -111,39 +115,39 @@ static void byteReverse(unsigned char * buf, unsigned longs)
  * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
  * initialization constants.
  */
-CAMLexport void caml_MD5Init(struct MD5Context *ctx)
+CAMLexport void caml_MD5Init(struct MD5Context *md5_ctx)
 {
-    ctx->buf[0] = 0x67452301;
-    ctx->buf[1] = 0xefcdab89;
-    ctx->buf[2] = 0x98badcfe;
-    ctx->buf[3] = 0x10325476;
+    md5_ctx->buf[0] = 0x67452301;
+    md5_ctx->buf[1] = 0xefcdab89;
+    md5_ctx->buf[2] = 0x98badcfe;
+    md5_ctx->buf[3] = 0x10325476;
 
-    ctx->bits[0] = 0;
-    ctx->bits[1] = 0;
+    md5_ctx->bits[0] = 0;
+    md5_ctx->bits[1] = 0;
 }
 
 /*
  * Update context to reflect the concatenation of another buffer full
  * of bytes.
  */
-CAMLexport void caml_MD5Update(struct MD5Context *ctx, unsigned char *buf,
+CAMLexport void caml_MD5Update(struct MD5Context *md5_ctx, unsigned char *buf,
                                uintnat len)
 {
     uint32 t;
 
     /* Update bitcount */
 
-    t = ctx->bits[0];
-    if ((ctx->bits[0] = t + ((uint32) len << 3)) < t)
-        ctx->bits[1]++;         /* Carry from low to high */
-    ctx->bits[1] += len >> 29;
+    t = md5_ctx->bits[0];
+    if ((md5_ctx->bits[0] = t + ((uint32) len << 3)) < t)
+        md5_ctx->bits[1]++;         /* Carry from low to high */
+    md5_ctx->bits[1] += len >> 29;
 
     t = (t >> 3) & 0x3f;        /* Bytes already in shsInfo->data */
 
     /* Handle any leading odd-sized chunks */
 
     if (t) {
-        unsigned char *p = (unsigned char *) ctx->in + t;
+        unsigned char *p = (unsigned char *) md5_ctx->in + t;
 
         t = 64 - t;
         if (len < t) {
@@ -151,41 +155,41 @@ CAMLexport void caml_MD5Update(struct MD5Context *ctx, unsigned char *buf,
             return;
         }
         memcpy(p, buf, t);
-        byteReverse(ctx->in, 16);
-        caml_MD5Transform(ctx->buf, (uint32 *) ctx->in);
+        byteReverse(md5_ctx->in, 16);
+        caml_MD5Transform(md5_ctx->buf, (uint32 *) md5_ctx->in);
         buf += t;
         len -= t;
     }
     /* Process data in 64-byte chunks */
 
     while (len >= 64) {
-        memcpy(ctx->in, buf, 64);
-        byteReverse(ctx->in, 16);
-        caml_MD5Transform(ctx->buf, (uint32 *) ctx->in);
+        memcpy(md5_ctx->in, buf, 64);
+        byteReverse(md5_ctx->in, 16);
+        caml_MD5Transform(md5_ctx->buf, (uint32 *) md5_ctx->in);
         buf += 64;
         len -= 64;
     }
 
     /* Handle any remaining bytes of data. */
 
-    memcpy(ctx->in, buf, len);
+    memcpy(md5_ctx->in, buf, len);
 }
 
 /*
  * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
-CAMLexport void caml_MD5Final(unsigned char *digest, struct MD5Context *ctx)
+CAMLexport void caml_MD5Final(unsigned char *digest, struct MD5Context *md5_ctx)
 {
     unsigned count;
     unsigned char *p;
 
     /* Compute number of bytes mod 64 */
-    count = (ctx->bits[0] >> 3) & 0x3F;
+    count = (md5_ctx->bits[0] >> 3) & 0x3F;
 
     /* Set the first char of padding to 0x80.  This is safe since there is
        always at least one byte free */
-    p = ctx->in + count;
+    p = md5_ctx->in + count;
     *p++ = 0x80;
 
     /* Bytes of padding needed to make 64 bytes */
@@ -196,10 +200,10 @@ CAMLexport void caml_MD5Final(unsigned char *digest, struct MD5Context *ctx)
         /* Two lots of padding:  Pad the first block to 64 bytes */
         memset(p, 0, count);
         byteReverse(ctx->in, 16);
-        caml_MD5Transform(ctx->buf, (uint32 *) ctx->in);
+        caml_MD5Transform(md5_ctx->buf, (uint32 *) md5_ctx->in);
 
         /* Now fill the next block with 56 bytes */
-        memset(ctx->in, 0, 56);
+        memset(md5_ctx->in, 0, 56);
     } else {
         /* Pad block to 56 bytes */
         memset(p, 0, count - 8);
@@ -207,13 +211,13 @@ CAMLexport void caml_MD5Final(unsigned char *digest, struct MD5Context *ctx)
     byteReverse(ctx->in, 14);
 
     /* Append length in bits and transform */
-    ((uint32 *) ctx->in)[14] = ctx->bits[0];
-    ((uint32 *) ctx->in)[15] = ctx->bits[1];
+    ((uint32 *) md5_ctx->in)[14] = md5_ctx->bits[0];
+    ((uint32 *) md5_ctx->in)[15] = md5_ctx->bits[1];
 
-    caml_MD5Transform(ctx->buf, (uint32 *) ctx->in);
-    byteReverse((unsigned char *) ctx->buf, 4);
-    memcpy(digest, ctx->buf, 16);
-    memset(ctx, 0, sizeof(*ctx));        /* In case it's sensitive */
+    caml_MD5Transform(md5_ctx->buf, (uint32 *) md5_ctx->in);
+    byteReverse((unsigned char *) md5_ctx->buf, 4);
+    memcpy(digest, md5_ctx->buf, 16);
+    memset(md5_ctx, 0, sizeof(*md5_ctx));        /* In case it's sensitive */
 }
 
 /* The four core functions - F1 is optimized somewhat */

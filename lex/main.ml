@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* The lexer generator. Command-line parsing. *)
 
 open Syntax

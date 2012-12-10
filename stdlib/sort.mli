@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Sorting and merging lists.
 
    @deprecated This module is obsolete and exists only for backward

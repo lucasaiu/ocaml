@@ -11,6 +11,11 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_FREELIST
+#define CAML_CONTEXT_MAJOR_GC
+
 #define FREELIST_DEBUG 0
 #if FREELIST_DEBUG
 #include <stdio.h>
@@ -36,38 +41,12 @@ typedef struct {
   char *next_bp;   /* Pointer to the first byte of the next block. */
 } block;
 
-/* The sentinel can be located anywhere in memory, but it must not be
-   adjacent to any heap object. */
-static struct {
-  value filler1; /* Make sure the sentinel is never adjacent to any block. */
-  header_t h;
-  value first_bp;
-  value filler2; /* Make sure the sentinel is never adjacent to any block. */
-} sentinel = {0, Make_header (0, 0, Caml_blue), 0, 0};
-
 #define Fl_head ((char *) (&(sentinel.first_bp)))
-static char *fl_prev = Fl_head;  /* Current allocation pointer. */
-static char *fl_last = NULL;     /* Last block in the list.  Only valid
-                                 just after [caml_fl_allocate] returns NULL. */
-char *caml_fl_merge = Fl_head;   /* Current insertion pointer.  Managed
-                                    jointly with [sweep_slice]. */
-asize_t caml_fl_cur_size = 0;    /* Number of words in the free list,
-                                    including headers but not fragments. */
-
-#define FLP_MAX 1000
-static char *flp [FLP_MAX];
-static int flp_size = 0;
-static char *beyond = NULL;
 
 #define Next(b) (((block *) (b))->next_bp)
 
-#define Policy_next_fit 0
-#define Policy_first_fit 1
-uintnat caml_allocation_policy = Policy_next_fit;
-#define policy caml_allocation_policy
-
 #ifdef DEBUG
-static void fl_check (void)
+static void fl_check_r (CAML_R)
 {
   char *cur, *prev;
   int prev_found = 0, flp_found = 0, merge_found = 0;
@@ -115,7 +94,7 @@ static void fl_check (void)
    it is located in the high-address words of the free block.  This way,
    the linking of the free-list does not change in case 2.
 */
-static char *allocate_block (mlsize_t wh_sz, int flpi, char *prev, char *cur)
+static char *allocate_block_r (CAML_R, mlsize_t wh_sz, int flpi, char *prev, char *cur)
 {
   header_t h = Hd_bp (cur);
                                              Assert (Whsize_hd (h) >= wh_sz);
@@ -151,7 +130,7 @@ static char *allocate_block (mlsize_t wh_sz, int flpi, char *prev, char *cur)
    The calling function must do it before any GC function gets called.
    [caml_fl_allocate] returns a head pointer.
 */
-char *caml_fl_allocate (mlsize_t wo_sz)
+char *caml_fl_allocate_r (CAML_R, mlsize_t wo_sz)
 {
   char *cur = NULL, *prev, *result;
   int i;
@@ -166,7 +145,7 @@ char *caml_fl_allocate (mlsize_t wo_sz)
     cur = Next (prev);
     while (cur != NULL){                             Assert (Is_in_heap (cur));
       if (Wosize_bp (cur) >= wo_sz){
-        return allocate_block (Whsize_wosize (wo_sz), 0, prev, cur);
+        return allocate_block_r (ctx, Whsize_wosize (wo_sz), 0, prev, cur);
       }
       prev = cur;
       cur = Next (prev);
@@ -177,7 +156,7 @@ char *caml_fl_allocate (mlsize_t wo_sz)
     cur = Next (prev);
     while (prev != fl_prev){
       if (Wosize_bp (cur) >= wo_sz){
-        return allocate_block (Whsize_wosize (wo_sz), 0, prev, cur);
+        return allocate_block_r (ctx, Whsize_wosize (wo_sz), 0, prev, cur);
       }
       prev = cur;
       cur = Next (prev);
@@ -194,7 +173,7 @@ char *caml_fl_allocate (mlsize_t wo_sz)
 #if FREELIST_DEBUG
         if (i > 5) fprintf (stderr, "FLP: found at %d  size=%d\n", i, wo_sz);
 #endif
-        result = allocate_block (Whsize_wosize (wo_sz), i, flp[i], Next(flp[i]));
+        result = allocate_block_r (ctx, Whsize_wosize (wo_sz), i, flp[i], Next(flp[i]));
         goto update_flp;
       }
     }
@@ -226,7 +205,7 @@ char *caml_fl_allocate (mlsize_t wo_sz)
               fprintf (stderr, "FLP: extended to %d\n", flp_size);
             }
 #endif
-            result = allocate_block (Whsize_wosize (wo_sz), flp_size - 1, prev,
+            result = allocate_block_r (ctx, Whsize_wosize (wo_sz), flp_size - 1, prev,
                                      cur);
             goto update_flp;
           }
@@ -255,7 +234,7 @@ char *caml_fl_allocate (mlsize_t wo_sz)
       if (sz < prevsz){
         beyond = cur;
       }else if (sz >= wo_sz){
-        return allocate_block (Whsize_wosize (wo_sz), flp_size, prev, cur);
+        return allocate_block_r (ctx, Whsize_wosize (wo_sz), flp_size, prev, cur);
       }
       prev = cur;
       cur = Next (prev);
@@ -336,16 +315,16 @@ char *caml_fl_allocate (mlsize_t wo_sz)
 
 static char *last_fragment;
 
-void caml_fl_init_merge (void)
+void caml_fl_init_merge_r (CAML_R)
 {
   last_fragment = NULL;
   caml_fl_merge = Fl_head;
 #ifdef DEBUG
-  fl_check ();
+  fl_check_r (ctx);
 #endif
 }
 
-static void truncate_flp (char *changed)
+static void truncate_flp_r (CAML_R, char *changed)
 {
   if (changed == Fl_head){
     flp_size = 0;
@@ -357,7 +336,7 @@ static void truncate_flp (char *changed)
 }
 
 /* This is called by caml_compact_heap. */
-void caml_fl_reset (void)
+void caml_fl_reset_r (CAML_R)
 {
   Next (Fl_head) = NULL;
   switch (policy){
@@ -365,19 +344,19 @@ void caml_fl_reset (void)
     fl_prev = Fl_head;
     break;
   case Policy_first_fit:
-    truncate_flp (Fl_head);
+    truncate_flp_r (ctx, Fl_head);
     break;
   default:
     Assert (0);
     break;
   }
   caml_fl_cur_size = 0;
-  caml_fl_init_merge ();
+  caml_fl_init_merge_r (ctx);
 }
 
 /* [caml_fl_merge_block] returns the head pointer of the next block after [bp],
    because merging blocks may change the size of [bp]. */
-char *caml_fl_merge_block (char *bp)
+char *caml_fl_merge_block_r (CAML_R, char *bp)
 {
   char *prev, *cur, *adj;
   header_t hd = Hd_bp (bp);
@@ -395,7 +374,7 @@ char *caml_fl_merge_block (char *bp)
   Assert (prev < bp || prev == Fl_head);
   Assert (cur > bp || cur == NULL);
 
-  if (policy == Policy_first_fit) truncate_flp (prev);
+  if (policy == Policy_first_fit) truncate_flp_r (ctx,prev);
 
   /* If [last_fragment] and [bp] are adjacent, merge them. */
   if (last_fragment == Hp_bp (bp)){
@@ -464,7 +443,7 @@ char *caml_fl_merge_block (char *bp)
    terminated by NULL, and field 1 of the first block must point to
    the last block.
 */
-void caml_fl_add_blocks (char *bp)
+void caml_fl_add_blocks_r (CAML_R, char *bp)
 {
                                                    Assert (fl_last != NULL);
                                             Assert (Next (fl_last) == NULL);
@@ -497,7 +476,7 @@ void caml_fl_add_blocks (char *bp)
     if (prev == caml_fl_merge && bp < caml_gc_sweep_hp){
       caml_fl_merge = (char *) Field (bp, 1);
     }
-    if (policy == Policy_first_fit) truncate_flp (bp);
+    if (policy == Policy_first_fit) truncate_flp_r (ctx, bp);
   }
 }
 
@@ -511,7 +490,7 @@ void caml_fl_add_blocks (char *bp)
           is overridden by the merge code, but we have historically used
           [Caml_white].
 */
-void caml_make_free_blocks (value *p, mlsize_t size, int do_merge, int color)
+void caml_make_free_blocks_r (CAML_R, value *p, mlsize_t size, int do_merge, int color)
 {
   mlsize_t sz;
 
@@ -522,13 +501,13 @@ void caml_make_free_blocks (value *p, mlsize_t size, int do_merge, int color)
       sz = size;
     }
     *(header_t *)p = Make_header (Wosize_whsize (sz), 0, color);
-    if (do_merge) caml_fl_merge_block (Bp_hp (p));
+    if (do_merge) caml_fl_merge_block_r (ctx, Bp_hp (p));
     size -= sz;
     p += sz;
   }
 }
 
-void caml_set_allocation_policy (uintnat p)
+void caml_set_allocation_policy_r (CAML_R, uintnat p)
 {
   switch (p){
   case Policy_next_fit:

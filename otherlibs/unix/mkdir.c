@@ -11,13 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_mkdir(value path, value perm)
+CAMLprim value unix_mkdir_r(CAML_R, value path, value perm)
 {
-  if (mkdir(String_val(path), Int_val(perm)) == -1) uerror("mkdir", path);
+  if (mkdir(String_val(path), Int_val(perm)) == -1) uerror_r(ctx,"mkdir", path);
   return Val_unit;
 }

@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Association tables over ordered types.
 
    This module implements applicative association tables, also known as

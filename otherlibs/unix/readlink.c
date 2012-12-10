@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -28,19 +30,19 @@
 #endif
 #endif
 
-CAMLprim value unix_readlink(value path)
+CAMLprim value unix_readlink_r(CAML_R, value path)
 {
   char buffer[PATH_MAX];
   int len;
   len = readlink(String_val(path), buffer, sizeof(buffer) - 1);
-  if (len == -1) uerror("readlink", path);
+  if (len == -1) uerror_r(ctx,"readlink", path);
   buffer[len] = '\0';
-  return copy_string(buffer);
+  return caml_copy_string_r(ctx,buffer);
 }
 
 #else
 
-CAMLprim value unix_readlink(value path)
-{ invalid_argument("readlink not implemented"); }
+CAMLprim value unix_readlink_r(CAML_R, value path)
+{ caml_invalid_argument_r(ctx,"readlink not implemented"); }
 
 #endif

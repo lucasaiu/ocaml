@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (*** Program loading and initializations. ***)
 
 val loaded : bool ref

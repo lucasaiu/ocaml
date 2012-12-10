@@ -11,7 +11,11 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* To initialize and resize the stacks */
+
+#define CAML_CONTEXT_STACKS
 
 #include <string.h>
 #include "config.h"
@@ -20,17 +24,7 @@
 #include "mlvalues.h"
 #include "stacks.h"
 
-CAMLexport value * caml_stack_low;
-CAMLexport value * caml_stack_high;
-CAMLexport value * caml_stack_threshold;
-CAMLexport value * caml_extern_sp;
-CAMLexport value * caml_trapsp;
-CAMLexport value * caml_trap_barrier;
-value caml_global_data = 0;
-
-uintnat caml_max_stack_size;            /* also used in gc_ctrl.c */
-
-void caml_init_stack (uintnat initial_max_size)
+void caml_init_stack_r (CAML_R, uintnat initial_max_size)
 {
   caml_stack_low = (value *) caml_stat_alloc(Stack_size);
   caml_stack_high = caml_stack_low + Stack_size / sizeof (value);
@@ -43,7 +37,7 @@ void caml_init_stack (uintnat initial_max_size)
                    caml_max_stack_size / 1024 * sizeof (value));
 }
 
-void caml_realloc_stack(asize_t required_space)
+void caml_realloc_stack_r(CAML_R, asize_t required_space)
 {
   asize_t size;
   value * new_low, * new_high, * new_sp;
@@ -52,7 +46,7 @@ void caml_realloc_stack(asize_t required_space)
   Assert(caml_extern_sp >= caml_stack_low);
   size = caml_stack_high - caml_stack_low;
   do {
-    if (size >= caml_max_stack_size) caml_raise_stack_overflow();
+    if (size >= caml_max_stack_size) caml_raise_stack_overflow_r(ctx);
     size *= 2;
   } while (size < caml_stack_high - caml_extern_sp + required_space);
   caml_gc_message (0x08, "Growing stack to %"
@@ -81,14 +75,14 @@ void caml_realloc_stack(asize_t required_space)
 #undef shift
 }
 
-CAMLprim value caml_ensure_stack_capacity(value required_space)
+CAMLprim value caml_ensure_stack_capacity_r(CAML_R, value required_space)
 {
   asize_t req = Long_val(required_space);
-  if (caml_extern_sp - req < caml_stack_low) caml_realloc_stack(req);
+  if (caml_extern_sp - req < caml_stack_low) caml_realloc_stack_r(ctx, req);
   return Val_unit;
 }
 
-void caml_change_max_stack_size (uintnat new_max_size)
+void caml_change_max_stack_size_r (CAML_R, uintnat new_max_size)
 {
   asize_t size = caml_stack_high - caml_extern_sp
                  + Stack_threshold / sizeof (value);
@@ -101,9 +95,7 @@ void caml_change_max_stack_size (uintnat new_max_size)
   caml_max_stack_size = new_max_size;
 }
 
-CAMLexport uintnat (*caml_stack_usage_hook)(void) = NULL;
-
-uintnat caml_stack_usage(void)
+uintnat caml_stack_usage_r(CAML_R)
 {
   uintnat sz;
   sz = caml_stack_high - caml_extern_sp;

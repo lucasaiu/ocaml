@@ -377,7 +377,7 @@ end = struct
       List.map begin fun x ->
         match x with
         | A atom -> atom
-        | V(var, _) -> try List.assoc var env with Not_found -> (* unbound variable *) ""
+        | V(var, _) -> List.assoc var env
       end s
     end
 end

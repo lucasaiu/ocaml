@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 type machtype_component =
     Addr
   | Int
@@ -66,7 +68,7 @@ type memory_chunk =
 
 type operation =
     Capply of machtype * Debuginfo.t
-  | Cextcall of string * machtype * bool * Debuginfo.t
+  | Cextcall of string * machtype * bool * bool * Debuginfo.t
   | Cload of memory_chunk
   | Calloc
   | Cstore of memory_chunk
@@ -82,11 +84,15 @@ type operation =
   | Craise of Debuginfo.t
   | Ccheckbound of Debuginfo.t
 
+type symbol_kind =
+    Cglobal_kind
+  | Cconstant_kind
+
 type expression =
     Cconst_int of int
   | Cconst_natint of nativeint
   | Cconst_float of string
-  | Cconst_symbol of string
+  | Cconst_symbol of string * symbol_kind
   | Cconst_pointer of int
   | Cconst_natpointer of nativeint
   | Cvar of Ident.t

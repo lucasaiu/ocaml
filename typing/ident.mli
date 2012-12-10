@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Identifiers (unique names) *)
 
 type t = { stamp: int; name: string; mutable flags: int }

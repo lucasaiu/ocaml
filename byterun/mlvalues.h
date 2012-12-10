@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_MLVALUES_H
 #define CAML_MLVALUES_H
 
@@ -23,6 +25,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef void**** dont_use;
 
 /* Definitions
 
@@ -273,7 +277,7 @@ CAMLextern int64 caml_Int64_val(value v);
 
 /* 3- Atoms are 0-tuples.  They are statically allocated once and for all. */
 
-CAMLextern header_t caml_atom_table[];
+/* CAMLextern header_t caml_atom_table[]; */
 #define Atom(tag) (Val_hp (&(caml_atom_table [(tag)])))
 
 /* Booleans are integers 0 or 1 */
@@ -292,9 +296,11 @@ CAMLextern header_t caml_atom_table[];
 #define Val_emptylist Val_int(0)
 #define Tag_cons 0
 
+#include "context.h"
+
 /* The table of global identifiers */
 
-extern value caml_global_data;
+/* extern value caml_global_data; */
 
 #ifdef __cplusplus
 }

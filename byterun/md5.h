@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* MD5 message digest */
 
 #ifndef CAML_MD5_H
@@ -20,8 +22,8 @@
 #include "mlvalues.h"
 #include "io.h"
 
-CAMLextern value caml_md5_string (value str, value ofs, value len);
-CAMLextern value caml_md5_chan (value vchan, value len);
+CAMLextern value caml_md5_string_r (CAML_R, value str, value ofs, value len);
+CAMLextern value caml_md5_chan_r (CAML_R, value vchan, value len);
 CAMLextern void caml_md5_block(unsigned char digest[16],
                                void * data, uintnat len);
 
@@ -31,9 +33,9 @@ struct MD5Context {
         unsigned char in[64];
 };
 
+/* These don't need to be reentrant: REENTRANTRUNTIME */
 CAMLextern void caml_MD5Init (struct MD5Context *context);
-CAMLextern void caml_MD5Update (struct MD5Context *context, unsigned char *buf,
-                                uintnat len);
+CAMLextern void caml_MD5Update (struct MD5Context *context, unsigned char *buf, uintnat len);
 CAMLextern void caml_MD5Final (unsigned char *digest, struct MD5Context *ctx);
 CAMLextern void caml_MD5Transform (uint32 *buf, uint32 *in);
 

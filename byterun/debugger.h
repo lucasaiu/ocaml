@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Interface with the debugger */
 
 #ifndef CAML_DEBUGGER_H
@@ -19,18 +21,18 @@
 #include "misc.h"
 #include "mlvalues.h"
 
-CAMLextern int caml_debugger_in_use;
-CAMLextern int caml_debugger_fork_mode; /* non-zero for parent */
-extern uintnat caml_event_count;
+/* CAMLextern int caml_debugger_in_use; */
+/* CAMLextern int caml_debugger_fork_mode; */ /* non-zero for parent */
+/* extern uintnat caml_event_count; */
 
 enum event_kind {
   EVENT_COUNT, BREAKPOINT, PROGRAM_START, PROGRAM_EXIT,
   TRAP_BARRIER, UNCAUGHT_EXC
 };
 
-void caml_debugger_init (void);
-void caml_debugger (enum event_kind event);
-void caml_debugger_cleanup_fork (void);
+void caml_debugger_init_r (CAML_R);
+void caml_debugger_r (CAML_R, enum event_kind event);
+void caml_debugger_cleanup_fork_r (CAML_R);
 
 /* Communication protocol */
 

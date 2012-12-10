@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Operations on weak arrays */
 
 #ifndef CAML_WEAK_H
@@ -18,7 +20,7 @@
 
 #include "mlvalues.h"
 
-extern value caml_weak_list_head;
+/* extern value caml_weak_list_head; */
 extern value caml_weak_none;
 
 #endif /* CAML_WEAK_H */

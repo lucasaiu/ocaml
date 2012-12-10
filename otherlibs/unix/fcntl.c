@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -23,54 +25,54 @@
 #define O_NONBLOCK O_NDELAY
 #endif
 
-CAMLprim value unix_set_nonblock(value fd)
+CAMLprim value unix_set_nonblock_r(CAML_R, value fd)
 {
   int retcode;
   retcode = fcntl(Int_val(fd), F_GETFL, 0);
   if (retcode == -1 ||
       fcntl(Int_val(fd), F_SETFL, retcode | O_NONBLOCK) == -1)
-    uerror("set_nonblock", Nothing);
+    uerror_r(ctx,"set_nonblock", Nothing);
   return Val_unit;
 }
 
-CAMLprim value unix_clear_nonblock(value fd)
+CAMLprim value unix_clear_nonblock_r(CAML_R, value fd)
 {
   int retcode;
   retcode = fcntl(Int_val(fd), F_GETFL, 0);
   if (retcode == -1 ||
       fcntl(Int_val(fd), F_SETFL, retcode & ~O_NONBLOCK) == -1)
-    uerror("clear_nonblock", Nothing);
+    uerror_r(ctx,"clear_nonblock", Nothing);
   return Val_unit;
 }
 
 #ifdef FD_CLOEXEC
 
-CAMLprim value unix_set_close_on_exec(value fd)
+CAMLprim value unix_set_close_on_exec_r(CAML_R, value fd)
 {
   int retcode;
   retcode = fcntl(Int_val(fd), F_GETFD, 0);
   if (retcode == -1 ||
       fcntl(Int_val(fd), F_SETFD, retcode | FD_CLOEXEC) == -1)
-    uerror("set_close_on_exec", Nothing);
+    uerror_r(ctx,"set_close_on_exec", Nothing);
   return Val_unit;
 }
 
-CAMLprim value unix_clear_close_on_exec(value fd)
+CAMLprim value unix_clear_close_on_exec_r(CAML_R, value fd)
 {
   int retcode;
   retcode = fcntl(Int_val(fd), F_GETFD, 0);
   if (retcode == -1 ||
       fcntl(Int_val(fd), F_SETFD, retcode & ~FD_CLOEXEC) == -1)
-    uerror("clear_close_on_exec", Nothing);
+    uerror_r(ctx,"clear_close_on_exec", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_set_close_on_exec(value fd)
-{ invalid_argument("set_close_on_exec not implemented"); }
+CAMLprim value unix_set_close_on_exec_r(CAML_R, value fd)
+{ caml_invalid_argument_r(ctx,"set_close_on_exec not implemented"); }
 
-CAMLprim value unix_clear_close_on_exec(value fd)
-{ invalid_argument("clear_close_on_exec not implemented"); }
+CAMLprim value unix_clear_close_on_exec_r(CAML_R, value fd)
+{ caml_invalid_argument_r(ctx,"clear_close_on_exec not implemented"); }
 
 #endif

@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Symbol table information for .cmo and .cma files *)
 
 (* Relocation information *)

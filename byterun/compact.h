@@ -11,15 +11,18 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_COMPACT_H
 #define CAML_COMPACT_H
 
 
 #include "config.h"
 #include "misc.h"
+#include "mlvalues.h" /* for CAML_R */
 
-extern void caml_compact_heap (void);
-extern void caml_compact_heap_maybe (void);
+extern void caml_compact_heap_r (CAML_R);
+extern void caml_compact_heap_maybe_r (CAML_R);
 
 
 #endif /* CAML_COMPACT_H */

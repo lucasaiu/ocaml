@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Operating system and standard library dependencies. */
 
 /* 0. Operating system type string. */

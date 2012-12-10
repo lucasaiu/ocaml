@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Miscellaneous macros and variables. */
 
 #ifndef CAML_MISC_H
@@ -57,7 +59,7 @@ typedef char * addr;
 
 #ifdef DEBUG
 #define CAMLassert(x) ((x) ? 0 : caml_failed_assert ( #x , __FILE__, __LINE__))
-CAMLextern int caml_failed_assert (char *, char *, int);
+CAMLextern int caml_failed_assert (char *x, char *y, int z);
 #else
 #define CAMLassert(x) ((void) 0)
 #endif

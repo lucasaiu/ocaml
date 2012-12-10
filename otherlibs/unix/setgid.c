@@ -11,11 +11,13 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_setgid(value gid)
+CAMLprim value unix_setgid_r(CAML_R, value gid)
 {
-  if (setgid(Int_val(gid)) == -1) uerror("setgid", Nothing);
+  if (setgid(Int_val(gid)) == -1) uerror_r(ctx,"setgid", Nothing);
   return Val_unit;
 }

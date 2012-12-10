@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <fail.h>
 #include <mlvalues.h>
@@ -22,26 +24,26 @@
 
 #ifdef HAS_TRUNCATE
 
-CAMLprim value unix_ftruncate(value fd, value len)
+CAMLprim value unix_ftruncate_r(CAML_R, value fd, value len)
 {
   if (ftruncate(Int_val(fd), Long_val(len)) == -1)
-    uerror("ftruncate", Nothing);
+    uerror_r(ctx,"ftruncate", Nothing);
   return Val_unit;
 }
 
-CAMLprim value unix_ftruncate_64(value fd, value len)
+CAMLprim value unix_ftruncate_64_r(CAML_R, value fd, value len)
 {
   if (ftruncate(Int_val(fd), File_offset_val(len)) == -1)
-    uerror("ftruncate", Nothing);
+    uerror_r(ctx,"ftruncate", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_ftruncate(value fd, value len)
-{ invalid_argument("ftruncate not implemented"); }
+CAMLprim value unix_ftruncate_r(CAML_R, value fd, value len)
+{ caml_invalid_argument_r(ctx,"ftruncate not implemented"); }
 
-CAMLprim value unix_ftruncate_64(value fd, value len)
-{ invalid_argument("ftruncate not implemented"); }
+CAMLprim value unix_ftruncate_64_r(CAML_R, value fd, value len)
+{ caml_invalid_argument_r(ctx,"ftruncate not implemented"); }
 
 #endif

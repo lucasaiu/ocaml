@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Research of elements through modules. *)
 
 module Name = Odoc_name
@@ -678,3 +680,5 @@ let find_section mods regexp =
   with
     Res_section (_,t) -> t
   | _ -> assert false
+
+(* eof $Id$ *)

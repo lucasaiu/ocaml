@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Generation of html documentation.*)
 
 let print_DEBUG s = print_string s ; print_newline ()

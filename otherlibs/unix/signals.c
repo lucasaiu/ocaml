@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <errno.h>
 #include <signal.h>
 
@@ -37,7 +41,7 @@ static void decode_sigset(value vset, sigset_t * set)
   }
 }
 
-static value encode_sigset(sigset_t * set)
+static value encode_sigset_r(CAML_R, sigset_t * set)
 {
   value res = Val_int(0);
   int i;
@@ -45,7 +49,7 @@ static value encode_sigset(sigset_t * set)
   Begin_root(res)
     for (i = 1; i < NSIG; i++)
       if (sigismember(set, i) > 0) {
-        value newcons = alloc_small(2, 0);
+        value newcons = caml_alloc_small_r(ctx,2, 0);
         Field(newcons, 0) = Val_int(caml_rev_convert_signal_number(i));
         Field(newcons, 1) = res;
         res = newcons;
@@ -56,7 +60,7 @@ static value encode_sigset(sigset_t * set)
 
 static int sigprocmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };
 
-CAMLprim value unix_sigprocmask(value vaction, value vset)
+CAMLprim value unix_sigprocmask_r(CAML_R, value vaction, value vset)
 {
   int how;
   sigset_t set, oldset;
@@ -64,41 +68,41 @@ CAMLprim value unix_sigprocmask(value vaction, value vset)
 
   how = sigprocmask_cmd[Int_val(vaction)];
   decode_sigset(vset, &set);
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   retcode = sigprocmask(how, &set, &oldset);
-  leave_blocking_section();
-  if (retcode == -1) uerror("sigprocmask", Nothing);
-  return encode_sigset(&oldset);
+  caml_leave_blocking_section_r(ctx);
+  if (retcode == -1) uerror_r(ctx,"sigprocmask", Nothing);
+  return encode_sigset_r(ctx, &oldset);
 }
 
-CAMLprim value unix_sigpending(value unit)
+CAMLprim value unix_sigpending_r(CAML_R, value unit)
 {
   sigset_t pending;
-  if (sigpending(&pending) == -1) uerror("sigpending", Nothing);
-  return encode_sigset(&pending);
+  if (sigpending(&pending) == -1) uerror_r(ctx,"sigpending", Nothing);
+  return encode_sigset_r(ctx, &pending);
 }
 
-CAMLprim value unix_sigsuspend(value vset)
+CAMLprim value unix_sigsuspend_r(CAML_R, value vset)
 {
   sigset_t set;
   int retcode;
   decode_sigset(vset, &set);
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   retcode = sigsuspend(&set);
-  leave_blocking_section();
-  if (retcode == -1 && errno != EINTR) uerror("sigsuspend", Nothing);
+  caml_leave_blocking_section_r(ctx);
+  if (retcode == -1 && errno != EINTR) uerror_r(ctx,"sigsuspend", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_sigprocmask(value vaction, value vset)
-{ invalid_argument("Unix.sigprocmask not available"); }
+CAMLprim value unix_sigprocmask_r(CAML_R, value vaction, value vset)
+{ caml_invalid_argument_r(ctx,"Unix.sigprocmask not available"); }
 
-CAMLprim value unix_sigpending(value unit)
-{ invalid_argument("Unix.sigpending not available"); }
+CAMLprim value unix_sigpending_r(CAML_R, value unit)
+{ caml_invalid_argument_r(ctx,"Unix.sigpending not available"); }
 
-CAMLprim value unix_sigsuspend(value vset)
-{ invalid_argument("Unix.sigsuspend not available"); }
+CAMLprim value unix_sigsuspend_r(CAML_R, value vset)
+{ caml_invalid_argument_r(ctx,"Unix.sigsuspend not available"); }
 
 #endif

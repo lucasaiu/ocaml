@@ -11,10 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Trace the instructions executed */
 
 #ifdef DEBUG
 
+#define CAML_CONTEXT_DYNLINK
+#define CAML_CONTEXT_STACKS
+#define CAML_CONTEXT_FIX_CODE // for caml_start_code
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -26,7 +31,7 @@
 #include "prims.h"
 #include "stacks.h"
 
-extern code_t caml_start_code;
+//extern code_t caml_start_code; // REENTRANTRUNTIME
 
 intnat caml_icount = 0;
 
@@ -34,8 +39,7 @@ void caml_stop_here () {}
 
 int caml_trace_flag = 0;
 
-void caml_disasm_instr(pc)
-     code_t pc;
+void caml_disasm_instr_r(CAML_R, code_t pc)
 {
   int instr = *pc;
   printf("%6ld  %s", (long) (pc - caml_start_code),
@@ -76,7 +80,7 @@ void caml_disasm_instr(pc)
   fflush (stdout);
 }
 
-char * caml_instr_string (code_t pc)
+char * caml_instr_string_t (CAML_R, code_t pc)
 {
   static char buf[256];
   char nambuf[128];
@@ -173,7 +177,7 @@ char * caml_instr_string (code_t pc)
 
 
 void
-caml_trace_value_file (value v, code_t prog, int proglen, FILE * f)
+caml_trace_value_file_r (CAML_R, value v, code_t prog, int proglen, FILE * f)
 {
   int i;
   fprintf (f, "%#lx", v);
@@ -242,19 +246,19 @@ caml_trace_value_file (value v, code_t prog, int proglen, FILE * f)
 }
 
 void
-caml_trace_accu_sp_file (value accu, value * sp, code_t prog, int proglen,
+caml_trace_accu_sp_file_r (CAML_R, value accu, value * sp, code_t prog, int proglen,
                          FILE * f)
 {
   int i;
   value *p;
   fprintf (f, "accu=");
-  caml_trace_value_file (accu, prog, proglen, f);
+  caml_trace_value_file_r (ctx, accu, prog, proglen, f);
   fprintf (f, "\n sp=%#" ARCH_INTNAT_PRINTF_FORMAT "x @%d:",
            (intnat) sp, caml_stack_high - sp);
   for (p = sp, i = 0; i < 12 + (1 << caml_trace_flag) && p < caml_stack_high;
        p++, i++) {
     fprintf (f, "\n[%d] ", caml_stack_high - p);
-    caml_trace_value_file (*p, prog, proglen, f);
+    caml_trace_value_file_r (ctx, *p, prog, proglen, f);
   };
   putc ('\n', f);
   fflush (f);

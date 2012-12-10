@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 #include <errno.h>
@@ -21,10 +23,10 @@
 #include <sys/dir.h>
 #endif
 
-CAMLprim value unix_closedir(value vd)
+CAMLprim value unix_closedir_r(CAML_R, value vd)
 {
   DIR * d = DIR_Val(vd);
-  if (d == (DIR *) NULL) unix_error(EBADF, "closedir", Nothing);
+  if (d == (DIR *) NULL) unix_error_r(ctx, EBADF, "closedir", Nothing);
   closedir(d);
   DIR_Val(vd) = (DIR *) NULL;
   return Val_unit;

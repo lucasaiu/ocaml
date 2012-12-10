@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Pretty-print lists of instructions *)
 
 open Format
@@ -69,8 +71,8 @@ let instruction ppf = function
   | Kpoptrap -> fprintf ppf "\tpoptrap"
   | Kraise -> fprintf ppf "\traise"
   | Kcheck_signals -> fprintf ppf "\tcheck_signals"
-  | Kccall(s, n) ->
-      fprintf ppf "\tccall %s, %i" s n
+  | Kccall(s, ctx, n) ->
+      fprintf ppf "\tccall %s, %s%i" s (if ctx then "ctx " else "") n
   | Knegint -> fprintf ppf "\tnegint"
   | Kaddint -> fprintf ppf "\taddint"
   | Ksubint -> fprintf ppf "\tsubint"

@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Pseudo-random number generator
    This is a lagged-Fibonacci F(55, 24, +) with a modified addition
    function to enhance the mixing of bits.
@@ -23,7 +25,7 @@
    passes all the Diehard tests.
 *)
 
-external random_seed: unit -> int array = "caml_sys_random_seed";;
+external random_seed: unit -> int array = "caml_sys_random_seed_r" "reentrant";;
 
 module State = struct
 

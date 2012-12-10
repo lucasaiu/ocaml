@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Common functions for emitting assembly code *)
 
 val output_channel: out_channel ref

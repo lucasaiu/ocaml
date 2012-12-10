@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Module [MoreLabels]: meta-module for compatibility labelled libraries *)
 
 module Hashtbl = Hashtbl

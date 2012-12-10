@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Memory management control and statistics; finalised values. *)
 
 type stat =
@@ -143,45 +145,45 @@ type control =
     OCAMLRUNPARAM environment variable.  See the documentation of
     [ocamlrun]. *)
 
-external stat : unit -> stat = "caml_gc_stat"
+external stat : unit -> stat = "caml_gc_stat_r" "reentrant"
 (** Return the current values of the memory management counters in a
    [stat] record.  This function examines every heap block to get the
    statistics. *)
 
-external quick_stat : unit -> stat = "caml_gc_quick_stat"
+external quick_stat : unit -> stat = "caml_gc_quick_stat_r" "reentrant"
 (** Same as [stat] except that [live_words], [live_blocks], [free_words],
     [free_blocks], [largest_free], and [fragments] are set to 0.  This
     function is much faster than [stat] because it does not need to go
     through the heap. *)
 
-external counters : unit -> float * float * float = "caml_gc_counters"
+external counters : unit -> float * float * float = "caml_gc_counters_r" "reentrant"
 (** Return [(minor_words, promoted_words, major_words)].  This function
     is as fast as [quick_stat]. *)
 
-external get : unit -> control = "caml_gc_get"
+external get : unit -> control = "caml_gc_get_r" "reentrant"
 (** Return the current values of the GC parameters in a [control] record. *)
 
-external set : control -> unit = "caml_gc_set"
+external set : control -> unit = "caml_gc_set_r" "reentrant"
 (** [set r] changes the GC parameters according to the [control] record [r].
    The normal usage is: [Gc.set { (Gc.get()) with Gc.verbose = 0x00d }] *)
 
-external minor : unit -> unit = "caml_gc_minor"
+external minor : unit -> unit = "caml_gc_minor_r" "reentrant"
 (** Trigger a minor collection. *)
 
-external major_slice : int -> int = "caml_gc_major_slice";;
+external major_slice : int -> int = "caml_gc_major_slice_r" "reentrant"
 (** Do a minor collection and a slice of major collection.  The argument
     is the size of the slice, 0 to use the automatically-computed
     slice size.  In all cases, the result is the computed slice size. *)
 
-external major : unit -> unit = "caml_gc_major"
+external major : unit -> unit = "caml_gc_major_r" "reentrant"
 (** Do a minor collection and finish the current major collection cycle. *)
 
-external full_major : unit -> unit = "caml_gc_full_major"
+external full_major : unit -> unit = "caml_gc_full_major_r" "reentrant"
 (** Do a minor collection, finish the current major collection cycle,
    and perform a complete new cycle.  This will collect all currently
    unreachable blocks. *)
 
-external compact : unit -> unit = "caml_gc_compaction"
+external compact : unit -> unit = "caml_gc_compaction_r" "reentrant"
 (** Perform a full major collection and compact the heap.  Note that heap
    compaction is a lengthy operation. *)
 

@@ -11,6 +11,14 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_BACKTRACE
+#define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_SYS
+#define CAML_CONTEXT_STACKS
+#define CAML_CONTEXT_FIX_CODE
+
 /* Stack backtrace for uncaught exceptions */
 
 #include <stdio.h>
@@ -33,11 +41,6 @@
 #include "sys.h"
 #include "backtrace.h"
 
-CAMLexport int caml_backtrace_active = 0;
-CAMLexport int caml_backtrace_pos = 0;
-CAMLexport code_t * caml_backtrace_buffer = NULL;
-CAMLexport value caml_backtrace_last_exn = Val_unit;
-CAMLexport char * caml_cds_file = NULL;
 #define BACKTRACE_BUFFER_SIZE 1024
 
 /* Location of fields in the Instruct.debug_event record */
@@ -61,7 +64,7 @@ enum {
 
 /* Start or stop the backtrace machinery */
 
-CAMLprim value caml_record_backtrace(value vflag)
+CAMLprim value caml_record_backtrace_r(CAML_R, value vflag)
 {
   int flag = Int_val(vflag);
 
@@ -69,9 +72,9 @@ CAMLprim value caml_record_backtrace(value vflag)
     caml_backtrace_active = flag;
     caml_backtrace_pos = 0;
     if (flag) {
-      caml_register_global_root(&caml_backtrace_last_exn);
+      caml_register_global_root_r(ctx,&caml_backtrace_last_exn);
     } else {
-      caml_remove_global_root(&caml_backtrace_last_exn);
+      caml_remove_global_root_r(ctx,&caml_backtrace_last_exn);
     }
     /* Note: lazy initialization of caml_backtrace_buffer in
        caml_stash_backtrace to simplify the interface with the thread
@@ -82,7 +85,7 @@ CAMLprim value caml_record_backtrace(value vflag)
 
 /* Return the status of the backtrace machinery */
 
-CAMLprim value caml_backtrace_status(value vunit)
+CAMLprim value caml_backtrace_status_r(CAML_R, value vunit)
 {
   return Val_bool(caml_backtrace_active);
 }
@@ -90,7 +93,7 @@ CAMLprim value caml_backtrace_status(value vunit)
 /* Store the return addresses contained in the given stack fragment
    into the backtrace array */
 
-void caml_stash_backtrace(value exn, code_t pc, value * sp)
+void caml_stash_backtrace_r(CAML_R, value exn, code_t pc, value * sp)
 {
   code_t end_code = (code_t) ((char *) caml_start_code + caml_code_size);
   if (pc != NULL) pc = pc - 1;
@@ -123,7 +126,7 @@ void caml_stash_backtrace(value exn, code_t pc, value * sp)
 #define O_BINARY 0
 #endif
 
-static value read_debug_info(void)
+static value read_debug_info_r(CAML_R)
 {
   CAMLparam0();
   CAMLlocal1(events);
@@ -141,17 +144,17 @@ static value read_debug_info(void)
   }
   fd = caml_attempt_open(&exec_name, &trail, 1);
   if (fd < 0) CAMLreturn(Val_false);
-  caml_read_section_descriptors(fd, &trail);
+  caml_read_section_descriptors_r(ctx, fd, &trail);
   if (caml_seek_optional_section(fd, &trail, "DBUG") == -1) {
     close(fd);
     CAMLreturn(Val_false);
   }
-  chan = caml_open_descriptor_in(fd);
-  num_events = caml_getword(chan);
-  events = caml_alloc(num_events, 0);
+  chan = caml_open_descriptor_in_r(ctx,fd);
+  num_events = caml_getword_r(ctx, chan);
+  events = caml_alloc_r(ctx,num_events, 0);
   for (i = 0; i < num_events; i++) {
-    orig = caml_getword(chan);
-    evl = caml_input_val(chan);
+    orig = caml_getword_r(ctx, chan);
+    evl = caml_input_val_r(ctx, chan);
     /* Relocate events in event list */
     for (l = evl; l != Val_int(0); l = Field(l, 1)) {
       value ev = Field(l, 0);
@@ -166,7 +169,7 @@ static value read_debug_info(void)
 
 /* Search the event for the given PC.  Return Val_false if not found. */
 
-static value event_for_location(value events, code_t pc)
+static value event_for_location_r(CAML_R, value events, code_t pc)
 {
   mlsize_t i;
   value pos, l, ev, ev_pos, best_ev;
@@ -199,13 +202,13 @@ struct loc_info {
   int loc_endchr;
 };
 
-static void extract_location_info(value events, code_t pc,
-                                  /*out*/ struct loc_info * li)
+static void extract_location_info_r(CAML_R, value events, code_t pc,
+                                    /*out*/ struct loc_info * li)
 {
   value ev, ev_start;
 
-  ev = event_for_location(events, pc);
-  li->loc_is_raise = caml_is_instruction(*pc, RAISE);
+  ev = event_for_location_r(ctx, events, pc);
+  li->loc_is_raise = caml_is_instruction_r(ctx, *pc, RAISE);
   if (ev == Val_false) {
     li->loc_valid = 0;
     return;
@@ -254,55 +257,55 @@ static void print_location(struct loc_info * li, int index)
 
 /* Print a backtrace */
 
-CAMLexport void caml_print_exception_backtrace(void)
+CAMLexport void caml_print_exception_backtrace_r(CAML_R)
 {
   value events;
   int i;
   struct loc_info li;
 
-  events = read_debug_info();
+  events = read_debug_info_r(ctx);
   if (events == Val_false) {
     fprintf(stderr,
             "(Program not linked with -g, cannot print stack backtrace)\n");
     return;
   }
   for (i = 0; i < caml_backtrace_pos; i++) {
-    extract_location_info(events, caml_backtrace_buffer[i], &li);
+    extract_location_info_r(ctx, events, caml_backtrace_buffer[i], &li);
     print_location(&li, i);
   }
 }
 
 /* Convert the backtrace to a data structure usable from OCaml */
 
-CAMLprim value caml_get_exception_backtrace(value unit)
+CAMLprim value caml_get_exception_backtrace_r(CAML_R, value unit)
 {
   CAMLparam0();
   CAMLlocal5(events, res, arr, p, fname);
   int i;
   struct loc_info li;
 
-  events = read_debug_info();
+  events = read_debug_info_r(ctx);
   if (events == Val_false) {
     res = Val_int(0);           /* None */
   } else {
-    arr = caml_alloc(caml_backtrace_pos, 0);
+    arr = caml_alloc_r(ctx, caml_backtrace_pos, 0);
     for (i = 0; i < caml_backtrace_pos; i++) {
-      extract_location_info(events, caml_backtrace_buffer[i], &li);
+      extract_location_info_r(ctx, events, caml_backtrace_buffer[i], &li);
       if (li.loc_valid) {
-        fname = caml_copy_string(li.loc_filename);
-        p = caml_alloc_small(5, 0);
+        fname = caml_copy_string_r(ctx, li.loc_filename);
+        p = caml_alloc_small_r(ctx, 5, 0);
         Field(p, 0) = Val_bool(li.loc_is_raise);
         Field(p, 1) = fname;
         Field(p, 2) = Val_int(li.loc_lnum);
         Field(p, 3) = Val_int(li.loc_startchr);
         Field(p, 4) = Val_int(li.loc_endchr);
       } else {
-        p = caml_alloc_small(1, 1);
+        p = caml_alloc_small_r(ctx, 1, 1);
         Field(p, 0) = Val_bool(li.loc_is_raise);
       }
-      caml_modify(&Field(arr, i), p);
+      caml_modify_r(ctx, &Field(arr, i), p);
     }
-    res = caml_alloc_small(1, 0); Field(res, 0) = arr; /* Some */
+    res = caml_alloc_small_r(ctx, 1, 0); Field(res, 0) = arr; /* Some */
   }
   CAMLreturn(res);
 }

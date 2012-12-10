@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Merge of information from [.ml] and [.mli] for a module.*)
 
 open Odoc_types
@@ -994,7 +996,7 @@ let merge merge_options modules_list =
                    raise (Failure (Odoc_messages.two_interfaces m.m_name))
             )
         | _ ->
-            (* too many Module.t ! *)
+            (* two many Module.t ! *)
             raise (Failure (Odoc_messages.too_many_module_objects m.m_name))
 
   in

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #define Addrglobal(reg,glob) \
         addis   reg, 0, glob@ha; \
         addi    reg, reg, glob@l

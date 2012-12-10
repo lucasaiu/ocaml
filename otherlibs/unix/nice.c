@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 #include <errno.h>
@@ -18,11 +20,11 @@
 #include <unistd.h>
 #endif
 
-CAMLprim value unix_nice(value incr)
+CAMLprim value unix_nice_r(CAML_R, value incr)
 {
   int ret;
   errno = 0;
   ret = nice(Int_val(incr));
-  if (ret == -1 && errno != 0) uerror("nice", Nothing);
+  if (ret == -1 && errno != 0) uerror_r(ctx,"nice", Nothing);
   return Val_int(ret);
 }

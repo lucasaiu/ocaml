@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -23,16 +25,16 @@ static int shutdown_command_table[] = {
   0, 1, 2
 };
 
-CAMLprim value unix_shutdown(value sock, value cmd)
+CAMLprim value unix_shutdown_r(CAML_R, value sock, value cmd)
 {
   if (shutdown(Int_val(sock), shutdown_command_table[Int_val(cmd)]) == -1)
-    uerror("shutdown", Nothing);
+    uerror_r(ctx,"shutdown", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_shutdown(value sock, value cmd)
-{ invalid_argument("shutdown not implemented"); }
+CAMLprim value unix_shutdown_r(CAML_R, value sock, value cmd)
+{ caml_invalid_argument_r(ctx,"shutdown not implemented"); }
 
 #endif

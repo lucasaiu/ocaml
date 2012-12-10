@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 open Printf;;
 
 let printers = ref []
@@ -90,7 +92,7 @@ type loc_info =
 let _ = [Known_location (false, "", 0, 0, 0); Unknown_location false]
 
 external get_exception_backtrace:
-  unit -> loc_info array option = "caml_get_exception_backtrace"
+  unit -> loc_info array option = "caml_get_exception_backtrace_r" "reentrant"
 
 let format_loc_info pos li =
   let is_raise =
@@ -134,8 +136,8 @@ let get_backtrace () =
       done;
       Buffer.contents b
 
-external record_backtrace: bool -> unit = "caml_record_backtrace"
-external backtrace_status: unit -> bool = "caml_backtrace_status"
+external record_backtrace: bool -> unit = "caml_record_backtrace_r" "reentrant"
+external backtrace_status: unit -> bool = "caml_backtrace_status_r" "reentrant"
 
 let register_printer fn =
   printers := fn :: !printers

@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -19,10 +23,10 @@
 #include <time.h>
 #include <errno.h>
 
-static value alloc_tm(struct tm *tm)
+static value alloc_tm_r(CAML_R, struct tm *tm)
 {
   value res;
-  res = alloc_small(9, 0);
+  res = caml_alloc_small_r(ctx,9, 0);
   Field(res,0) = Val_int(tm->tm_sec);
   Field(res,1) = Val_int(tm->tm_min);
   Field(res,2) = Val_int(tm->tm_hour);
@@ -35,29 +39,29 @@ static value alloc_tm(struct tm *tm)
   return res;
 }
 
-CAMLprim value unix_gmtime(value t)
+CAMLprim value unix_gmtime_r(CAML_R, value t)
 {
   time_t clock;
   struct tm * tm;
   clock = (time_t) Double_val(t);
   tm = gmtime(&clock);
-  if (tm == NULL) unix_error(EINVAL, "gmtime", Nothing);
-  return alloc_tm(tm);
+  if (tm == NULL) unix_error_r(ctx,EINVAL, "gmtime", Nothing);
+  return alloc_tm_r(ctx, tm);
 }
 
-CAMLprim value unix_localtime(value t)
+CAMLprim value unix_localtime_r(CAML_R, value t)
 {
   time_t clock;
   struct tm * tm;
   clock = (time_t) Double_val(t);
   tm = localtime(&clock);
-  if (tm == NULL) unix_error(EINVAL, "localtime", Nothing);
-  return alloc_tm(tm);
+  if (tm == NULL) unix_error_r(ctx,EINVAL, "localtime", Nothing);
+  return alloc_tm_r(ctx, tm);
 }
 
 #ifdef HAS_MKTIME
 
-CAMLprim value unix_mktime(value t)
+CAMLprim value unix_mktime_r(CAML_R, value t)
 {
   struct tm tm;
   time_t clock;
@@ -75,10 +79,10 @@ CAMLprim value unix_mktime(value t)
     tm.tm_yday = Int_val(Field(t, 7));
     tm.tm_isdst = -1; /* tm.tm_isdst = Bool_val(Field(t, 8)); */
     clock = mktime(&tm);
-    if (clock == (time_t) -1) unix_error(ERANGE, "mktime", Nothing);
-    tmval = alloc_tm(&tm);
-    clkval = copy_double((double) clock);
-    res = alloc_small(2, 0);
+    if (clock == (time_t) -1) unix_error_r(ctx,ERANGE, "mktime", Nothing);
+    tmval = alloc_tm_r(ctx, &tm);
+    clkval = caml_copy_double_r(ctx,(double) clock);
+    res = caml_alloc_small_r(ctx,2, 0);
     Field(res, 0) = clkval;
     Field(res, 1) = tmval;
   End_roots ();
@@ -87,7 +91,7 @@ CAMLprim value unix_mktime(value t)
 
 #else
 
-CAMLprim value unix_mktime(value t)
-{ invalid_argument("mktime not implemented"); }
+CAMLprim value unix_mktime_r(CAML_R, value t)
+{ caml_invalid_argument_r(ctx,"mktime not implemented"); }
 
 #endif

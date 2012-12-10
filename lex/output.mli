@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Output the DFA tables and its entry points *)
 
 val output_lexdef:

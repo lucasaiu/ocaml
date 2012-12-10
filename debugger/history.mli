@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 val empty_history : unit -> unit
 
 val add_current_time : unit -> unit

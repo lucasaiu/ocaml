@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* The generic hashing primitive */
 
 /* The interface of this file is in "mlvalues.h" (for [caml_hash_variant])
@@ -183,7 +185,7 @@ CAMLexport uint32 caml_hash_mix_string(uint32 h, value s)
 
 /* The generic hash function */
 
-CAMLprim value caml_hash(value count, value limit, value seed, value obj)
+CAMLprim value caml_hash_r(CAML_R, value count, value limit, value seed, value obj)
 {
   value queue[HASH_QUEUE_SIZE]; /* Queue of values to examine */
   intnat rd;                    /* Position of first value in queue */
@@ -273,19 +275,25 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
   return Val_int(h & 0x3FFFFFFFU);
 }
 
+/* The comment below "The old implementation" is from the unpatched
+   OCaml sources.  Fabrice didn't move the following static variables
+   tothe context, and I assume he knew that wasn't needed.  Is this
+   old code used?  FIXME: comment out the old implementation using
+   global variables, to ensure it's not still used by mistake, or move
+   to the context --Luca Saiu REENTRANTRUNTIME */
 /* The old implementation */
 
 static uintnat hash_accu;
 static intnat hash_univ_limit, hash_univ_count;
 
-static void hash_aux(value obj);
+static void hash_aux_r(CAML_R, value obj);
 
-CAMLprim value caml_hash_univ_param(value count, value limit, value obj)
+CAMLprim value caml_hash_univ_param_r(CAML_R, value count, value limit, value obj)
 {
   hash_univ_limit = Long_val(limit);
   hash_univ_count = Long_val(count);
   hash_accu = 0;
-  hash_aux(obj);
+  hash_aux_r(ctx, obj);
   return Val_long(hash_accu & 0x3FFFFFFF);
   /* The & has two purposes: ensure that the return value is positive
      and give the same result on 32 bit and 64 bit architectures. */
@@ -296,7 +304,7 @@ CAMLprim value caml_hash_univ_param(value count, value limit, value obj)
 #define Combine(new)  (hash_accu = hash_accu * Alpha + (new))
 #define Combine_small(new) (hash_accu = hash_accu * Beta + (new))
 
-static void hash_aux(value obj)
+static void hash_aux_r(CAML_R, value obj)
 {
   unsigned char * p;
   mlsize_t i, j;
@@ -360,7 +368,7 @@ static void hash_aux(value obj)
          Better do nothing. */
       break;
     case Infix_tag:
-      hash_aux(obj - Infix_offset_val(obj));
+      hash_aux_r(ctx, obj - Infix_offset_val(obj));
       break;
     case Forward_tag:
       obj = Forward_val (obj);
@@ -382,7 +390,7 @@ static void hash_aux(value obj)
       i = Wosize_val(obj);
       while (i != 0) {
         i--;
-        hash_aux(Field(obj, i));
+        hash_aux_r(ctx, Field(obj, i));
       }
       break;
     }
@@ -394,18 +402,18 @@ static void hash_aux(value obj)
   Combine((intnat) obj);
 }
 
-/* Hashing variant tags */
+/* /\* Hashing variant tags *\/ */
 
-CAMLexport value caml_hash_variant(char const * tag)
-{
-  value accu;
-  /* Same hashing algorithm as in ../typing/btype.ml, function hash_variant */
-  for (accu = Val_int(0); *tag != 0; tag++)
-    accu = Val_int(223 * Int_val(accu) + *((unsigned char *) tag));
-#ifdef ARCH_SIXTYFOUR
-  accu = accu & Val_long(0x7FFFFFFFL);
-#endif
-  /* Force sign extension of bit 31 for compatibility between 32 and 64-bit
-     platforms */
-  return (int32) accu;
-}
+/* CAMLexport value caml_hash_variant(char const * tag) */
+/* { */
+/*   value accu; */
+/*   /\* Same hashing algorithm as in ../typing/btype.ml, function hash_variant *\/ */
+/*   for (accu = Val_int(0); *tag != 0; tag++) */
+/*     accu = Val_int(223 * Int_val(accu) + *((unsigned char *) tag)); */
+/* #ifdef ARCH_SIXTYFOUR */
+/*   accu = accu & Val_long(0x7FFFFFFFL); */
+/* #endif */
+/*   /\* Force sign extension of bit 31 for compatibility between 32 and 64-bit */
+/*      platforms *\/ */
+/*   return (int32) accu; */
+/* } */

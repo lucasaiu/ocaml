@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Representation and manipulation of values, class attributes and class methods. *)
 
 module Name = Odoc_name

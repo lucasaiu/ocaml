@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <errno.h>
 #include <string.h>
 #include <mlvalues.h>
@@ -25,7 +29,7 @@
 #define EWOULDBLOCK (-1)
 #endif
 
-CAMLprim value unix_write(value fd, value buf, value vofs, value vlen)
+CAMLprim value unix_write_r(CAML_R, value fd, value buf, value vofs, value vlen)
 {
   long ofs, len, written;
   int numbytes, ret;
@@ -38,12 +42,12 @@ CAMLprim value unix_write(value fd, value buf, value vofs, value vlen)
     while (len > 0) {
       numbytes = len > UNIX_BUFFER_SIZE ? UNIX_BUFFER_SIZE : len;
       memmove (iobuf, &Byte(buf, ofs), numbytes);
-      enter_blocking_section();
+      caml_enter_blocking_section_r(ctx);
       ret = write(Int_val(fd), iobuf, numbytes);
-      leave_blocking_section();
+      caml_leave_blocking_section_r(ctx);
       if (ret == -1) {
         if ((errno == EAGAIN || errno == EWOULDBLOCK) && written > 0) break;
-        uerror("write", Nothing);
+        uerror_r(ctx,"write", Nothing);
       }
       written += ret;
       ofs += ret;
@@ -61,7 +65,7 @@ CAMLprim value unix_write(value fd, value buf, value vofs, value vlen)
    This problem is avoided in unix_single_write, which is faithful to the
    Unix system call. */
 
-CAMLprim value unix_single_write(value fd, value buf, value vofs, value vlen)
+CAMLprim value unix_single_write_r(CAML_R, value fd, value buf, value vofs, value vlen)
 {
   long ofs, len;
   int numbytes, ret;
@@ -74,10 +78,10 @@ CAMLprim value unix_single_write(value fd, value buf, value vofs, value vlen)
     if (len > 0) {
       numbytes = len > UNIX_BUFFER_SIZE ? UNIX_BUFFER_SIZE : len;
       memmove (iobuf, &Byte(buf, ofs), numbytes);
-      enter_blocking_section();
+      caml_enter_blocking_section_r(ctx);
       ret = write(Int_val(fd), iobuf, numbytes);
-      leave_blocking_section();
-      if (ret == -1) uerror("single_write", Nothing);
+      caml_leave_blocking_section_r(ctx);
+      if (ret == -1) uerror_r(ctx,"single_write", Nothing);
     }
   End_roots();
   return Val_int(ret);

@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* The run-time library for scanners. *)
 
 (* Scanning buffers. *)
@@ -560,13 +562,13 @@ let token_float ib = float_of_string (Scanning.token ib);;
    However, we can bind and use the corresponding primitives that are
    available in the runtime. *)
 external nativeint_of_string : string -> nativeint
-  = "caml_nativeint_of_string"
+  = "caml_nativeint_of_string_r" "reentrant"
 ;;
 external int32_of_string : string -> int32
-  = "caml_int32_of_string"
+  = "caml_int32_of_string_r" "reentrant"
 ;;
 external int64_of_string : string -> int64
-  = "caml_int64_of_string"
+  = "caml_int64_of_string_r" "reentrant"
 ;;
 
 let token_nativeint conv ib = nativeint_of_string (token_int_literal conv ib);;

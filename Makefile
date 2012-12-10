@@ -10,20 +10,29 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # The main Makefile
 
 include config/Makefile
 include stdlib/StdlibModules
 
-CAMLC=boot/ocamlrun boot/ocamlc -nostdlib -I boot
+#CAMLC=ocamlc -nostdlib -I boot
+CAMLC=./boot/ocamlrun ./boot/ocamlc -nostdlib -I boot # REENTRANTRUNTIME
 CAMLOPT=boot/ocamlrun ./ocamlopt -nostdlib -I stdlib -I otherlibs/dynlink
+#CAMLC=./boot-from-unpatched-version/ocamlrun ./boot/ocamlc -nostdlib -I boot # REENTRANTRUNTIME
+#CAMLOPT=boot-from-unpatched-version/ocamlrun ./ocamlopt -nostdlib -I stdlib -I otherlibs/dynlink
 COMPFLAGS=-strict-sequence -w +33..39 -warn-error A $(INCLUDES)
 LINKFLAGS=
 
 CAMLYACC=boot/ocamlyacc
+#CAMLYACC=boot-from-unpatched-version/ocamlyacc
 YACCFLAGS=-v
-CAMLLEX=boot/ocamlrun boot/ocamllex
+#CAMLLEX=boot/ocamlrun boot/ocamllex
+CAMLLEX=./boot/ocamlrun boot/ocamllex # REENTRANTRUNTIME
+#CAMLLEX=./boot-from-unpatched-version/ocamlrun boot/ocamllex # REENTRANTRUNTIME
 CAMLDEP=boot/ocamlrun tools/ocamldep
+#CAMLDEP=boot-from-unpatched-version/ocamlrun tools/ocamldep
 DEPFLAGS=$(INCLUDES)
 CAMLRUN=byterun/ocamlrun
 SHELL=/bin/sh
@@ -41,8 +50,7 @@ UTILS=utils/misc.cmo utils/tbl.cmo utils/config.cmo \
 
 PARSING=parsing/location.cmo parsing/longident.cmo \
   parsing/syntaxerr.cmo parsing/parser.cmo \
-  parsing/lexer.cmo parsing/parse.cmo parsing/printast.cmo \
-  parsing/pprintast.cmo
+  parsing/lexer.cmo parsing/parse.cmo parsing/printast.cmo
 
 TYPING=typing/ident.cmo typing/path.cmo \
   typing/primitive.cmo typing/types.cmo \
@@ -369,9 +377,14 @@ partialclean::
 	rm -f compilerlibs/ocamltoplevel.cma
 
 ocaml: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART) expunge
+	# FIXME: is it ok to use the an ocaml from the old stage? --Luca Saiu REENTRANTRUNTIME
+	# byterun/ocamlrun ./boot/ocamlc $(LINKFLAGS) -linkall -o ocaml.tmp \
+        #   compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
+        #   compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART)
+	# - $(CAMLRUN) ./expunge ocaml.tmp ocaml $(PERVASIVES)
 	$(CAMLC) $(LINKFLAGS) -linkall -o ocaml.tmp \
-          compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
-          compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART)
+           compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
+           compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART)
 	- $(CAMLRUN) ./expunge ocaml.tmp ocaml $(PERVASIVES)
 	rm -f ocaml.tmp
 

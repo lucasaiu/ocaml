@@ -11,16 +11,18 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_pipe(value unit)
+CAMLprim value unix_pipe_r(CAML_R, value unit)
 {
   int fd[2];
   value res;
-  if (pipe(fd) == -1) uerror("pipe", Nothing);
-  res = alloc_small(2, 0);
+  if (pipe(fd) == -1) uerror_r(ctx,"pipe", Nothing);
+  res = caml_alloc_small_r(ctx,2, 0);
   Field(res, 0) = Val_int(fd[0]);
   Field(res, 1) = Val_int(fd[1]);
   return res;

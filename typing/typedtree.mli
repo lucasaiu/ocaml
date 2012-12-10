@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Abstract syntax tree after typing *)
 
 open Asttypes
@@ -39,10 +41,10 @@ and pattern_desc =
   | Tpat_constant of constant
   | Tpat_tuple of pattern list
   | Tpat_construct of
-      Longident.t loc * constructor_description * pattern list * bool
+      Path.t * Longident.t loc * constructor_description * pattern list * bool
   | Tpat_variant of label * pattern option * row_desc ref
   | Tpat_record of
-      (Longident.t loc * label_description * pattern) list *
+      (Path.t * Longident.t loc * label_description * pattern) list *
         closed_flag
   | Tpat_array of pattern list
   | Tpat_or of pattern * pattern * row_desc option
@@ -71,15 +73,15 @@ and expression_desc =
   | Texp_try of expression * (pattern * expression) list
   | Texp_tuple of expression list
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list *
+      Path.t * Longident.t loc * constructor_description * expression list *
         bool
   | Texp_variant of label * expression option
   | Texp_record of
-      (Longident.t loc * label_description * expression) list *
+      (Path.t * Longident.t loc * label_description * expression) list *
         expression option
-  | Texp_field of expression * Longident.t loc * label_description
+  | Texp_field of expression * Path.t * Longident.t loc * label_description
   | Texp_setfield of
-      expression * Longident.t loc * label_description * expression
+      expression * Path.t * Longident.t loc * label_description * expression
   | Texp_array of expression list
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression

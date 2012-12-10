@@ -10,7 +10,9 @@
 (*                                                                     *)
 (***********************************************************************)
 
-(** Miscellaneous functions *)
+(* $Id$ *)
+
+(** Miscelaneous functions *)
 
 (** [no_blanks s] returns the given string without any blank
    characters, i.e. '\n' '\r' ' ' '\t'.

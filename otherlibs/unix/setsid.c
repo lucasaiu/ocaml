@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -18,12 +20,12 @@
 #include <unistd.h>
 #endif
 
-CAMLprim value unix_setsid(value unit)
+CAMLprim value unix_setsid_r(CAML_R, value unit)
 {
 #ifdef HAS_SETSID
   return Val_int(setsid());
 #else
-  invalid_argument("setsid not implemented");
+  caml_invalid_argument_r(ctx,"setsid not implemented");
   return Val_unit;
 #endif
 }

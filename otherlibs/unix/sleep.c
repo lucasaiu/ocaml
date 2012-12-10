@@ -11,14 +11,16 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <signals.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_sleep(value t)
+CAMLprim value unix_sleep_r(CAML_R, value t)
 {
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   sleep(Int_val(t));
-  leave_blocking_section();
+  caml_leave_blocking_section_r(ctx);
   return Val_unit;
 }

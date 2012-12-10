@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Module [Lazy]: deferred computations *)
 
 
@@ -47,7 +49,7 @@ type 'a t = 'a lazy_t;;
 
 exception Undefined = CamlinternalLazy.Undefined;;
 
-external make_forward : 'a -> 'a lazy_t = "caml_lazy_make_forward";;
+external make_forward : 'a -> 'a lazy_t = "caml_lazy_make_forward_r" "reentrant";;
 
 external force : 'a t -> 'a = "%lazy_force";;
 

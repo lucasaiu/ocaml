@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <sys/types.h>
 #include <mlvalues.h>
 #include <fail.h>
@@ -22,26 +24,26 @@
 
 #ifdef HAS_TRUNCATE
 
-CAMLprim value unix_truncate(value path, value len)
+CAMLprim value unix_truncate_r(CAML_R, value path, value len)
 {
   if (truncate(String_val(path), Long_val(len)) == -1)
-    uerror("truncate", path);
+    uerror_r(ctx,"truncate", path);
   return Val_unit;
 }
 
-CAMLprim value unix_truncate_64(value path, value len)
+CAMLprim value unix_truncate_64_r(CAML_R, value path, value len)
 {
   if (truncate(String_val(path), File_offset_val(len)) == -1)
-    uerror("truncate", path);
+    uerror_r(ctx,"truncate", path);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_truncate(value path, value len)
-{ invalid_argument("truncate not implemented"); }
+CAMLprim value unix_truncate_r(CAML_R, value path, value len)
+{ caml_invalid_argument_r(ctx,"truncate not implemented"); }
 
-CAMLprim value unix_truncate_64(value path, value len)
-{ invalid_argument("truncate not implemented"); }
+CAMLprim value unix_truncate_64_r(CAML_R, value path, value len)
+{ caml_invalid_argument_r(ctx,"truncate not implemented"); }
 
 #endif

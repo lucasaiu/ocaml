@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 open Misc
 open Longident
 open Path
@@ -799,8 +801,7 @@ let modtype_of_package env loc p nl tl =
       if nl = [] then Mty_ident p
       else raise(Error(loc, Signature_expected))
   with Not_found ->
-    let error = Typetexp.Unbound_modtype (env, Ctype.lid_of_path p) in
-    raise(Typetexp.Error(loc, error))
+    raise(Typetexp.Error(loc, Typetexp.Unbound_modtype (Ctype.lid_of_path p)))
 
 let wrap_constraint env arg mty explicit =
   let coercion =

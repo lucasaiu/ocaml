@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Data types for annotations (Stypes.ml) *)
 
 type call = Tail | Stack | Inline;;

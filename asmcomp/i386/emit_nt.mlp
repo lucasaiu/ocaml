@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Emission of Intel 386 assembly code, MASM syntax. *)
 
 module StringSet =

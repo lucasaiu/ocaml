@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include "unixsupport.h"
@@ -38,13 +40,13 @@ static int access_permission_table[] = {
   R_OK, W_OK, X_OK, F_OK
 };
 
-CAMLprim value unix_access(value path, value perms)
+CAMLprim value unix_access_r(CAML_R, value path, value perms)
 {
   int ret, cv_flags;
 
   cv_flags = convert_flag_list(perms, access_permission_table);
   ret = access(String_val(path), cv_flags);
   if (ret == -1)
-    uerror("access", path);
+    uerror_r(ctx, "access", path);
   return Val_unit;
 }

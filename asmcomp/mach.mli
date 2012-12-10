@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Representation of machine code by sequences of pseudoinstructions *)
 
 type integer_comparison =
@@ -37,7 +39,7 @@ type operation =
   | Ireload
   | Iconst_int of nativeint
   | Iconst_float of string
-  | Iconst_symbol of string
+  | Iconst_symbol of string * Cmm.symbol_kind
   | Icall_ind
   | Icall_imm of string
   | Itailcall_ind

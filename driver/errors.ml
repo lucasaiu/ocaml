@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* WARNING: if you change something in this file, you must look at
    opterrors.ml and ocamldoc/odoc_analyse.ml
    to see if you need to make the same changes there.

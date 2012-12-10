@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 type t = { mutable locked: bool; mutable waiting: Thread.t list }
 
 let create () = { locked = false; waiting = [] }

@@ -11,13 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_dup(value fd)
+CAMLprim value unix_dup_r(CAML_R, value fd)
 {
   int ret;
   ret = dup(Int_val(fd));
-  if (ret == -1) uerror("dup", Nothing);
+  if (ret == -1) uerror_r(ctx, "dup", Nothing);
   return Val_int(ret);
 }

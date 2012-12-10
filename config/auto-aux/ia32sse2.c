@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Test whether IA32 assembler supports SSE2 instructions */
 
 int main()

@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <stdio.h>
 #include "config.h"
 #include "misc.h"
@@ -23,6 +25,7 @@ int caml_failed_assert (char * expr, char * file, int line)
   fprintf (stderr, "file %s; line %d ### Assertion failed: %s\n",
            file, line, expr);
   fflush (stderr);
+  ((int*)(0))[0] = 1;
   exit (100);
   return 1; /* not reached */
 }

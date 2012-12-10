@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Generation of bytecode + relocation information *)
 
 open Config
@@ -245,10 +247,10 @@ let emit_instr = function
   | Kpoptrap -> out opPOPTRAP
   | Kraise -> out opRAISE
   | Kcheck_signals -> out opCHECK_SIGNALS
-  | Kccall(name, n) ->
+  | Kccall(name, ctx, n) ->
       if n <= 5
-      then (out (opC_CALL1 + n - 1); slot_for_c_prim name)
-      else (out opC_CALLN; out_int n; slot_for_c_prim name)
+      then (out (opC_CALL1 + n - 1); out_int (if ctx then 1 else 0); slot_for_c_prim name)
+      else (out opC_CALLN; out_int n; out_int (if ctx then 1 else 0); slot_for_c_prim name)
   | Knegint -> out opNEGINT  | Kaddint -> out opADDINT
   | Ksubint -> out opSUBINT  | Kmulint -> out opMULINT
   | Kdivint -> out opDIVINT  | Kmodint -> out opMODINT

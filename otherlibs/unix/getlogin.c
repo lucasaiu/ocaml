@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include "unixsupport.h"
@@ -18,10 +20,10 @@
 
 extern char * getlogin(void);
 
-CAMLprim value unix_getlogin(value unit)
+CAMLprim value unix_getlogin_r(CAML_R, value unit)
 {
   char * name;
   name = getlogin();
-  if (name == NULL) unix_error(ENOENT, "getlogin", Nothing);
-  return copy_string(name);
+  if (name == NULL) unix_error_r(ctx,ENOENT, "getlogin", Nothing);
+  return caml_copy_string_r(ctx,name);
 }

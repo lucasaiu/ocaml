@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Emission of x86-64 (AMD 64) assembly code *)
 
 open Cmm
@@ -70,9 +72,10 @@ let emit_jump s =
 let load_symbol_addr s =
   if !Clflags.dlcode && not mingw64
   then `movq	{emit_symbol s}@GOTPCREL(%rip)`
+       (* `# REENTRANTRUNTIME: we use dlcode, whatever it is\n\tmovq	{emit_symbol s}@GOTPCREL(%rip)` *)
   else if !pic_code
-  then `leaq	{emit_symbol s}(%rip)`
-  else `movq	${emit_symbol s}`
+  then `# REENTRANTRUNTIME: we don't use pic\n\tleaq	{emit_symbol s}(%rip)`
+  else `# REENTRANTRUNTIME: third case\n\tmovq	${emit_symbol s}`
 
 (* Output a label *)
 
@@ -107,17 +110,19 @@ let emit_reg = function
 
 let reg_low_8_name =
   [| "%al"; "%bl"; "%dil"; "%sil"; "%dl"; "%cl"; "%r8b"; "%r9b";
-     "%r12b"; "%r13b"; "%bpl"; "%r10b"; "%r11b" |]
+     "%r12b"; (* "%r13b"; *) "%bpl"; "%r10b"; "%r11b" |]
 let reg_low_16_name =
   [| "%ax"; "%bx"; "%di"; "%si"; "%dx"; "%cx"; "%r8w"; "%r9w";
-     "%r12w"; "%r13w"; "%bp"; "%r10w"; "%r11w" |]
+     "%r12w"; (* "%r13w"; *) "%bp"; "%r10w"; "%r11w" |]
 let reg_low_32_name =
   [| "%eax"; "%ebx"; "%edi"; "%esi"; "%edx"; "%ecx"; "%r8d"; "%r9d";
-     "%r12d"; "%r13d"; "%ebp"; "%r10d"; "%r11d" |]
+     "%r12d"; (* "%r13d"; *) "%ebp"; "%r10d"; "%r11d" |]
+
+let int_reg_nbr = Array.length reg_low_8_name (* REENTRANTRUNTIME *)
 
 let emit_subreg tbl r =
   match r.loc with
-    Reg r when r < 13 ->
+    Reg r when r < int_reg_nbr (*13 REENTRANTRUNTIME*) ->
       emit_string tbl.(r)
   | Stack s ->
       let ofs = slot_offset s (register_class r) in
@@ -187,7 +192,7 @@ type gc_call =
 let call_gc_sites = ref ([] : gc_call list)
 
 let emit_call_gc gc =
-  `{emit_label gc.gc_lbl}:	{emit_call "caml_call_gc"}\n`;
+  `{emit_label gc.gc_lbl}:	{emit_call "caml_call_gc_r13"}\n`;
   `{emit_label gc.gc_frame}:	jmp	{emit_label gc.gc_return_lbl}\n`
 
 (* Record calls to caml_ml_array_bound_error.
@@ -214,13 +219,13 @@ let bound_error_label dbg =
  end
 
 let emit_call_bound_error bd =
-  `{emit_label bd.bd_lbl}:	{emit_call "caml_ml_array_bound_error"}\n`;
+  `{emit_label bd.bd_lbl}:	{emit_call "caml_ml_array_bound_error_r13"}\n`;
   `{emit_label bd.bd_frame}:\n`
 
 let emit_call_bound_errors () =
   List.iter emit_call_bound_error !bound_error_sites;
   if !bound_error_call > 0 then
-    `{emit_label !bound_error_call}:	{emit_call "caml_ml_array_bound_error"}\n`
+    `{emit_label !bound_error_call}:	{emit_call "caml_ml_array_bound_error_r13"}\n`
 
 (* Names for instructions *)
 
@@ -369,8 +374,19 @@ let emit_instr fallthrough i =
           float_constants := (lbl, s) :: !float_constants;
           `	movsd	{emit_label lbl}(%rip), {emit_reg i.res.(0)}\n`
         end
-    | Lop(Iconst_symbol s) ->
-        `	{load_symbol_addr s}, {emit_reg i.res.(0)}\n`
+    | Lop(Iconst_symbol("caml_global_context", _)) ->
+        `	movq    %r13, {emit_reg i.res.(0)}\n`
+    | Lop(Iconst_symbol(s, Cglobal_kind)) ->
+        (* `	{load_symbol_addr s}, {emit_reg i.res.(0)}\n` *)
+        (* The word named by the symbol contains a byte offset (set at
+           module registration time and identical for all contexts) at
+           which globals for the given module start in the per-context
+           global variable array caml_globals --Luca Saiu REENTRANTRUNTIME *)
+        `	movq	{emit_symbol s}@GOTPCREL(%rip), {emit_reg i.res.(0)} # Load {emit_string s}'s offset address
+	movq	({emit_reg i.res.(0)}), {emit_reg i.res.(0)} # Load {emit_string s}'s offset
+	addq	56(%r13), {emit_reg i.res.(0)} # Add the offset to the global array base\n` (* FIXME: use symbolic expressions instead of 56 *)
+    | Lop(Iconst_symbol(s, Cconstant_kind)) ->
+        `	{load_symbol_addr s}, {emit_reg i.res.(0)} # Load constant {emit_string s}\n` (* the original solution, unchanged --Luca Saiu REENTRANTRUNTIME *)
     | Lop(Icall_ind) ->
         `	call	*{emit_reg i.arg.(0)}\n`;
         record_frame i.live i.dbg
@@ -392,10 +408,12 @@ let emit_instr fallthrough i =
     | Lop(Iextcall(s, alloc)) ->
         if alloc then begin
           `	{load_symbol_addr s}, %rax\n`;
-          `	{emit_call "caml_c_call"}\n`;
+          (* `	{emit_call "caml_c_call"}\n`; REENTRANTRUNTIME *)
+          `	{emit_call "caml_c_call_r13"}\n`;
           record_frame i.live i.dbg;
-          `	{load_symbol_addr "caml_young_ptr"}, %r11\n`;
-          `	movq    (%r11), %r15\n`;
+          (* `	{load_symbol_addr "caml_young_ptr"}, %r11\n`; REENTRANTRUNTIME *)
+          (* `	movq    (%r11), %r15\n`; REENTRANTRUNTIME *)
+          `	movq    8(%r13), %r15 # caml_young_ptr\n`; (* FIXME: use a symbolic offset *)
         end else begin
           `	{emit_call s}\n`
         end
@@ -409,49 +427,51 @@ let emit_instr fallthrough i =
         let dest = i.res.(0) in
         begin match chunk with
           | Word ->
-              `	movq	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+              `	movq	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Byte_unsigned ->
-              `	movzbq	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+              `	movzbq	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Byte_signed ->
-              `	movsbq	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+              `	movsbq	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Sixteen_unsigned ->
-              `	movzwq	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+              `	movzwq	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Sixteen_signed ->
-              `	movswq	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+              `	movswq	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Thirtytwo_unsigned ->
-              `	movl	{emit_addressing addr i.arg 0}, {emit_reg32 dest}\n`
+              `	movl	{emit_addressing addr i.arg 0}, {emit_reg32 dest} # Lop(Iload(_,_))\n`
           | Thirtytwo_signed ->
-              `	movslq	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+              `	movslq	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Single ->
-            `	cvtss2sd {emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+            `	cvtss2sd {emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
           | Double | Double_u ->
-            `	movsd	{emit_addressing addr i.arg 0}, {emit_reg dest}\n`
+            `	movsd	{emit_addressing addr i.arg 0}, {emit_reg dest} # Lop(Iload(_,_))\n`
         end
     | Lop(Istore(chunk, addr)) ->
         begin match chunk with
           | Word ->
-            `	movq	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 1}\n`
+            `	movq	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 1} # Lop(Istore(_,_))\n`
           | Byte_unsigned | Byte_signed ->
-            `	movb	{emit_reg8 i.arg.(0)}, {emit_addressing addr i.arg 1}\n`
+            `	movb	{emit_reg8 i.arg.(0)}, {emit_addressing addr i.arg 1} # Lop(Istore(_,_))\n`
           | Sixteen_unsigned | Sixteen_signed ->
-            `	movw	{emit_reg16 i.arg.(0)}, {emit_addressing addr i.arg 1}\n`
+            `	movw	{emit_reg16 i.arg.(0)}, {emit_addressing addr i.arg 1} # Lop(Istore(_,_))\n`
           | Thirtytwo_signed | Thirtytwo_unsigned ->
-            `	movl	{emit_reg32 i.arg.(0)}, {emit_addressing addr i.arg 1}\n`
+            `	movl	{emit_reg32 i.arg.(0)}, {emit_addressing addr i.arg 1} # Lop(Istore(_,_))\n`
           | Single ->
-            `	cvtsd2ss {emit_reg i.arg.(0)}, %xmm15\n`;
-            `	movss	%xmm15, {emit_addressing addr i.arg 1}\n`
+            `	cvtsd2ss {emit_reg i.arg.(0)}, %xmm15 # Lop(Istore(_,_)) [1/2]\n`;
+            `	movss	%xmm15, {emit_addressing addr i.arg 1} # Lop(Istore(_,_)) [2/2]\n`
           | Double | Double_u ->
-            `	movsd	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 1}\n`
+            `	movsd	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 1} # Lop(Istore(_,_))\n`
         end
     | Lop(Ialloc n) ->
         if !fastcode_flag then begin
           let lbl_redo = new_label() in
           `{emit_label lbl_redo}:	subq	${emit_int n}, %r15\n`;
           if !Clflags.dlcode then begin
-            `	{load_symbol_addr "caml_young_limit"}, %rax\n`;
-            `	cmpq	(%rax), %r15\n`;
+(*            `	{load_symbol_addr "caml_young_limit"}, %rax\n`;
+            `	cmpq	(%rax), %r15\n`; *)
+            `	cmpq	0(%r13), %r15\n`;
           end else
-            `	cmpq	{emit_symbol "caml_young_limit"}(%rip), %r15\n`;
+(*            `	cmpq	{emit_symbol "caml_young_limit"}(%rip), %r15\n`; *)
+            `	cmpq	0(%r13), %r15\n`;
           let lbl_call_gc = new_label() in
           let lbl_frame = record_frame_label i.live Debuginfo.none in
           `	jb	{emit_label lbl_call_gc}\n`;
@@ -462,11 +482,11 @@ let emit_instr fallthrough i =
               gc_frame = lbl_frame } :: !call_gc_sites
         end else begin
           begin match n with
-            16  -> `	{emit_call "caml_alloc1"}\n`
-          | 24 -> `	{emit_call "caml_alloc2"}\n`
-          | 32 -> `	{emit_call "caml_alloc3"}\n`
+            16  -> `	{emit_call "caml_alloc1_r13"}\n`
+          | 24 -> `	{emit_call "caml_alloc2_r13"}\n`
+          | 32 -> `	{emit_call "caml_alloc3_r13"}\n`
           | _  -> `	movq	${emit_int n}, %rax\n`;
-                  `	{emit_call "caml_allocN"}\n`
+                  `	{emit_call "caml_allocN_r13"}\n`
           end;
           `{record_frame i.live Debuginfo.none}	leaq	8(%r15), {emit_reg i.res.(0)}\n`
         end
@@ -640,7 +660,7 @@ let emit_instr fallthrough i =
         stack_offset := !stack_offset - 16
     | Lraise ->
         if !Clflags.debug then begin
-          `	{emit_call "caml_raise_exn"}\n`;
+          `	{emit_call "caml_raise_exn_r13"}\n`;
           record_frame Reg.Set.empty i.dbg
         end else begin
           `	movq	%r14, %rsp\n`;
@@ -734,9 +754,12 @@ let emit_item = function
     Cglobal_symbol s ->
       `	.globl	{emit_symbol s}\n`;
   | Cdefine_symbol s ->
-      `{emit_symbol s}:\n`
+      `# emit.mlp: emit_item: Cdefine_symbol case [{emit_string s}]: BEGIN
+\t{emit_symbol s}:
+# emit.mlp: emit_item: Cdefine_symbol case [{emit_string s}]: END\n`
   | Cdefine_label lbl ->
-      `{emit_data_label lbl}:\n`
+      `# emit.mlp: emit_item: Cdefine_label case
+\t{emit_data_label lbl}:\n`
   | Cint8 n ->
       `	.byte	{emit_int n}\n`
   | Cint16 n ->
@@ -750,11 +773,16 @@ let emit_item = function
   | Cdouble f ->
       emit_float64_directive ".quad" f
   | Csymbol_address s ->
-      `	.quad	{emit_symbol s}\n`
+      `# emit.mlp: emit_item: Csymbol_address case [{emit_string s}]: BEGIN
+\t.quad	{emit_symbol s}
+# emit.mlp: emit_item: Csymbol_address case [{emit_string s}]: END\n`
   | Clabel_address lbl ->
-      `	.quad	{emit_data_label lbl}\n`
+      `# emit.mlp: emit_item: Clabel_address case
+	.quad	{emit_data_label lbl}\n`
   | Cstring s ->
-      emit_string_directive "	.ascii	" s
+      `# emit.mlp: emit_item: Cstring case: BEGIN
+\t{emit_string_directive ".ascii	" s}# emit.mlp: emit_item: Cstring case: END\n`
+      (* emit_string_directive "	.ascii	" s *)
   | Cskip n ->
       if n > 0 then `	.space	{emit_int n}\n`
   | Calign n ->

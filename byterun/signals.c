@@ -11,7 +11,16 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Signal handling, code common to the bytecode and native systems */
+
+#include <stdio.h>
+
+#define CAML_CONTEXT_MINOR_GC
+#define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_SIGNALS_BYT
+#define CAML_CONTEXT_SIGNALS
 
 #include <signal.h>
 #include "alloc.h"
@@ -26,18 +35,9 @@
 #include "signals_machdep.h"
 #include "sys.h"
 
-#ifndef NSIG
-#define NSIG 64
-#endif
-
-/* The set of pending signals (received but not yet processed) */
-
-CAMLexport intnat volatile caml_signals_are_pending = 0;
-CAMLexport intnat volatile caml_pending_signals[NSIG];
-
 /* Execute all pending signals */
 
-void caml_process_pending_signals(void)
+void caml_process_pending_signals_r(CAML_R)
 {
   int i;
 
@@ -46,7 +46,7 @@ void caml_process_pending_signals(void)
     for (i = 0; i < NSIG; i++) {
       if (caml_pending_signals[i]) {
         caml_pending_signals[i] = 0;
-        caml_execute_signal(i, 0);
+        caml_execute_signal_r(ctx, i, 0);
       }
     }
   }
@@ -59,7 +59,7 @@ void caml_process_pending_signals(void)
        in caml_garbage_collection
 */
 
-void caml_record_signal(int signal_number)
+void caml_record_signal_r(CAML_R, int signal_number)
 {
   caml_pending_signals[signal_number] = 1;
   caml_signals_are_pending = 1;
@@ -72,58 +72,73 @@ void caml_record_signal(int signal_number)
 
 /* Management of blocking sections. */
 
-static intnat volatile caml_async_signal_mode = 0;
-
-static void caml_enter_blocking_section_default(void)
+void caml_enter_blocking_section_default(void)
 {
+  INIT_CAML_R;
+  /* fprintf(stderr, "caml_enter_blocking_section_default %x\n", ctx); */
   Assert (caml_async_signal_mode == 0);
   caml_async_signal_mode = 1;
 }
 
-static void caml_leave_blocking_section_default(void)
+void caml_leave_blocking_section_default(void)
 {
+  INIT_CAML_R;
+  /*  fprintf(stderr, "caml_leave_blocking_section_default %x\n", ctx); */
   Assert (caml_async_signal_mode == 1);
   caml_async_signal_mode = 0;
 }
 
-static int caml_try_leave_blocking_section_default(void)
+int caml_try_leave_blocking_section_default(void)
 {
   intnat res;
+  INIT_CAML_R;
+  /* fprintf(stderr, "caml_try_leave_blocking_section_default\n"); */
   Read_and_clear(res, caml_async_signal_mode);
   return res;
 }
 
-CAMLexport void (*caml_enter_blocking_section_hook)(void) =
-   caml_enter_blocking_section_default;
-CAMLexport void (*caml_leave_blocking_section_hook)(void) =
-   caml_leave_blocking_section_default;
-CAMLexport int (*caml_try_leave_blocking_section_hook)(void) =
-   caml_try_leave_blocking_section_default;
-
-CAMLexport void caml_enter_blocking_section(void)
+CAMLexport void caml_enter_blocking_section_r(CAML_R)
 {
+  /*  fprintf(stderr, "caml_enter_blocking_section_r %lx...\n", ctx);
+  fprintf(stderr, "enter_blocking_section_hook = %lx (%lx)\n",
+	  & caml_enter_blocking_section_hook,
+	  caml_enter_blocking_section_hook);
+  fprintf(stderr, "leave_blocking_section_hook = %lx (%lx)\n",
+	  & caml_leave_blocking_section_hook,
+	  caml_leave_blocking_section_hook);
+  fprintf(stderr, "caml_enter_blocking_section_default = %lx\n",
+	  caml_enter_blocking_section_default);
+  fprintf(stderr, "caml_leave_blocking_section_default = %lx\n",
+	  caml_leave_blocking_section_default);
+  */
+
   while (1){
     /* Process all pending signals now */
-    caml_process_pending_signals();
+    /*    fprintf(stderr, "caml_process_pending_signals_r...\n"); */
+    caml_process_pending_signals_r(ctx);
+    /*    fprintf(stderr, "caml_enter_blocking_section_hook...\n"); */
+    Assert ( caml_enter_blocking_section_hook != caml_leave_blocking_section_hook );
     caml_enter_blocking_section_hook ();
     /* Check again for pending signals.
        If none, done; otherwise, try again */
+    /*    fprintf(stderr, "!caml_signals_are_pending ? %d...\n", caml_signals_are_pending); */
     if (! caml_signals_are_pending) break;
+    /* fprintf(stderr, "caml_leave_blocking_section_hook...\n"); */
     caml_leave_blocking_section_hook ();
   }
+  /* fprintf(stderr, "caml_enter_blocking_section_r DONE\n"); */
+
 }
 
-CAMLexport void caml_leave_blocking_section(void)
+CAMLexport void caml_leave_blocking_section_r(CAML_R)
 {
   caml_leave_blocking_section_hook ();
-  caml_process_pending_signals();
+  caml_process_pending_signals_r(ctx);
 }
 
 /* Execute a signal handler immediately */
 
-static value caml_signal_handlers = 0;
-
-void caml_execute_signal(int signal_number, int in_signal_handler)
+void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
 {
   value res;
 #ifdef POSIX_SIGNALS
@@ -134,7 +149,7 @@ void caml_execute_signal(int signal_number, int in_signal_handler)
   sigaddset(&sigs, signal_number);
   sigprocmask(SIG_BLOCK, &sigs, &sigs);
 #endif
-  res = caml_callback_exn(
+  res = caml_callback_exn_r(ctx,
            Field(caml_signal_handlers, signal_number),
            Val_int(caml_rev_convert_signal_number(signal_number)));
 #ifdef POSIX_SIGNALS
@@ -147,14 +162,12 @@ void caml_execute_signal(int signal_number, int in_signal_handler)
     sigprocmask(SIG_SETMASK, &sigs, NULL);
   }
 #endif
-  if (Is_exception_result(res)) caml_raise(Extract_exception(res));
+  if (Is_exception_result(res)) caml_raise_r(ctx, Extract_exception(res));
 }
 
 /* Arrange for a garbage collection to be performed as soon as possible */
 
-int volatile caml_force_major_slice = 0;
-
-void caml_urge_major_slice (void)
+void caml_urge_major_slice_r (CAML_R)
 {
   caml_force_major_slice = 1;
 #ifndef NATIVE_CODE
@@ -258,7 +271,7 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
 
 /* Installation of a signal handler (as per [Sys.signal]) */
 
-CAMLprim value caml_install_signal_handler(value signal_number, value action)
+CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value action)
 {
   CAMLparam2 (signal_number, action);
   CAMLlocal1 (res);
@@ -266,7 +279,7 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
 
   sig = caml_convert_signal_number(Int_val(signal_number));
   if (sig < 0 || sig >= NSIG)
-    caml_invalid_argument("Sys.signal: unavailable signal");
+    caml_invalid_argument_r(ctx, "Sys.signal: unavailable signal");
   switch(action) {
   case Val_int(0):              /* Signal_default */
     act = 0;
@@ -287,19 +300,19 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     res = Val_int(1);
     break;
   case 2:                       /* was Signal_handle */
-    res = caml_alloc_small (1, 0);
+    res = caml_alloc_small_r (ctx, 1, 0);
     Field(res, 0) = Field(caml_signal_handlers, sig);
     break;
   default:                      /* error in caml_set_signal_action */
-    caml_sys_error(NO_ARG);
+    caml_sys_error_r(ctx, NO_ARG);
   }
   if (Is_block(action)) {
     if (caml_signal_handlers == 0) {
-      caml_signal_handlers = caml_alloc(NSIG, 0);
-      caml_register_global_root(&caml_signal_handlers);
+      caml_signal_handlers = caml_alloc_r(ctx, NSIG, 0);
+      caml_register_global_root_r(ctx, &caml_signal_handlers);
     }
-    caml_modify(&Field(caml_signal_handlers, sig), Field(action, 0));
+    caml_modify_r(ctx, &Field(caml_signal_handlers, sig), Field(action, 0));
   }
-  caml_process_pending_signals();
+  caml_process_pending_signals_r(ctx);
   CAMLreturn (res);
 }

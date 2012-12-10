@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Marshaling of data structures.
 
    This module provides functions to encode arbitrary data structures
@@ -45,6 +47,7 @@
 type extern_flags =
     No_sharing                          (** Don't preserve sharing *)
   | Closures                            (** Send function closures *)
+  | Cross_context                       (** Marshal at context-split time *)
 (** The flags to the [Marshal.to_*] functions below. *)
 
 val to_channel : out_channel -> 'a -> extern_flags list -> unit
@@ -78,7 +81,7 @@ val to_channel : out_channel -> 'a -> extern_flags list -> unit
    transmitted along with the code position.) *)
 
 external to_string :
-  'a -> extern_flags list -> string = "caml_output_value_to_string"
+  'a -> extern_flags list -> string = "caml_output_value_to_string_r" "reentrant"
 (** [Marshal.to_string v flags] returns a string containing
    the representation of [v] as a sequence of bytes.
    The [flags] argument has the same meaning as for

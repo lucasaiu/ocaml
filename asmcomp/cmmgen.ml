@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Translation from closed lambda to C-- *)
 
 open Misc
@@ -175,7 +177,7 @@ let safe_divmod op c1 c2 dbg =
       Cifthenelse(c2,
                   Cop(op, [c1; c2]),
                   Cop(Craise dbg,
-                      [Cconst_symbol "caml_bucket_Division_by_zero"])))
+                      [Cconst_symbol ("caml_bucket_Division_by_zero", Cconstant_kind)])))
 
 (* Division or modulo on boxed integers.  The overflow case min_int / -1
    can occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
@@ -196,7 +198,7 @@ let safe_divmod_bi mkop mkm1 c1 c2 bi dbg =
     else
       Cifthenelse(c2, c3,
                   Cop(Craise dbg,
-                      [Cconst_symbol "caml_bucket_Division_by_zero"]))))
+                      [Cconst_symbol ("caml_bucket_Division_by_zero", Cconstant_kind)]))))
 
 let safe_div_bi =
   safe_divmod_bi (fun c1 c2 -> Cop(Cdivi, [c1;c2]))
@@ -258,8 +260,8 @@ let rec remove_unit = function
       Clet(id, c1, remove_unit c2)
   | Cop(Capply (mty, dbg), args) ->
       Cop(Capply (typ_void, dbg), args)
-  | Cop(Cextcall(proc, mty, alloc, dbg), args) ->
-      Cop(Cextcall(proc, typ_void, alloc, dbg), args)
+  | Cop(Cextcall(proc, mty, alloc, ctx, dbg), args) ->
+      Cop(Cextcall(proc, typ_void, alloc, ctx, dbg), args)
   | Cexit (_,_) as c -> c
   | Ctuple [] as c -> c
   | c -> Csequence(c, Ctuple [])
@@ -335,7 +337,7 @@ let float_array_ref arr ofs =
   box_float(unboxed_float_array_ref arr ofs)
 
 let addr_array_set arr ofs newval =
-  Cop(Cextcall("caml_modify", typ_void, false, Debuginfo.none),
+  Cop(Cextcall("caml_modify_r", typ_void, false, true, Debuginfo.none),
       [array_indexing log2_size_addr arr ofs; newval])
 let int_array_set arr ofs newval =
   Cop(Cstore Word, [array_indexing log2_size_addr arr ofs; newval])
@@ -362,7 +364,7 @@ let string_length exp =
 
 let lookup_tag obj tag =
   bind "tag" tag (fun tag ->
-    Cop(Cextcall("caml_get_public_method", typ_addr, false, Debuginfo.none),
+    Cop(Cextcall("caml_get_public_method", typ_addr, false, false, Debuginfo.none),
         [obj; tag]))
 
 let lookup_label obj lab =
@@ -375,7 +377,7 @@ let call_cached_method obj tag cache pos args dbg =
   let cache = array_indexing log2_size_addr cache pos in
   Compilenv.need_send_fun arity;
   Cop(Capply (typ_addr, dbg),
-      Cconst_symbol("caml_send" ^ string_of_int arity) ::
+      Cconst_symbol(("caml_send" ^ string_of_int arity), Cglobal_kind) ::
       obj :: tag :: cache :: args)
 
 (* Allocation *)
@@ -390,7 +392,7 @@ let make_alloc_generic set_fn tag wordsize args =
     | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int idx) e1,
                           fill_fields (idx + 2) el) in
     Clet(id,
-         Cop(Cextcall("caml_alloc", typ_addr, true, Debuginfo.none),
+         Cop(Cextcall("caml_alloc_r", typ_addr, true, true, Debuginfo.none),
                  [Cconst_int wordsize; Cconst_int tag]),
          fill_fields 1 args)
   end
@@ -487,7 +489,7 @@ let transl_constant = function
       else Cconst_natpointer
               (Nativeint.add (Nativeint.shift_left (Nativeint.of_int n) 1) 1n)
   | cst ->
-      Cconst_symbol (Compilenv.new_structured_constant cst false)
+      Cconst_symbol ((Compilenv.new_structured_constant cst false), Cconstant_kind)
 
 (* Translate constant closures *)
 
@@ -526,7 +528,7 @@ let box_int bi arg =
         then Cop(Clsl, [arg; Cconst_int 32])
         else arg in
       Cop(Calloc, [alloc_header_boxed_int bi;
-                   Cconst_symbol(operations_boxed_int bi);
+                   Cconst_symbol((operations_boxed_int bi), Cconstant_kind);
                    arg'])
 
 let rec unbox_int bi arg =
@@ -654,7 +656,8 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
 (* Simplification of some primitives into C calls *)
 
 let default_prim name =
-  { prim_name = name; prim_arity = 0 (*ignored*);
+  { prim_name = name ^ "_r";
+    prim_arity = 0 (*ignored*); prim_ctx = true;
     prim_alloc = true; prim_native_name = ""; prim_native_float = false }
 
 let simplif_primitive_32bits = function
@@ -839,18 +842,50 @@ let subst_boxed_number unbox_fn boxed_id unboxed_id exp =
 
 let functions = (Queue.create() : ufunction Queue.t)
 
+let print_ident ident =
+  Printf.printf "  %i: %s \"%s\" \"%s\" [%s]\n" ((Obj.magic ident).(0)) (Ident.name ident) (Ident.unique_name ident) (Ident.unique_toplevel_name ident) (* (Compilenv.symbol_for_global ident) *) ""
+
+let is_a_builtin_exception_ident ident =
+  List.exists
+    (fun (a_name, _) -> ("caml_exn_" ^ a_name) = (Ident.name ident))
+    Predef.builtin_idents
+
 let rec transl = function
     Uvar id ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "Q: %s is a variable\n" ((Obj.magic id).(1)); *)
       Cvar id
-  | Uconst (sc, Some const_label) ->
-      Cconst_symbol const_label
-  | Uconst (sc, None) ->
+(* BEGIN: I have split the "Uconst (sc, Some const_label)" case according to the shape of sc --Luca Saiu REENTRANTRUNTIME *)
+  | Uconst ((Const_base _), Some const_label) ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "Q: %s is a Const_base (which includes strings)\n" const_label; *)
+      Cconst_symbol (const_label, Cconstant_kind)
+  | Uconst ((Const_pointer _), Some const_label) ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "Q: %s is a Const_pointer\n" const_label; *)
+      Cconst_symbol (const_label, Cconstant_kind)
+  | Uconst ((Const_block _), Some const_label) ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "Q: %s is a Const_block\n" const_label; *)
+      Cconst_symbol (const_label, Cconstant_kind)
+  | Uconst ((Const_float_array _), Some const_label) ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "Q: %s is a Const_float_array\n" const_label; *)
+      Cconst_symbol (const_label, Cconstant_kind)
+  | Uconst ((Const_immstring _), Some const_label) ->
+      (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+      (* Printf.printf "Q: %s is a Const_immstring\n" const_label; *)
+      Cconst_symbol (const_label, Cconstant_kind)
+  (* | Uconst (_, Some const_label) -> *)
+  (*     Printf.printf "Q: %s is something else\n" const_label; *)
+  (*     Cconst_symbol (const_label, Cglobal_kind) *)
+(* END: I have split the "Uconst (sc, Some const_label)" case according to the shape of sc --Luca Saiu REENTRANTRUNTIME *)  | Uconst (sc, None) ->
       transl_constant sc
   | Uclosure(fundecls, []) ->
       let lbl = Compilenv.new_const_symbol() in
       constant_closures := (lbl, fundecls) :: !constant_closures;
       List.iter (fun f -> Queue.add f functions) fundecls;
-      Cconst_symbol lbl
+      Cconst_symbol (lbl, Cconstant_kind)
   | Uclosure(fundecls, clos_vars) ->
       let block_size =
         fundecls_size fundecls + List.length clos_vars in
@@ -865,26 +900,26 @@ let rec transl = function
               else alloc_infix_header pos in
             if f.arity = 1 then
               header ::
-              Cconst_symbol f.label ::
+              Cconst_symbol (f.label, Cconstant_kind) ::
               int_const 1 ::
               transl_fundecls (pos + 3) rem
             else
               header ::
-              Cconst_symbol(curry_function f.arity) ::
+              Cconst_symbol((curry_function f.arity), Cconstant_kind) ::
               int_const f.arity ::
-              Cconst_symbol f.label ::
+              Cconst_symbol (f.label, Cconstant_kind) ::
               transl_fundecls (pos + 4) rem in
       Cop(Calloc, transl_fundecls 0 fundecls)
   | Uoffset(arg, offset) ->
       field_address (transl arg) offset
   | Udirect_apply(lbl, args, dbg) ->
-      Cop(Capply(typ_addr, dbg), Cconst_symbol lbl :: List.map transl args)
+      Cop(Capply(typ_addr, dbg), Cconst_symbol (lbl, Cconstant_kind) :: List.map transl args)
   | Ugeneric_apply(clos, [arg], dbg) ->
       bind "fun" (transl clos) (fun clos ->
         Cop(Capply(typ_addr, dbg), [get_field clos 0; transl arg; clos]))
   | Ugeneric_apply(clos, args, dbg) ->
       let arity = List.length args in
-      let cargs = Cconst_symbol(apply_function arity) ::
+      let cargs = Cconst_symbol(apply_function arity, Cconstant_kind) ::
         List.map transl (args @ [clos]) in
       Cop(Capply(typ_addr, dbg), cargs)
   | Usend(kind, met, obj, args, dbg) ->
@@ -893,7 +928,7 @@ let rec transl = function
           Cop(Capply(typ_addr, dbg), [get_field clos 0;obj;clos])
         else
           let arity = List.length args + 1 in
-          let cargs = Cconst_symbol(apply_function arity) :: obj ::
+          let cargs = Cconst_symbol(apply_function arity, Cconstant_kind) :: obj ::
             (List.map transl args) @ [clos] in
           Cop(Capply(typ_addr, dbg), cargs)
       in
@@ -923,8 +958,16 @@ let rec transl = function
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
-        (Pgetglobal id, []) ->
-          Cconst_symbol (Ident.name id)
+        (* If id is a builtin exception, pre-allocated within
+           builtin_values [FIXME: left or right?  Test], then it's a constant *)
+        (Pgetglobal id, []) when is_a_builtin_exception_ident id ->
+(* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+          (* Printf.printf "AAAAAAA: This IS a builtin exception name: %s\n" (Ident.name id); *)
+          Cconst_symbol (Ident.name id, Cconstant_kind)
+      | (Pgetglobal id, []) ->
+(* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+          (* Printf.printf "AAAAAAA: This is NOT a builtin exception name: %s\n" (Ident.name id); *)
+          Cconst_symbol (Ident.name id, Cglobal_kind)
       | (Pmakeblock(tag, mut), []) ->
           transl_constant(Const_block(tag, []))
       | (Pmakeblock(tag, mut), args) ->
@@ -932,17 +975,17 @@ let rec transl = function
       | (Pccall prim, args) ->
           if prim.prim_native_float then
             box_float
-              (Cop(Cextcall(prim.prim_native_name, typ_float, false, dbg),
+              (Cop(Cextcall(prim.prim_native_name, typ_float, false, false, dbg),
                    List.map transl_unbox_float args))
           else
-            Cop(Cextcall(Primitive.native_name prim, typ_addr, prim.prim_alloc, dbg),
+            Cop(Cextcall(Primitive.native_name prim, typ_addr, prim.prim_alloc, prim.prim_ctx, dbg),
                 List.map transl args)
       | (Pmakearray kind, []) ->
           transl_constant(Const_block(0, []))
       | (Pmakearray kind, args) ->
           begin match kind with
             Pgenarray ->
-              Cop(Cextcall("caml_make_array", typ_addr, true, Debuginfo.none),
+              Cop(Cextcall("caml_make_array_r", typ_addr, true, true, Debuginfo.none),
                   [make_alloc 0 (List.map transl args)])
           | Paddrarray | Pintarray ->
               make_alloc 0 (List.map transl args)
@@ -977,9 +1020,6 @@ let rec transl = function
             | Pbigarray_native_int -> transl_unbox_int Pnativeint argnewval
             | _ -> untag_int (transl argnewval))
             dbg)
-      | (Pbigarraydim(n), [b]) ->
-          let dim_ofs = 4 + n in
-          tag_int (Cop(Cload Word, [field_address (transl b) dim_ofs]))
       | (p, [arg]) ->
           transl_prim_1 p arg dbg
       | (p, [arg1; arg2]) ->
@@ -1171,7 +1211,7 @@ and transl_prim_2 p arg1 arg2 dbg =
   (* Heap operations *)
     Psetfield(n, ptr) ->
       if ptr then
-        return_unit(Cop(Cextcall("caml_modify", typ_void, false, Debuginfo.none),
+        return_unit(Cop(Cextcall("caml_modify_r", typ_void, false, true, Debuginfo.none),
                         [field_address (transl arg1) n; transl arg2]))
       else
         return_unit(set_field (transl arg1) n (transl arg2))
@@ -1560,13 +1600,13 @@ and transl_switch arg index cases = match Array.length cases with
 and transl_letrec bindings cont =
   let bsz = List.map (fun (id, exp) -> (id, exp, expr_size exp)) bindings in
   let op_alloc prim sz =
-    Cop(Cextcall(prim, typ_addr, true, Debuginfo.none), [int_const sz]) in
+    Cop(Cextcall(prim, typ_addr, true, true, Debuginfo.none), [int_const sz]) in
   let rec init_blocks = function
     | [] -> fill_nonrec bsz
     | (id, exp, RHS_block sz) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy" sz, init_blocks rem)
+        Clet(id, op_alloc "caml_alloc_dummy_r" sz, init_blocks rem)
     | (id, exp, RHS_floatblock sz) :: rem ->
-        Clet(id, op_alloc "caml_alloc_dummy_float" sz, init_blocks rem)
+        Clet(id, op_alloc "caml_alloc_dummy_float_r" sz, init_blocks rem)
     | (id, exp, RHS_nonrec) :: rem ->
         Clet (id, Cconst_int 0, init_blocks rem)
   and fill_nonrec = function
@@ -1579,7 +1619,7 @@ and transl_letrec bindings cont =
     | [] -> cont
     | (id, exp, (RHS_block _ | RHS_floatblock _)) :: rem ->
         let op =
-          Cop(Cextcall("caml_update_dummy", typ_void, false, Debuginfo.none),
+          Cop(Cextcall("caml_update_dummy_r", typ_void, false, true, Debuginfo.none),
               [Cvar id; transl exp]) in
         Csequence(op, fill_blocks rem)
     | (id, exp, RHS_nonrec) :: rem ->
@@ -1793,19 +1833,68 @@ let emit_all_constants cont =
 
 (* Translate a compilation unit *)
 
+(* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+(* (\*FIXME: remove this crap --Luca Saiu REENTRANTRUNTIME *\) *)
+(* let rec ntimes_acc n x a = if n == 0 then a else ntimes_acc (n - 1) x (x :: a);; *)
+(* let ntimes n x = ntimes_acc n x [];; *)
+
 let compunit size ulam =
   let glob = Compilenv.make_symbol None in
-  let init_code = transl ulam in
-  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+  let register_module_code =
+    Cop(Cextcall("caml_register_module_r",
+                 typ_void,
+                 (*FIXME: no idea; what are these booleans for? --Luca Saiu REENTRANTRUNTIME*)true,
+                 (*FIXME: no idea; what are these booleans for? --Luca Saiu REENTRANTRUNTIME*)true,
+                 Debuginfo.none),
+        [Cconst_int (size * size_addr);
+         Cconst_symbol((Compilenv.make_symbol None), Cconstant_kind)]) in
+  let actual_init_code = transl ulam in
+  let after_module_initialization_code =
+    Cop(Cextcall("caml_after_module_initialization_r",
+                 typ_void,
+                 (*FIXME: no idea; what are these booleans for? --Luca Saiu REENTRANTRUNTIME*)true,
+                 (*FIXME: no idea; what are these booleans for? --Luca Saiu REENTRANTRUNTIME*)true,
+                 Debuginfo.none),
+        [Cconst_int (size * size_addr);
+         Cconst_symbol((Compilenv.make_symbol None), Cconstant_kind)]) in
+  let init_code = Csequence(register_module_code,
+                            Csequence(actual_init_code,
+                                     after_module_initialization_code)) in
+  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry_r");
                        fun_args = [];
                        fun_body = init_code; fun_fast = false;
                        fun_dbg  = Debuginfo.none }] in
   let c2 = transl_all_functions StringSet.empty c1 in
   let c3 = emit_all_constants c2 in
+  (* --Luca Saiu REENTRANTRUNTIME DEBUG *)
+(* Printf.printf "!!!!!!!!!!! size: %i; size_addr: %i\n" size size_addr; *)
+(* Printf.printf "[[[[[[[[[[[[[[[[[\n"; *)
+(* Printcmm.expression (Format.formatter_of_out_channel stdout) (\* actual_ *\)init_code; *)
+(* Printf.printf "\n]]]]]]]]]]]]]]]]]\n"; *)
   Cdata [Cint(block_header 0 size);
          Cglobal_symbol glob;
          Cdefine_symbol glob;
-         Cskip(size * size_addr)] :: c3
+         (* Cskip(size * size_addr) *) (* This was the original solution --Luca Saiu REENTRANTRUNTIME *)
+         Cint(Nativeint.minus_one); (* generate only one word which will store the offset, initializing it with
+                                       -1, an invalid value recognized as a special "uninitialized" marker.
+                                       --Luca Saiu REENTRANTRUNTIME *)
+        ] :: c3
+
+(* Backup, before my possibly extensive changes --Luca Saiu REENTRANTRUNTIME *)
+(* let compunit size ulam = *)
+(*   let glob = Compilenv.make_symbol None in *)
+(*   let init_code = transl ulam in *)
+(*   let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry_r"); *)
+(*                        fun_args = []; *)
+(*                        fun_body = init_code; fun_fast = false; *)
+(*                        fun_dbg  = Debuginfo.none }] in *)
+(*   let c2 = transl_all_functions StringSet.empty c1 in *)
+(*   let c3 = emit_all_constants c2 in *)
+(* Printf.printf "!!!!!!!!!!! size: %i; size_addr: %i\n" size size_addr; *)
+(*   Cdata [Cint(block_header 0 size); *)
+(*          Cglobal_symbol glob; *)
+(*          Cdefine_symbol glob; *)
+(*          Cskip(size * size_addr)] :: c3 (\* FIXME: this Cskip generates the .space line for the module.  Instead of the skip I have to generate a C procedure call --Luca Saiu REENTRANTRUNTIME*\) *)
 
 (*
 CAMLprim value caml_cache_public_method (value meths, value tag, value *cache)
@@ -2027,14 +2116,14 @@ let rec intermediate_curry_functions arity num =
          if arity - num > 2 then
            Cop(Calloc,
                [alloc_closure_header 5;
-                Cconst_symbol(name1 ^ "_" ^ string_of_int (num+1));
+                Cconst_symbol(name1 ^ "_" ^ string_of_int (num+1), Cconstant_kind);
                 int_const (arity - num - 1);
-                Cconst_symbol(name1 ^ "_" ^ string_of_int (num+1) ^ "_app");
+                Cconst_symbol(name1 ^ "_" ^ string_of_int (num+1) ^ "_app", Cconstant_kind);
                 Cvar arg; Cvar clos])
          else
            Cop(Calloc,
                      [alloc_closure_header 4;
-                      Cconst_symbol(name1 ^ "_" ^ string_of_int (num+1));
+                      Cconst_symbol(name1 ^ "_" ^ string_of_int (num+1), Cconstant_kind);
                       int_const 1; Cvar arg; Cvar clos]);
       fun_fast = true;
       fun_dbg  = Debuginfo.none }
@@ -2105,19 +2194,23 @@ let generic_functions shared units =
 
 let entry_point namelist =
   let incr_global_inited =
+(*
     Cop(Cstore Word,
         [Cconst_symbol "caml_globals_inited";
          Cop(Caddi, [Cop(Cload Word, [Cconst_symbol "caml_globals_inited"]);
-                     Cconst_int 1])]) in
+                     Cconst_int 1])])
+*)
+    Cop(Cextcall("caml_incr_globals_inited_r", typ_void, false, true, Debuginfo.none), [])
+ in
   let body =
     List.fold_right
       (fun name next ->
-        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
+        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry_r") in
         Csequence(Cop(Capply(typ_void, Debuginfo.none),
-                         [Cconst_symbol entry_sym]),
+                         [Cconst_symbol (entry_sym, Cglobal_kind)]),
                   Csequence(incr_global_inited, next)))
       namelist (Cconst_int 1) in
-  Cfunction {fun_name = "caml_program";
+  Cfunction {fun_name = "caml_program_r13";
              fun_args = [];
              fun_body = body;
              fun_fast = false;
@@ -2202,3 +2295,68 @@ let plugin_header units =
     } in
   global_data "caml_plugin_header"
     { dynu_magic = Config.cmxs_magic_number; dynu_units = List.map mk units }
+
+let make_reentrant f =
+  let ctx = Ident.create "ctx" in
+  let ectx = Cvar ctx in
+
+  let rec map exp =
+    match exp with
+	Cconst_int _
+      | Cconst_natint _
+      | Cconst_float _
+      | Cconst_symbol _
+      | Cconst_pointer _
+      | Cconst_natpointer _
+      | Cvar _ -> exp
+      | Clet (id, e1, e2) -> Clet (id, map e1, map e2)
+      | Cassign (id, e1) -> Cassign (id, map e1)
+      | Ctuple [] -> Ctuple []
+      | Ctuple elist -> assert false
+      | Csequence (e1, e2) -> Csequence (map e1, map e2)
+      | Cifthenelse (e1, e2, e3) -> Cifthenelse (map e1, map e2, map e3)
+      | Cswitch (e1, indexes, earray) -> Cswitch (map e1, indexes, Array.map map earray)
+      | Cloop e1 -> Cloop (map e1)
+      | Ccatch (n, idents, e1, e2) -> Ccatch (n, idents, map e1, map e2)
+      | Cexit (n, elist) -> Cexit (n, List.map map elist)
+      | Ctrywith (e1, id, e2) -> Ctrywith (map e1, id, map e2)
+      | Cop (op, args) ->
+	let args = List.map map args in
+	match op with
+	  | Cextcall (name, ty, alloc, true, debug) ->
+(* If we must pass the context to a C function, we have to pass it twice ! Once for the wrapper,
+and once as argument of the C function. *)
+	    Cop (Cextcall(name, ty, alloc, false, debug), ectx :: ectx :: args) (* DONE *)
+	  | Calloc      (* DONE *)
+	  | Craise _    (* DONE *)
+	  | Ccheckbound _ (* DONE *)
+	  | Cextcall (_, _, _, false, _)  (* DONE *)
+	    ->
+	    Cop (op, ectx :: args)
+	  | Capply _ -> begin
+	    match args with
+	      | [] -> assert false
+	      | f :: args ->
+		Cop (op, f :: ectx :: args) (* DONE, nothing to do *)
+		end
+	  | Cload _
+	  | Cstore _
+	  | Caddi | Csubi | Cmuli | Cdivi | Cmodi
+	  | Cand | Cor | Cxor | Clsl | Clsr | Casr
+	  | Ccmpi _
+	  | Cadda | Csuba
+	  | Ccmpa _
+	  | Cnegf | Cabsf
+	  | Caddf | Csubf | Cmulf | Cdivf
+	  | Cfloatofint | Cintoffloat
+	  | Ccmpf _
+	    -> Cop (op, args)
+
+  in
+
+  { f with
+    fun_name = f.fun_name;
+    fun_args = (ctx, Cmm.typ_addr) :: f.fun_args;
+    fun_body = map f.fun_body
+  }
+

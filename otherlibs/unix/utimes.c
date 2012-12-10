@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -24,7 +26,7 @@
 #include <sys/utime.h>
 #endif
 
-CAMLprim value unix_utimes(value path, value atime, value mtime)
+CAMLprim value unix_utimes_r(CAML_R, value path, value atime, value mtime)
 {
   struct utimbuf times, * t;
   times.actime = Double_val(atime);
@@ -33,7 +35,7 @@ CAMLprim value unix_utimes(value path, value atime, value mtime)
     t = &times;
   else
     t = (struct utimbuf *) NULL;
-  if (utime(String_val(path),  t) == -1) uerror("utimes", path);
+  if (utime(String_val(path),  t) == -1) uerror_r(ctx,"utimes", path);
   return Val_unit;
 }
 
@@ -44,7 +46,7 @@ CAMLprim value unix_utimes(value path, value atime, value mtime)
 #include <sys/types.h>
 #include <sys/time.h>
 
-CAMLprim value unix_utimes(value path, value atime, value mtime)
+CAMLprim value unix_utimes_r(CAML_R, value path, value atime, value mtime)
 {
   struct timeval tv[2], * t;
   double at = Double_val(atime);
@@ -57,14 +59,14 @@ CAMLprim value unix_utimes(value path, value atime, value mtime)
     t = tv;
   else
     t = (struct timeval *) NULL;
-  if (utimes(String_val(path),  t) == -1) uerror("utimes", path);
+  if (utimes(String_val(path),  t) == -1) uerror_r(ctx,"utimes", path);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_utimes(value path, value atime, value mtime)
-{ invalid_argument("utimes not implemented"); }
+CAMLprim value unix_utimes_r(CAML_R, value path, value atime, value mtime)
+{ caml_invalid_argument_r(ctx,"utimes not implemented"); }
 
 #endif
 #endif

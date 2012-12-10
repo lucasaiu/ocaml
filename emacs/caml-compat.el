@@ -10,6 +10,8 @@
 ;(*                                                                     *)
 ;(***********************************************************************)
 
+;(* $Id$ *)
+
 ;; function definitions for old versions of emacs
 
 ;; indent-line-to

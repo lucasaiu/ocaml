@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifndef CAML_BIGARRAY_H
 #define CAML_BIGARRAY_H
 
@@ -79,13 +81,6 @@ struct caml_ba_array {
 #endif
 };
 
-/* Size of struct caml_ba_array, in bytes, without dummy first dimension */
-#if (__STDC_VERSION__ >= 199901L)
-#define SIZEOF_BA_ARRAY sizeof(struct caml_ba_array)
-#else
-#define SIZEOF_BA_ARRAY (sizeof(struct caml_ba_array) - sizeof(intnat))
-#endif
-
 #define Caml_ba_array_val(v) ((struct caml_ba_array *) Data_custom_val(v))
 
 #define Caml_ba_data_val(v) (Caml_ba_array_val(v)->data)
@@ -97,8 +92,8 @@ struct caml_ba_array {
 #endif
 
 CAMLBAextern value
-    caml_ba_alloc(int flags, int num_dims, void * data, intnat * dim);
-CAMLBAextern value caml_ba_alloc_dims(int flags, int num_dims, void * data,
+  caml_ba_alloc_r(CAML_R, int flags, int num_dims, void * data, intnat * dim);
+CAMLBAextern value caml_ba_alloc_dims_r(CAML_R, int flags, int num_dims, void * data,
                                  ... /*dimensions, with type intnat */);
 CAMLBAextern uintnat caml_ba_byte_size(struct caml_ba_array * b);
 

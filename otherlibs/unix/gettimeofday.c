@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -21,16 +23,16 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-CAMLprim value unix_gettimeofday(value unit)
+CAMLprim value unix_gettimeofday_r(CAML_R, value unit)
 {
   struct timeval tp;
-  if (gettimeofday(&tp, NULL) == -1) uerror("gettimeofday", Nothing);
-  return copy_double((double) tp.tv_sec + (double) tp.tv_usec / 1e6);
+  if (gettimeofday(&tp, NULL) == -1) uerror_r(ctx,"gettimeofday", Nothing);
+  return caml_copy_double_r(ctx,(double) tp.tv_sec + (double) tp.tv_usec / 1e6);
 }
 
 #else
 
-CAMLprim value unix_gettimeofday(value unit)
-{ invalid_argument("gettimeofday not implemented"); }
+CAMLprim value unix_gettimeofday_r(CAML_R, value unit)
+{ caml_invalid_argument_r(ctx,"gettimeofday not implemented"); }
 
 #endif

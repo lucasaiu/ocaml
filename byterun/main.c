@@ -11,14 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* Main entry point (can be overridden by a user-provided main()
    function that calls caml_main() later). */
 
 #include "misc.h"
 #include "mlvalues.h"
 #include "sys.h"
-
-CAMLextern void caml_main (char **);
+#include "startup.h"
 
 #ifdef _WIN32
 CAMLextern void caml_expand_command_line (int *, char ***);
@@ -28,9 +29,9 @@ int main(int argc, char **argv)
 {
 #ifdef DEBUG
   {
-    char *ocp;
-    char *cp;
-    int i;
+    /* char *ocp; */
+    /* char *cp; */
+    /*    int i; */
 
     caml_gc_message (-1, "### OCaml runtime: debug mode ###\n", 0);
 #if 0
@@ -51,7 +52,7 @@ int main(int argc, char **argv)
   /* Expand wildcards and diversions in command line */
   caml_expand_command_line(&argc, &argv);
 #endif
-  caml_main(argv);
-  caml_sys_exit(Val_int(0));
+  CAML_R = caml_main_rr(argv);
+  caml_sys_exit_r(ctx, Val_int(0));
   return 0; /* not reached */
 }

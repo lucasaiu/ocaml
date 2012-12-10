@@ -11,6 +11,10 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
+#define CAML_CONTEXT_ROOTS
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -23,15 +27,15 @@
 #include <netdb.h>
 #endif
 
-static value alloc_proto_entry(struct protoent *entry)
+static value alloc_proto_entry_r(CAML_R, struct protoent *entry)
 {
   value res;
   value name = Val_unit, aliases = Val_unit;
 
   Begin_roots2 (name, aliases);
-    name = copy_string(entry->p_name);
-    aliases = copy_string_array((const char**)entry->p_aliases);
-    res = alloc_small(3, 0);
+  name = caml_copy_string_r(ctx, entry->p_name);
+  aliases = caml_copy_string_array_r(ctx, (const char**)entry->p_aliases);
+  res = caml_alloc_small_r(ctx, 3, 0);
     Field(res,0) = name;
     Field(res,1) = aliases;
     Field(res,2) = Val_int(entry->p_proto);
@@ -39,28 +43,28 @@ static value alloc_proto_entry(struct protoent *entry)
   return res;
 }
 
-CAMLprim value unix_getprotobyname(value name)
+CAMLprim value unix_getprotobyname_r(CAML_R, value name)
 {
   struct protoent * entry;
   entry = getprotobyname(String_val(name));
-  if (entry == (struct protoent *) NULL) raise_not_found();
-  return alloc_proto_entry(entry);
+  if (entry == (struct protoent *) NULL) caml_raise_not_found_r(ctx);
+  return alloc_proto_entry_r(ctx, entry);
 }
 
-CAMLprim value unix_getprotobynumber(value proto)
+CAMLprim value unix_getprotobynumber_r(CAML_R, value proto)
 {
   struct protoent * entry;
   entry = getprotobynumber(Int_val(proto));
-  if (entry == (struct protoent *) NULL) raise_not_found();
-  return alloc_proto_entry(entry);
+  if (entry == (struct protoent *) NULL) caml_raise_not_found_r(ctx);
+  return alloc_proto_entry_r(ctx, entry);
 }
 
 #else
 
-CAMLprim value unix_getprotobynumber(value proto)
-{ invalid_argument("getprotobynumber not implemented"); }
+CAMLprim value unix_getprotobynumber_r(CAML_R, value proto)
+{ caml_invalid_argument_r(ctx, "getprotobynumber not implemented"); }
 
-CAMLprim value unix_getprotobyname(value name)
-{ invalid_argument("getprotobyname not implemented"); }
+CAMLprim value unix_getprotobyname_r(CAML_R, value name)
+{ caml_invalid_argument_r(ctx, "getprotobyname not implemented"); }
 
 #endif

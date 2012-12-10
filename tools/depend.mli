@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Module dependencies. *)
 
 module StringSet : Set.S with type elt = string

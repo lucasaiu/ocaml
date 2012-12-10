@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <fail.h>
 #include <mlvalues.h>
 #include "unixsupport.h"
@@ -19,15 +21,15 @@
 
 #include <sys/socket.h>
 
-CAMLprim value unix_listen(value sock, value backlog)
+CAMLprim value unix_listen_r(CAML_R, value sock, value backlog)
 {
-  if (listen(Int_val(sock), Int_val(backlog)) == -1) uerror("listen", Nothing);
+  if (listen(Int_val(sock), Int_val(backlog)) == -1) uerror_r(ctx,"listen", Nothing);
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_listen(value sock, value backlog)
-{ invalid_argument("listen not implemented"); }
+CAMLprim value unix_listen_r(CAML_R, value sock, value backlog)
+{ caml_invalid_argument_r(ctx,"listen not implemented"); }
 
 #endif

@@ -11,14 +11,16 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* WARNING: sys.ml is generated from sys.mlp.  DO NOT EDIT sys.ml or
    your changes will be lost.
 *)
 
 (* System interface *)
 
-external get_config: unit -> string * int * bool = "caml_sys_get_config"
-external get_argv: unit -> string * string array = "caml_sys_get_argv"
+external get_config: unit -> string * int * bool = "caml_sys_get_config_r" "reentrant"
+external get_argv: unit -> string * string array = "caml_sys_get_argv_r" "reentrant"
 
 let (executable_name, argv) = get_argv()
 let (os_type, word_size, big_endian) = get_config()
@@ -26,15 +28,15 @@ let max_array_length = (1 lsl (word_size - 10)) - 1;;
 let max_string_length = word_size / 8 * max_array_length - 1;;
 
 external file_exists: string -> bool = "caml_sys_file_exists"
-external is_directory : string -> bool = "caml_sys_is_directory"
-external remove: string -> unit = "caml_sys_remove"
-external rename : string -> string -> unit = "caml_sys_rename"
-external getenv: string -> string = "caml_sys_getenv"
-external command: string -> int = "caml_sys_system_command"
-external time: unit -> float = "caml_sys_time"
-external chdir: string -> unit = "caml_sys_chdir"
-external getcwd: unit -> string = "caml_sys_getcwd"
-external readdir : string -> string array = "caml_sys_read_directory"
+external is_directory : string -> bool = "caml_sys_is_directory_r" "reentrant"
+external remove: string -> unit = "caml_sys_remove_r" "reentrant"
+external rename : string -> string -> unit = "caml_sys_rename_r" "reentrant"
+external getenv: string -> string = "caml_sys_getenv_r" "reentrant"
+external command: string -> int = "caml_sys_system_command_r" "reentrant"
+external time: unit -> float = "caml_sys_time_r" "reentrant"
+external chdir: string -> unit = "caml_sys_chdir_r" "reentrant"
+external getcwd: unit -> string = "caml_sys_getcwd_r" "reentrant"
+external readdir : string -> string array = "caml_sys_read_directory_r" "reentrant"
 
 let interactive = ref false
 
@@ -44,7 +46,7 @@ type signal_behavior =
   | Signal_handle of (int -> unit)
 
 external signal : int -> signal_behavior -> signal_behavior
-                = "caml_install_signal_handler"
+                = "caml_install_signal_handler_r" "reentrant"
 
 let set_signal sig_num sig_beh = ignore(signal sig_num sig_beh)
 

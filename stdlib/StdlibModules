@@ -13,6 +13,8 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 # This file lists all standard library modules.
 # It is used in particular to know what to expunge in toplevels.
 
@@ -27,6 +29,7 @@ STDLIB_MODULES=\
   camlinternalOO \
   char \
   complex \
+  context \
   digest \
   filename \
   format \

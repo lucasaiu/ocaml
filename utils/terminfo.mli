@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Basic interface to the terminfo database *)
 
 type status =
@@ -17,7 +19,14 @@ type status =
   | Bad_term
   | Good_term of int  (* number of lines of the terminal *)
 ;;
-external setup : out_channel -> status = "caml_terminfo_setup";;
-external backup : int -> unit = "caml_terminfo_backup";;
-external standout : bool -> unit = "caml_terminfo_standout";;
-external resume : int -> unit = "caml_terminfo_resume";;
+external setup : out_channel -> status = "caml_terminfo_setup_r" "reentrant";;
+external backup : int -> unit = "caml_terminfo_backup_r" "reentrant";;
+external standout : bool -> unit = "caml_terminfo_standout_r" "reentrant";;
+external resume : int -> unit = "caml_terminfo_resume_r" "reentrant";;
+
+
+(* (\* FIXME: compatibility hack; remove --Luca Saiu REENTRANTRUNTIME *\) *)
+(* val setup : out_channel -> status;; *)
+(* val backup : int -> unit;; *)
+(* val standout : bool -> unit;; *)
+(* val resume : int -> unit;; *)

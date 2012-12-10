@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Pretty-printing of C-- code *)
 
 open Format
@@ -50,7 +52,7 @@ let chunk = function
 
 let operation = function
   | Capply(ty, d) -> "app" ^ Debuginfo.to_string d
-  | Cextcall(lbl, ty, alloc, d) ->
+  | Cextcall(lbl, ty, alloc, ctx, d) ->
       Printf.sprintf "extcall \"%s\"%s" lbl (Debuginfo.to_string d)
   | Cload Word -> "load"
   | Cload c -> Printf.sprintf "load %s" (chunk c)
@@ -88,7 +90,11 @@ let rec expr ppf = function
   | Cconst_int n -> fprintf ppf "%i" n
   | Cconst_natint n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Cconst_float s -> fprintf ppf "%s" s
-  | Cconst_symbol s -> fprintf ppf "\"%s\"" s
+  | Cconst_symbol (s, k) -> fprintf ppf "\"%s\" %s" s
+        (match k with
+        | Cglobal_kind -> "global"
+        | Cconstant_kind -> "constant"
+        (* | Cfunction_kind -> "function" *))
   | Cconst_pointer n -> fprintf ppf "%ia" n
   | Cconst_natpointer n -> fprintf ppf "%sa" (Nativeint.to_string n)
   | Cvar id -> Ident.print ppf id
@@ -123,7 +129,7 @@ let rec expr ppf = function
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
       | Capply (mty, _) -> fprintf ppf "@ %a" machtype mty
-      | Cextcall(_, mty, _, _) -> fprintf ppf "@ %a" machtype mty
+      | Cextcall(_, mty, _, ctx, _) -> fprintf ppf "@ %a" machtype mty
       | _ -> ()
       end;
       fprintf ppf ")@]"

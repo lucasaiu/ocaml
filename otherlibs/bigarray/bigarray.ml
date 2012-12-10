@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Module [Bigarray]: large, multi-dimensional, numerical arrays *)
 
 external init : unit -> unit = "caml_ba_init"
@@ -63,13 +65,13 @@ let fortran_layout = 0x100
 module Genarray = struct
   type ('a, 'b, 'c) t
   external create: ('a, 'b) kind -> 'c layout -> int array -> ('a, 'b, 'c) t
-     = "caml_ba_create"
+     = "caml_ba_create_r" "reentrant"
   external get: ('a, 'b, 'c) t -> int array -> 'a
-     = "caml_ba_get_generic"
+     = "caml_ba_get_generic_r" "reentrant"
   external set: ('a, 'b, 'c) t -> int array -> 'a -> unit
-     = "caml_ba_set_generic"
+     = "caml_ba_set_generic_r"  "reentrant"
   external num_dims: ('a, 'b, 'c) t -> int = "caml_ba_num_dims"
-  external nth_dim: ('a, 'b, 'c) t -> int -> int = "caml_ba_dim"
+  external nth_dim: ('a, 'b, 'c) t -> int -> int = "caml_ba_dim_r" "reentrant"
   let dims a =
     let n = num_dims a in
     let d = Array.make n 0 in
@@ -79,22 +81,22 @@ module Genarray = struct
   external layout: ('a, 'b, 'c) t -> 'c layout = "caml_ba_layout"
 
   external sub_left: ('a, 'b, c_layout) t -> int -> int -> ('a, 'b, c_layout) t
-     = "caml_ba_sub"
+     = "caml_ba_sub_r" "reentrant"
   external sub_right: ('a, 'b, fortran_layout) t -> int -> int ->
                           ('a, 'b, fortran_layout) t
-     = "caml_ba_sub"
+     = "caml_ba_sub_r" "reentrant"
   external slice_left: ('a, 'b, c_layout) t -> int array ->
                           ('a, 'b, c_layout) t
-     = "caml_ba_slice"
+     = "caml_ba_slice_r" "reentrant"
   external slice_right: ('a, 'b, fortran_layout) t -> int array ->
                           ('a, 'b, fortran_layout) t
-     = "caml_ba_slice"
+     = "caml_ba_slice_r" "reentrant"
   external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit
-     = "caml_ba_blit"
+     = "caml_ba_blit_r" "reentrant"
   external fill: ('a, 'b, 'c) t -> 'a -> unit = "caml_ba_fill"
   external map_internal: Unix.file_descr -> ('a, 'b) kind -> 'c layout ->
                      bool -> int array -> int64 -> ('a, 'b, 'c) t
-                     = "caml_ba_map_file_bytecode" "caml_ba_map_file"
+                     = "caml_ba_map_file_bytecode_r" "reentrant" "caml_ba_map_file_r"
   let map_file fd ?(pos = 0L) kind layout shared dims =
     map_internal fd kind layout shared dims pos
 end
@@ -107,11 +109,11 @@ module Array1 = struct
   external set: ('a, 'b, 'c) t -> int -> 'a -> unit = "%caml_ba_set_1"
   external unsafe_get: ('a, 'b, 'c) t -> int -> 'a = "%caml_ba_unsafe_ref_1"
   external unsafe_set: ('a, 'b, 'c) t -> int -> 'a -> unit = "%caml_ba_unsafe_set_1"
-  external dim: ('a, 'b, 'c) t -> int = "%caml_ba_dim_1"
+  let dim a = Genarray.nth_dim a 0
   external kind: ('a, 'b, 'c) t -> ('a, 'b) kind = "caml_ba_kind"
   external layout: ('a, 'b, 'c) t -> 'c layout = "caml_ba_layout"
-  external sub: ('a, 'b, 'c) t -> int -> int -> ('a, 'b, 'c) t = "caml_ba_sub"
-  external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit = "caml_ba_blit"
+  external sub: ('a, 'b, 'c) t -> int -> int -> ('a, 'b, 'c) t = "caml_ba_sub_r" "reentrant"
+  external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit = "caml_ba_blit_r" "reentrant"
   external fill: ('a, 'b, 'c) t -> 'a -> unit = "caml_ba_fill"
   let of_array kind layout data =
     let ba = create kind layout (Array.length data) in
@@ -130,18 +132,18 @@ module Array2 = struct
   external set: ('a, 'b, 'c) t -> int -> int -> 'a -> unit = "%caml_ba_set_2"
   external unsafe_get: ('a, 'b, 'c) t -> int -> int -> 'a = "%caml_ba_unsafe_ref_2"
   external unsafe_set: ('a, 'b, 'c) t -> int -> int -> 'a -> unit = "%caml_ba_unsafe_set_2"
-  external dim1: ('a, 'b, 'c) t -> int = "%caml_ba_dim_1"
-  external dim2: ('a, 'b, 'c) t -> int = "%caml_ba_dim_2"
+  let dim1 a = Genarray.nth_dim a 0
+  let dim2 a = Genarray.nth_dim a 1
   external kind: ('a, 'b, 'c) t -> ('a, 'b) kind = "caml_ba_kind"
   external layout: ('a, 'b, 'c) t -> 'c layout = "caml_ba_layout"
   external sub_left: ('a, 'b, c_layout) t -> int -> int -> ('a, 'b, c_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   external sub_right:
     ('a, 'b, fortran_layout) t -> int -> int -> ('a, 'b, fortran_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   let slice_left a n = Genarray.slice_left a [|n|]
   let slice_right a n = Genarray.slice_right a [|n|]
-  external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit = "caml_ba_blit"
+  external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit = "caml_ba_blit_r" "reentrant"
   external fill: ('a, 'b, 'c) t -> 'a -> unit = "caml_ba_fill"
   let of_array kind layout data =
     let dim1 = Array.length data in
@@ -170,21 +172,21 @@ module Array3 = struct
     = "%caml_ba_set_3"
   external unsafe_get: ('a, 'b, 'c) t -> int -> int -> int -> 'a = "%caml_ba_unsafe_ref_3"
   external unsafe_set: ('a, 'b, 'c) t -> int -> int -> int -> 'a -> unit = "%caml_ba_unsafe_set_3"
-  external dim1: ('a, 'b, 'c) t -> int = "%caml_ba_dim_1"
-  external dim2: ('a, 'b, 'c) t -> int = "%caml_ba_dim_2"
-  external dim3: ('a, 'b, 'c) t -> int = "%caml_ba_dim_3"
+  let dim1 a = Genarray.nth_dim a 0
+  let dim2 a = Genarray.nth_dim a 1
+  let dim3 a = Genarray.nth_dim a 2
   external kind: ('a, 'b, 'c) t -> ('a, 'b) kind = "caml_ba_kind"
   external layout: ('a, 'b, 'c) t -> 'c layout = "caml_ba_layout"
   external sub_left: ('a, 'b, c_layout) t -> int -> int -> ('a, 'b, c_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   external sub_right:
     ('a, 'b, fortran_layout) t -> int -> int -> ('a, 'b, fortran_layout) t
-    = "caml_ba_sub"
+    = "caml_ba_sub_r" "reentrant"
   let slice_left_1 a n m = Genarray.slice_left a [|n; m|]
   let slice_right_1 a n m = Genarray.slice_right a [|n; m|]
   let slice_left_2 a n = Genarray.slice_left a [|n|]
   let slice_right_2 a n = Genarray.slice_right a [|n|]
-  external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit = "caml_ba_blit"
+  external blit: ('a, 'b, 'c) t -> ('a, 'b, 'c) t -> unit = "caml_ba_blit_r" "reentrant"
   external fill: ('a, 'b, 'c) t -> 'a -> unit = "caml_ba_fill"
   let of_array kind layout data =
     let dim1 = Array.length data in
@@ -228,7 +230,7 @@ let array3_of_genarray a =
 
 external reshape:
    ('a, 'b, 'c) Genarray.t -> int array -> ('a, 'b, 'c) Genarray.t
-   = "caml_ba_reshape"
+   = "caml_ba_reshape_r" "reentrant"
 let reshape_1 a dim1 = reshape a [|dim1|]
 let reshape_2 a dim1 dim2 = reshape a [|dim1;dim2|]
 let reshape_3 a dim1 dim2 dim3 = reshape a [|dim1;dim2;dim3|]
@@ -243,9 +245,9 @@ let _ =
   let _ = Array3.get in
   ()
 
-external get1: unit -> unit = "caml_ba_get_1"
-external get2: unit -> unit = "caml_ba_get_2"
-external get3: unit -> unit = "caml_ba_get_3"
-external set1: unit -> unit = "caml_ba_set_1"
-external set2: unit -> unit = "caml_ba_set_2"
-external set3: unit -> unit = "caml_ba_set_3"
+external get1: unit -> unit = "caml_ba_get_1_r" "reentrant"
+external get2: unit -> unit = "caml_ba_get_2_r" "reentrant"
+external get3: unit -> unit = "caml_ba_get_3_r" "reentrant"
+external set1: unit -> unit = "caml_ba_set_1_r" "reentrant"
+external set2: unit -> unit = "caml_ba_set_2_r" "reentrant"
+external set3: unit -> unit = "caml_ba_set_3_r" "reentrant"

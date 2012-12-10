@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** The global variables used by the special comment parser.*)
 
 (** the number of chars used in the lexer. *)

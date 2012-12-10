@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include <alloc.h>
 #include <fail.h>
@@ -33,10 +35,10 @@ static void unix_set_timeval(struct timeval * tv, double d)
   if (tv->tv_usec >= 1000000) { tv->tv_sec++; tv->tv_usec = 0; }
 }
 
-static value unix_convert_itimer(struct itimerval *tp)
+static value unix_convert_itimer_r(CAML_R, struct itimerval *tp)
 {
 #define Get_timeval(tv) (double) tv.tv_sec + (double) tv.tv_usec / 1e6
-  value res = alloc_small(Double_wosize * 2, Double_array_tag);
+  value res = caml_alloc_small_r(ctx,Double_wosize * 2, Double_array_tag);
   Store_double_field(res, 0, Get_timeval(tp->it_interval));
   Store_double_field(res, 1, Get_timeval(tp->it_value));
   return res;
@@ -45,29 +47,29 @@ static value unix_convert_itimer(struct itimerval *tp)
 
 static int itimers[3] = { ITIMER_REAL, ITIMER_VIRTUAL, ITIMER_PROF };
 
-CAMLprim value unix_setitimer(value which, value newval)
+CAMLprim value unix_setitimer_r(CAML_R, value which, value newval)
 {
   struct itimerval new, old;
   unix_set_timeval(&new.it_interval, Double_field(newval, 0));
   unix_set_timeval(&new.it_value, Double_field(newval, 1));
   if (setitimer(itimers[Int_val(which)], &new, &old) == -1)
-    uerror("setitimer", Nothing);
-  return unix_convert_itimer(&old);
+    uerror_r(ctx,"setitimer", Nothing);
+  return unix_convert_itimer_r(ctx, &old);
 }
 
-CAMLprim value unix_getitimer(value which)
+CAMLprim value unix_getitimer_r(CAML_R, value which)
 {
   struct itimerval val;
   if (getitimer(itimers[Int_val(which)], &val) == -1)
-    uerror("getitimer", Nothing);
-  return unix_convert_itimer(&val);
+    uerror_r(ctx,"getitimer", Nothing);
+  return unix_convert_itimer_r(ctx, &val);
 }
 
 #else
 
-CAMLprim value unix_setitimer(value which, value newval)
-{ invalid_argument("setitimer not implemented"); }
-CAMLprim value unix_getitimer(value which)
-{ invalid_argument("getitimer not implemented"); }
+CAMLprim value unix_setitimer_r(CAML_R, value which, value newval)
+{ caml_invalid_argument_r(ctx,"setitimer not implemented"); }
+CAMLprim value unix_getitimer_r(CAML_R, value which)
+{ caml_invalid_argument_r(ctx,"getitimer not implemented"); }
 
 #endif

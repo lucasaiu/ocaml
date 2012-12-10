@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Generation of Texinfo documentation. *)
 
 open Odoc_info

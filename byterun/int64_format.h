@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 /* printf-like formatting of 64-bit integers, in case the C library
    printf() function does not support them. */
 

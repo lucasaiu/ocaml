@@ -11,13 +11,15 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <mlvalues.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_chroot(value path)
+CAMLprim value unix_chroot_r(CAML_R, value path)
 {
   int ret;
   ret = chroot(String_val(path));
-  if (ret == -1) uerror("chroot", path);
+  if (ret == -1) uerror_r(ctx, "chroot", path);
   return Val_unit;
 }

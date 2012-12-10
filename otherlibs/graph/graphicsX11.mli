@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Additional graphics primitives for the X Windows system. *)
 
 type window_id = string

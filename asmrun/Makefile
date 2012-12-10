@@ -11,12 +11,14 @@
 #                                                                       #
 #########################################################################
 
+# $Id$
+
 include ../config/Makefile
 
 CC=$(NATIVECC)
 FLAGS=-I../byterun -DCAML_NAME_SPACE -DNATIVE_CODE \
       -DTARGET_$(ARCH) -DSYS_$(SYSTEM) $(IFLEXDIR)
-CFLAGS=$(FLAGS) -O $(NATIVECCCOMPOPTS)
+CFLAGS=$(FLAGS) -g -O $(NATIVECCCOMPOPTS)
 DFLAGS=$(FLAGS) -g -DDEBUG $(NATIVECCCOMPOPTS)
 PFLAGS=$(FLAGS) -pg -O -DPROFILING $(NATIVECCPROFOPTS)
 
@@ -25,7 +27,7 @@ COBJS=startup.o main.o fail.o roots.o globroots.o signals.o signals_asm.o \
   floats.o str.o array.o io.o extern.o intern.o hash.o sys.o parsing.o \
   gc_ctrl.o terminfo.o md5.o obj.o lexing.o printexc.o callback.o weak.o \
   compact.o finalise.o custom.o unix.o backtrace.o natdynlink.o debugger.o \
-  meta.o dynlink.o
+  meta.o dynlink.o extensible_buffer.o context_split.o context.o
 
 ASMOBJS=$(ARCH).o
 
@@ -157,6 +159,8 @@ signals.c: ../byterun/signals.c
 	ln -s ../byterun/signals.c signals.c
 debugger.c: ../byterun/debugger.c
 	ln -s ../byterun/debugger.c debugger.c
+context.c: ../byterun/context.c
+	ln -s ../byterun/context.c context.c
 
 LINKEDFILES=misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c array.c \
   compare.c ints.c floats.c str.c io.c extern.c intern.c hash.c sys.c \
@@ -170,7 +174,7 @@ clean::
 .SUFFIXES: .S .d.o .p.o
 
 .S.o:
-	$(ASPP) -DSYS_$(SYSTEM) -DMODEL_$(MODEL) -o $*.o $*.S || \
+	$(ASPP) -DSYS_$(SYSTEM) -o $*.o $*.S || \
 	{ echo "If your assembler produced syntax errors, it is probably unhappy with the"; echo "preprocessor. Check your assembler, or try producing $*.o by hand."; exit 2; }
 
 .S.p.o:

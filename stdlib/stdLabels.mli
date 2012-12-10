@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** Standard labeled libraries.
 
    This meta-module provides labelized version of the {!Array},
@@ -25,8 +27,8 @@ module Array :
     external length : 'a array -> int = "%array_length"
     external get : 'a array -> int -> 'a = "%array_safe_get"
     external set : 'a array -> int -> 'a -> unit = "%array_safe_set"
-    external make : int -> 'a -> 'a array = "caml_make_vect"
-    external create : int -> 'a -> 'a array = "caml_make_vect"
+    external make : int -> 'a -> 'a array = "caml_make_vect_r" "reentrant"
+    external create : int -> 'a -> 'a array = "caml_make_vect_r" "reentrant"
     val init : int -> f:(int -> 'a) -> 'a array
     val make_matrix : dimx:int -> dimy:int -> 'a -> 'a array array
     val create_matrix : dimx:int -> dimy:int -> 'a -> 'a array array
@@ -105,7 +107,7 @@ module String :
     external length : string -> int = "%string_length"
     external get : string -> int -> char = "%string_safe_get"
     external set : string -> int -> char -> unit = "%string_safe_set"
-    external create : int -> string = "caml_create_string"
+    external create : int -> string = "caml_create_string_r" "reentrant"
     val make : int -> char -> string
     val copy : string -> string
     val sub : string -> pos:int -> len:int -> string

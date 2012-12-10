@@ -11,6 +11,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (** String utilities *)
 
 let string_before s n = String.sub s 0 n
@@ -570,13 +572,13 @@ let regexp_string_case_fold s = compile true (String s)
 (** Matching functions **)
 
 external re_string_match: regexp -> string -> int -> int array
-     = "re_string_match"
+     = "re_string_match_r" "reentrant"
 external re_partial_match: regexp -> string -> int -> int array
-     = "re_partial_match"
+     = "re_partial_match_r" "reentrant"
 external re_search_forward: regexp -> string -> int -> int array
-     = "re_search_forward"
+     = "re_search_forward_r" "reentrant"
 external re_search_backward: regexp -> string -> int -> int array
-     = "re_search_backward"
+     = "re_search_backward_r" "reentrant"
 
 let last_search_result = ref [||]
 
@@ -632,7 +634,7 @@ and matched_string txt = matched_group 0 txt
 (** Replacement **)
 
 external re_replacement_text: string -> int array -> string -> string
-    = "re_replacement_text"
+    = "re_replacement_text_r" "reentrant"
 
 let replace_matched repl matched =
   re_replacement_text repl !last_search_result matched

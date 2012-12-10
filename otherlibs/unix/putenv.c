@@ -11,6 +11,8 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,7 +24,7 @@
 
 #ifdef HAS_PUTENV
 
-CAMLprim value unix_putenv(value name, value val)
+CAMLprim value unix_putenv_r(CAML_R, value name, value val)
 {
   mlsize_t namelen = string_length(name);
   mlsize_t vallen = string_length(val);
@@ -34,14 +36,14 @@ CAMLprim value unix_putenv(value name, value val)
   s[namelen + 1 + vallen] = 0;
   if (putenv(s) == -1) {
     caml_stat_free(s);
-    uerror("putenv", name);
+    uerror_r(ctx, "putenv", name);
   }
   return Val_unit;
 }
 
 #else
 
-CAMLprim value unix_putenv(value name, value val)
-{ invalid_argument("putenv not implemented"); }
+CAMLprim value unix_putenv_r(CAML_R, value name, value val)
+{ caml_invalid_argument_r(ctx, "putenv not implemented"); }
 
 #endif

@@ -11,16 +11,24 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* $Id$ */
+
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
 
 #define Nothing ((value) 0)
 
-extern value unix_error_of_code (int errcode);
-extern void unix_error (int errcode, char * cmdname, value arg) Noreturn;
-extern void uerror (char * cmdname, value arg) Noreturn;
+extern value unix_error_of_code_r (CAML_R, int errcode);
+extern void unix_error_r (CAML_R, int errcode, char * cmdname, value arg) Noreturn;
+extern void uerror_r (CAML_R, char * cmdname, value arg) Noreturn;
 
 #define UNIX_BUFFER_SIZE 65536
 
 #define DIR_Val(v) *((DIR **) &Field(v, 0))
+
+typedef struct caml_unix_context {
+  value * unix_error_exn;
+} caml_unix_context;
+
+extern caml_unix_context *caml_get_unix_context_r(CAML_R);

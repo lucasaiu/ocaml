@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+(* $Id$ *)
+
 (* Compute constructor and label descriptions from type declarations,
    determining their representation. *)
 
