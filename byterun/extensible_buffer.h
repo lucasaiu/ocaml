@@ -16,16 +16,17 @@ struct caml_extensible_buffer{
   long used_size;
 };
 
-/* Resize the buffer to a given allocated size, initializing with the given
-   byte when growing. */
+/* Resize the buffer to a given used size, initializing bytes to the
+   given value when growing. */
 void caml_resize_extensible_buffer(struct caml_extensible_buffer *b,
-                                   size_t new_allocated_size,
+                                   size_t new_used_size,
                                    char initial_value);
 
-/* Allocate the given number of bytes from the given extensible
-   buffer, automatically growing it if needed (possibly to a larger
-   size than immediately needed).  Return an index for the allocated
-   element as a byte offset from the beginning. */
+/* Reserve the given number of bytes from the given extensible buffer,
+   (automatically growing it in terms of allocated size) it if needed
+   (possibly to a larger size than immediately needed).  Return an
+   index for the allocated element as a byte offset from the
+   beginning. */
 size_t caml_allocate_from_extensible_buffer(struct caml_extensible_buffer *b,
                                             size_t new_element_size,
                                             char initial_value);

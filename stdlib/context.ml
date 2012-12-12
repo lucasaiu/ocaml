@@ -92,3 +92,5 @@ let rec global_index_from global globals from =
     global_index_from global globals (from + 1);;
 let global_index global =
   global_index_from global (globals ()) 0;;
+
+(* external dump : unit -> int = "caml_context_dump_r" "reentrant" *)

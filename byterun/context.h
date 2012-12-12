@@ -26,6 +26,7 @@
 
 /* If these includes are missing, the offsets of fields might differ ! */
 #include <signal.h>
+#include <setjmp.h> // FIXME: remove if not needed in the end --Luca Saiu REENTRANTRUNTIME
 #include "config.h"
 #include "misc.h"
 
@@ -516,13 +517,21 @@ struct caml_global_context {
   char ** caml_instr_table;
   char * caml_instr_base;
 #endif
-  
+
   /* Context-local "global" C variables: */
 #define INITIAL_C_GLOBALS_ALLOCATED_SIZE 16
   struct caml_extensible_buffer c_globals; /* = {INITIAL_C_GLOBALS_ALLOCATED_SIZE, 0, dynamic} */
 
   /* Our (local) descriptor: */
   struct caml_global_context_descriptor *descriptor;
+
+  /* Where to longjmp when executing a split context thunk: */
+  jmp_buf where_to_longjmp;
+  /* Procedure to execute after longjmp: */
+  void (*after_longjmp_function)(struct caml_global_context*, char*);
+  /* Procedure parameters: */
+  struct caml_global_context *after_longjmp_context;
+  char *after_longjmp_serialized_blob;
 }; /* struct caml_global_context */
 
 /* Context descriptors may be either local or remote: */
@@ -560,13 +569,13 @@ value caml_value_of_context_descriptor(struct caml_global_context_descriptor *c)
 struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(value v);
 
 #define CAML_R caml_global_context *ctx
-#define INIT_CAML_R CAML_R = caml_get_global_context()
+#define INIT_CAML_R CAML_R = caml_get_thread_local_context()
 
 extern caml_global_context *caml_initialize_first_global_context(void);
 
 /* Access a thread-local context pointer */
-extern caml_global_context *caml_get_global_context(void);
-extern void caml_set_global_context(caml_global_context *new_global_context);
+extern caml_global_context *caml_get_thread_local_context(void);
+extern void caml_set_thread_local_context(caml_global_context *new_global_context);
 
 extern void (*caml_enter_lock_section_hook)(void);
 extern void (*caml_leave_lock_section_hook)(void);
@@ -874,8 +883,8 @@ extern library_context *caml_get_library_context_r(
 /*    new block. *\/ */
 /* int caml_allocate_caml_globals_r(CAML_R, size_t added_caml_global_no); */
 
-/* /\* Scan all OCaml globals as roots: *\/ */
-/* void caml_scan_caml_globals_r(CAML_R, scanning_action f); */
+/* Scan all OCaml globals as roots: */
+void caml_scan_caml_globals_r(CAML_R, scanning_action f);
 
 
 /* C context-local "globals" */
