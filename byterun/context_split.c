@@ -61,7 +61,8 @@ value caml_global_tuple_r(CAML_R)
   /* No need for GC-protection here: there is only one allocation, and
      we don't use parameters or temporaries of type value. */
   const int global_no = ctx->caml_globals.used_size / sizeof(value);
-  /* This is the only allocation: no need fot GC protection: */
+  /* This is the only allocation, and no Caml locals are alive at this
+     point: no need fot GC protection: */
   value globals = caml_alloc_tuple_r(ctx, global_no);
   int i;
   for(i = 0; i < global_no; i ++)
@@ -86,17 +87,6 @@ value caml_global_tuple_r(CAML_R)
 CAMLprim value caml_global_array_r(CAML_R, value unit)
 {
   return caml_global_tuple_r(ctx);
-
-  /* CAMLparam0(); */
-  /* CAMLlocal2(result_as_tuple, result); */
-  /* int i; */
-  /* size_t element_no; */
-  /* result_as_tuple = caml_global_tuple_r(ctx); */
-  /* element_no = Wosize_val(result_as_tuple); */
-  /* result = caml_alloc_r(ctx, element_no, 0); */
-  /* for(i = 0; i < element_no; i ++) */
-  /*   caml_initialize_r(ctx, &Field(result, i), Field(result_as_tuple, i)); */
-  /* CAMLreturn(result); */
 }
 
 /* Replace the globals of the given context with the elements of the given tuple: */
@@ -105,7 +95,7 @@ void caml_set_globals_r(CAML_R, value global_tuple){
      from the Caml heap, in either branch. */
 #ifdef NATIVE_CODE
   size_t global_tuple_size = Wosize_val(global_tuple);
-  printf("SETGLOBALS: there are %i globals\n", (int)global_tuple_size);
+  //printf("caml_set_globals_r: there are %i globals to be copied\n", (int)global_tuple_size);
   caml_resize_extensible_buffer(&ctx->caml_globals,
                                 global_tuple_size * sizeof(value),
                                 1);
@@ -115,6 +105,7 @@ void caml_set_globals_r(CAML_R, value global_tuple){
                              to_globals, &to_global_no,
                              global_tuple);
   Assert(to_global_no == global_tuple_size);
+  //printf("TTTTTTTTTTT: there are now %i globals in the child context\n", (int)(ctx->caml_globals.used_size / sizeof(value)));
 #else /* bytecode */
   ctx->caml_global_data = global_tuple;
   // FIXME: is this needed?  It might be.  It's in startup.c, right after loading
@@ -160,7 +151,7 @@ static char* caml_globals_and_data_as_c_byte_array_r(CAML_R, value *data, size_t
   /* Marshal the big data structure into a byte array: */
   caml_output_value_to_malloc_r(ctx, globals_and_data, flags,
                                 &serialized_tuple, &serialized_tuple_length);
-  printf("Ok-Q 100: ...serialized the huge structure at %p (length %.2fMB).  Still alive.  Good.\n", (void*)globals_and_data, serialized_tuple_length / 1024. / 1024.);
+  printf("Ok-Q 100: ...serialized the huge structure into the blob at %p (length %.2fMB).\n", (void*)globals_and_data, serialized_tuple_length / 1024. / 1024.);
 
   CAMLreturnT(char*, serialized_tuple);
 }
@@ -173,7 +164,7 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_va
      allocate anything in this function. */
   value globals_and_data, global_tuple, data_tuple;
   size_t to_value_no __attribute__((unused));
-  printf("Ok-A 100\n");
+  //printf("Ok-A 100\n");
 
   /* Deserialize globals and data from the byte array, and access each
      element of the pair. */
@@ -184,14 +175,14 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_va
 
   /* Replace the context globals with what we got: */
   caml_set_globals_r(ctx, global_tuple);
-  printf("Ok-A 500\n");
+  //printf("Ok-A 500\n");
 
   /* Copy deserialized data from the tuple where the user requested; the tuple
      will be GC'd: */
   caml_copy_tuple_elements_r(ctx,
                              to_values, &to_value_no,
                              data_tuple);
-  printf("Ok-A 600\n");
+  //printf("Ok-A 600 (the tuple has %i elements)\n", (int)to_value_no);
 }
 
 /* No "_r" suffix, nor CAML_R here: I view this function as quite
@@ -205,21 +196,44 @@ caml_global_context* caml_split_context(caml_global_context *from_ctx,
     caml_globals_and_data_as_c_byte_array_r(from_ctx, from_values, value_no);
 
   caml_global_context *to_ctx = caml_make_empty_context();
-  caml_set_global_context(to_ctx); // FIXME: this is horrible
+  caml_set_thread_local_context(to_ctx); // FIXME: this is horrible
   caml_install_globals_and_data_as_c_byte_array_r(to_ctx, to_values, serialized_data);
-  caml_set_global_context(from_ctx); // FIXME: this is horrible
+  //printf("RRRRRRRRRRRR: there are %i globals in the child context\n", (int)(to_ctx->caml_globals.used_size / sizeof(value)));
+  caml_set_thread_local_context(from_ctx); // FIXME: this is horrible
   return to_ctx;
 }
 
-static void caml_run_in_new_context(CAML_R, char *serialized_data){
+static void caml_run_in_new_context_then_exit_r(CAML_R, char *serialized_data){
   CAMLparam0();
   CAMLlocal1(new_thunk);
-  caml_set_global_context(ctx); // FIXME: this is horrible
+  caml_set_thread_local_context(ctx); // FIXME: this is horrible
+  //caml_verb_gc = 255;
+#ifdef NATIVE_CODE
+  char tos;
+  //printf("In the child context caml_bottom_of_stack is %p\n", caml_bottom_of_stack);
+  ///*ctx->*/caml_bottom_of_stack = &tos;
+  /*ctx->*/caml_top_of_stack = &tos;
+#endif /* #ifdef NATIVE_CODE */
+  //printf("caml_run_in_new_context_then_exit_r [0] Gc'ing in the new context with no data, just to check whether it crashes\n");
+  caml_gc_compaction_r(ctx, Val_unit); //!
+  //printf("caml_run_in_new_context_then_exit_r [1] still alive.\n");
   //caml_local_roots = NULL;
   caml_install_globals_and_data_as_c_byte_array_r(ctx, &new_thunk, serialized_data); // this free's the C buffer
+  ////
+  //printf("caml_run_in_new_context_then_exit_r [A]:  new_thunk is %p\n", (void*)new_thunk);
+  //caml_gc_compaction_r(ctx, Val_unit); //!
+  //printf("caml_run_in_new_context_then_exit_r [B]:  new_thunk is %p\n", (void*)new_thunk);
+  /* caml_gc_compaction_r(ctx, Val_unit); //! */
+  /* printf("caml_run_in_new_context_then_exit_r [B2]: new_thunk is %p\n", (void*)new_thunk); */
+  ////
+  //printf("caml_run_in_new_context_then_exit_r [C]:  calling new_thunk\n");
+#ifdef NATIVE_CODE
+  //printf("In the child context caml_bottom_of_stack is %p\n", /*ctx->*/caml_bottom_of_stack);
+#endif /* #ifdef NATIVE_CODE */
   caml_callback_r(ctx, new_thunk, Val_unit);
-  fprintf(stderr, "caml_run_in_new_context: SUCCESS, about to exit\n");
-  CAMLreturn0;
+  fprintf(stderr, "caml_run_in_new_context_then_exit_r: SUCCESS, about to exit\n");
+  exit(EXIT_FAILURE);
+  CAMLreturn0; // unreachable
 }
 
 /* A function with an interface easier to call from OCaml: */
@@ -240,7 +254,7 @@ CAMLprim value caml_context_fork_and_run_thunk_r(CAML_R, value thunk){
   switch(fork_result){
   case -1:
     caml_failwith_r(ctx, "fork failed");
-// FIXME: reverse the child and parent branches
+// FIXME: swap back the child and parent branches
   //default: /* parent process */
   case 0:
     fprintf(stderr, "[Hello from the child process]\n");
@@ -251,9 +265,13 @@ CAMLprim value caml_context_fork_and_run_thunk_r(CAML_R, value thunk){
     fprintf(stderr, "[Hello from the parent process]\n");
     // FIXME: handle exceptions
 
-    caml_global_context *new_context = caml_make_empty_context();
-    caml_run_in_new_context(new_context, serialized_data);
-    exit(EXIT_SUCCESS);
+    /* caml_global_context *new_context = caml_make_empty_context(); */
+    /* caml_run_in_new_context(new_context, serialized_data); */
+    /* exit(EXIT_SUCCESS); */
+    ctx->after_longjmp_function = caml_run_in_new_context_then_exit_r;
+    ctx->after_longjmp_context = caml_make_empty_context();
+    ctx->after_longjmp_serialized_blob = serialized_data;
+    longjmp(ctx->where_to_longjmp, 1);
     //CAMLreturn(Val_unit); // unreachable
   } /* switch */
   //CAMLreturn(caml_value_of_context_descriptor(new_context->descriptor));
@@ -306,42 +324,54 @@ struct caml_thread_args{
   caml_global_context *context;
   value thunk;
 };
-static void caml_thread_routine_with_reasonable_types_r(CAML_R, value thunk){
+static void caml_thread_routine_with_reasonable_types_r(CAML_R, value thunk, void *buffer_to_free){
   CAMLparam1(thunk);
-  fprintf(stderr, "[From the child thread: running the OCaml code]\n");
+  caml_set_thread_local_context(ctx); // FIXME: this is horrible
+  //fprintf(stderr, "[From the child thread: the child context is %p]\n", ctx);
+  //fprintf(stderr, "[From the child thread: [A]  the thunk is %p]\n", (void*)thunk);
+  caml_gc_compaction_r(ctx, Val_unit); // !
+  //fprintf(stderr, "[From the child thread: [B1] the thunk is %p]\n", (void*)thunk);
+  caml_gc_compaction_r(ctx, Val_unit); // !
+  //fprintf(stderr, "[From the child thread: [B2] the thunk is %p]\n", (void*)thunk);
+  //free(buffer_to_free);
+  //fprintf(stderr, "[From the child thread: running the OCaml code]\n");
   // FIXME: handle exceptions
   caml_callback_r(ctx, thunk, Val_unit);
-  fprintf(stderr, "[The child thread is about to exit]\n");
-  
   CAMLreturn0;
 }
 
 static void* caml_thread_routine(void *arg_as_void_star){
   struct caml_thread_args *args = arg_as_void_star;
   fprintf(stderr, "[Hello from the child thread]\n");
-  caml_thread_routine_with_reasonable_types_r(args->context, args->thunk);
-  free(args);
+  caml_thread_routine_with_reasonable_types_r(args->context, args->thunk, args);
   fprintf(stderr, "[The child thread is about to exit]\n");
   return NULL;
 }
 CAMLprim value caml_context_pthread_create_and_run_thunk_r(CAML_R, value thunk){
   CAMLparam1(thunk);
-  CAMLlocal1(new_thunk);
+  value new_thunk; /* don't GC-protect this: it belongs to the new context */
+  caml_gc_compaction_r(ctx, Val_unit); // !
   caml_global_context *new_context = caml_split_context(ctx, &new_thunk, &thunk, 1);
+  //caml_gc_compaction_r(ctx, Val_unit); // !
   pthread_t thread;
-  struct caml_thread_args *thread_args = malloc(sizeof(struct caml_thread_args));
+  struct caml_thread_args *thread_args =
+    caml_stat_alloc(sizeof(struct caml_thread_args));
   thread_args->context = new_context;
   thread_args->thunk = new_thunk;
+  /* fprintf(stderr, "the parent context is %p\n", ctx); */
+  /* fprintf(stderr, "the parent thunk is %p\n", (void*)thunk); */
+  /* fprintf(stderr, "the child context is %p\n", new_context); */
+  /* fprintf(stderr, "the child thunk is %p\n", (void*)new_thunk); */
   int pthread_create_result = pthread_create(&thread, NULL, caml_thread_routine, thread_args);
   if(pthread_create_result != 0)
     caml_failwith_r(ctx, "pthread_create failed");
 
-  fprintf(stderr, "[Hello from the parent thread]\n");
+  /* fprintf(stderr, "[Hello from the parent thread]\n"); */
   CAMLreturn(caml_value_of_context_descriptor(new_context->descriptor));
 }
 
 CAMLprim value caml_context_exit_r(CAML_R, value unit){
-  printf("The context %p should now exit\n", ctx);
+  printf("The [thread? process?] associated to context %p should now exit\n", ctx);
   while(1)
     sleep(10);
   return Val_unit; /* unreachable */

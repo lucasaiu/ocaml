@@ -540,7 +540,7 @@ static void caml_ba_finalize(value v)
 
 static int caml_ba_compare(value v1, value v2)
 {
-  return caml_ba_compare_r(caml_get_global_context(), v1, v2);
+  return caml_ba_compare_r(caml_get_thread_local_context(), v1, v2);
 }
 
 static int caml_ba_compare_r(CAML_R, value v1, value v2)
@@ -751,7 +751,7 @@ static void caml_ba_serialize(value v,
                               uintnat * wsize_32,
                               uintnat * wsize_64)
 {
-  return caml_ba_serialize_r(caml_get_global_context(), v, wsize_32, wsize_64);
+  return caml_ba_serialize_r(caml_get_thread_local_context(), v, wsize_32, wsize_64);
 }
 
 
@@ -833,7 +833,7 @@ static void caml_ba_deserialize_longarray_r(CAML_R, void * dest, intnat num_elts
 /* Non-_r version, for the struct custom_operations: */
 static uintnat caml_ba_deserialize(void * dst)
 {
-  return caml_ba_deserialize_r(caml_get_global_context(), dst);
+  return caml_ba_deserialize_r(caml_get_thread_local_context(), dst);
 }
 
 uintnat caml_ba_deserialize_r(CAML_R, void * dst)
