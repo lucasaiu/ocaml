@@ -20,14 +20,16 @@ set -ex
 # # This assumes ../unpatched-trunk contains an unpatched, configured
 # # and compiled version of the OCaml source.
 # PATCHED="$(pwd)"
-PATCHED="/home/luca/reentrant-runtime/working/trunk/"
-UNPATCHED="$PATCHED/../unpatched-trunk/"
+PATCHED="/home/luca/reentrant-runtime/repos/ocaml-development--more-advanced/"
+UNPATCHED="$PATCHED/../../unpatched-trunk/"
 OLD="/tmp/old/"
 COMPILERWITHOLDRUNTIME="/tmp/compiler-with-old-runtime/"
 COMPILERWITHNEWRUNTIME="/tmp/compiler-with-new-runtime/"
 export OLDOCAMLC="$OLD/byterun/ocamlrun $OLD/ocamlc"
 export COMPILERWITHOLDRUNTIMEOCAMLC="$OLD/byterun/ocamlrun $COMPILERWITHOLDRUNTIME/ocamlc-stage1 -nostdlib -I $COMPILERWITHOLDRUNTIME/stdlib -use-runtime $COMPILERWITHOLDRUNTIME/byterun/ocamlrun"
 export COMPILERWITHNEWRUNTIMEOCAMLC="$COMPILERWITHNEWRUNTIME/byterun/ocamlrun $COMPILERWITHNEWRUNTIME/ocamlc -nostdlib -I $COMPILERWITHNEWRUNTIME/stdlib -use-runtime $COMPILERWITHNEWRUNTIME/byterun/ocamlrun"
+
+cd "$PATCHED"
 
 echo "Preparing temporary directories..."
 rm -rf "$OLD" "$COMPILERWITHOLDRUNTIME" "$COMPILERWITHNEWRUNTIME"

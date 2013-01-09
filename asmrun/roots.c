@@ -50,6 +50,8 @@ static caml_link *cons(void *data, caml_link *tl) {
 static caml_link *frametables = NULL;
 
 void caml_register_frametable_r(CAML_R, intnat *table) {
+caml_acquire_global_lock();
+  fprintf(stderr, "$$$$$ Context %p: caml_register_frametable_r (table is at %p)\n", ctx, table);
   frametables = cons(table,frametables);
 
   if (NULL != caml_frame_descriptors) {
@@ -57,10 +59,13 @@ void caml_register_frametable_r(CAML_R, intnat *table) {
     caml_frame_descriptors = NULL;
     /* force caml_init_frame_descriptors to be called */
   }
+caml_release_global_lock();
 }
 
 void caml_init_frame_descriptors_r(CAML_R)
 {
+  fprintf(stderr, "$$$$$ Context %p: caml_init_frame_descriptors_r: BEGIN\n", ctx);
+caml_acquire_global_lock();
   intnat num_descr, tblsize, i, j, len;
   intnat * tbl;
   frame_descr * d;
@@ -113,9 +118,12 @@ void caml_init_frame_descriptors_r(CAML_R)
       d = (frame_descr *) nextd;
     }
   }
+caml_release_global_lock();
+  fprintf(stderr, "$$$$$ Context %p: caml_init_frame_descriptors_r: END\n", ctx);
 }
 
 void caml_register_dyn_global_r(CAML_R, void *v) {
+  /* No synchronization needed: this is context-local */
   caml_dyn_globals = cons((void*) v,caml_dyn_globals);
 }
 
@@ -123,6 +131,8 @@ void caml_register_dyn_global_r(CAML_R, void *v) {
    heap. */
 void caml_oldify_local_roots_r (CAML_R)
 {
+  fprintf(stderr, "$$$$$ Context %p [thread %p]: caml_oldify_local_roots_r\n", ctx, (void*)(pthread_self()));caml_dump_global_mutex();
+caml_acquire_global_lock();
   char * sp;
   uintnat retaddr;
   value * regs;
@@ -223,6 +233,7 @@ void caml_oldify_local_roots_r (CAML_R)
   caml_final_do_young_roots_r (ctx, &caml_oldify_one_r);
   /* Hook */
   if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(&caml_oldify_one_r);
+caml_release_global_lock();
 }
 
 /* Call [darken] on all roots */
@@ -234,6 +245,7 @@ void caml_darken_all_roots_r (CAML_R)
 
 void caml_do_roots_r (CAML_R, scanning_action f)
 {
+caml_acquire_global_lock();
   int i, j;
   value glob;
   caml_link *lnk;
@@ -263,12 +275,14 @@ void caml_do_roots_r (CAML_R, scanning_action f)
   caml_final_do_strong_roots_r (ctx, f);
   /* Hook */
   if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(f);
+caml_release_global_lock();
 }
 
 void caml_do_local_roots_r(CAML_R, scanning_action f, char * bottom_of_stack,
                          uintnat last_retaddr, value * gc_regs,
                          struct caml__roots_block * local_roots)
 {
+caml_acquire_global_lock();
   char * sp;
   uintnat retaddr;
   value * regs;
@@ -337,6 +351,7 @@ void caml_do_local_roots_r(CAML_R, scanning_action f, char * bottom_of_stack,
       }
     }
   }
+caml_release_global_lock();
 }
 
 uintnat caml_stack_usage_r (CAML_R)

@@ -19,6 +19,8 @@
 #include "mlvalues.h"
 #include "exec.h"
 
+/* Return a new empty context, and make it "the" thread-local current context.
+   Its descriptor says that its kins is non-main local, but that can be changed. */
 caml_global_context* caml_make_empty_context(void);
 
 /* CAMLextern void caml_main(char **argv); */

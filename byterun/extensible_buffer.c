@@ -12,10 +12,8 @@ static void caml_reallocate_extensible_buffer(struct caml_extensible_buffer *b, 
   b->array = caml_stat_resize(b->array, new_allocated_size);
   b->allocated_size = (long)new_allocated_size;
 
-  /* /\* If we're growing the array, initialize the new part: *\/ */
-  /* if(new_allocated_size > old_allocated_size) */
-  /*   memset(((char*)b->array) + old_allocated_size, initial_value, new_allocated_size - old_allocated_size); */
-  //fprintf(stderr, "The extensible buffer at %p has now allocated-size = %i bytes (%i words)\n", b, (int)new_allocated_size, (int)(new_allocated_size / sizeof(void*)));
+  /* We leave the new part, if any, uninitialized.  We're going to
+     initialize it when the space is actually used. */
 }
 
 static void caml_reallocate_extensible_buffer_if_needed(struct caml_extensible_buffer *b, size_t new_used_size){
@@ -34,8 +32,10 @@ void caml_resize_extensible_buffer(struct caml_extensible_buffer *b,
   //fprintf(stderr, "JJ [2]\n");
 
   /* Update the used size and initialize the newly-used part, if any: */
-  if(b->used_size < new_used_size)
+  if(new_used_size > b->used_size){
     memset(((char*)b->array) + b->used_size, initial_value, new_used_size - b->used_size);
+    //fprintf(stderr, "+++++++++++++Initialized with %i from %i to %i\n", initial_value, b->used_size, new_used_size - 1);
+  }
   b->used_size = new_used_size;
 }
 
@@ -49,7 +49,13 @@ size_t caml_allocate_from_extensible_buffer(struct caml_extensible_buffer *b,
   //while((beginning_of_this_element + new_element_size) > b->allocated_size)
   //  caml_reallocate_extensible_buffer(b, b->allocated_size * 2 + 1, initial_value);
 
-  b->used_size += new_element_size;
+  /* Fill the newly-allocated part: */
+  long new_used_size = b->used_size + new_element_size;
+  memset(((char*)b->array) + b->used_size, initial_value, new_used_size - b->used_size);
+  //fprintf(stderr, "+++++++++++++Initialized with %i from %i to %i\n", initial_value, b->used_size, new_used_size - 1);
+
+  b->used_size = new_used_size;
+
   //printf("%p->used_size is now %i bytes (%i words)\n", (int)b->used_size, (((int)(b->used_size)) / sizeof(void*)));
   return beginning_of_this_element;
 }

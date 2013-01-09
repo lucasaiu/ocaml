@@ -69,6 +69,7 @@ void caml_stash_backtrace_r(CAML_R, value exn, uintnat pc, char * sp, char * tra
     caml_backtrace_buffer = malloc(BACKTRACE_BUFFER_SIZE * sizeof(code_t));
     if (caml_backtrace_buffer == NULL) return;
   }
+  fprintf(stderr, "$$$$$ FIXME Context %p: caml_stash_backtrace_r [FIXME: make sure this is reentrant; I don't think it is now]\n", ctx);
   if (caml_frame_descriptors == NULL) caml_init_frame_descriptors_r(ctx);
 
   while (1) {

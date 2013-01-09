@@ -39,17 +39,16 @@
 #include "alloc.h"
 #include "intext.h"
 
-__thread caml_global_context *caml_context;
+static __thread caml_global_context *the_thread_local_caml_context = NULL;
 
 caml_global_context *caml_get_thread_local_context(void)
 {
-  /* fprintf(stderr, "get caml_context %x\n", caml_context); */
-  return caml_context;
+  return the_thread_local_caml_context;
 }
 
 void caml_set_thread_local_context(caml_global_context *new_caml_context)
 {
-  caml_context = new_caml_context;
+  the_thread_local_caml_context = new_caml_context;
 }
 
 extern void caml_enter_blocking_section_default(void);
@@ -62,7 +61,7 @@ extern char caml_globals_map[];
 #endif
 
 /* The global lock: */
-static pthread_mutex_t caml_global_mutex;
+static pthread_mutex_t caml_global_mutex = (pthread_mutex_t)(long)0xdeaddeaddeaddead;
 
 caml_global_context *caml_initialize_first_global_context(void)
 {
@@ -362,7 +361,7 @@ section.  */
   /* from parsing.c */
   ctx->caml_parser_trace = 0;
 
-  caml_context = ctx;
+  //caml_context = ctx;
   /*
   fprintf(stderr, "set caml_context %x\n", ctx);
   fprintf(stderr, "enter_blocking_section_hook = %lx (%lx)\n",
@@ -386,18 +385,15 @@ section.  */
   ctx->c_globals.allocated_size = INITIAL_C_GLOBALS_ALLOCATED_SIZE;
   ctx->c_globals.used_size = 0;
   ctx->c_globals.array = caml_stat_alloc(ctx->c_globals.allocated_size);
-  
+
+  /* By default, a context is associated with its creating thread: */
+  ctx->thread = pthread_self();
+  caml_set_thread_local_context(ctx);
+
   /* Make a local descriptor for this context: */
   ctx->descriptor = caml_stat_alloc(sizeof(struct caml_global_context_descriptor));
   ctx->descriptor->kind = caml_global_context_main;
   ctx->descriptor->content.local_context.context = ctx;
-
-  /* Create the global lock: */
-  pthread_mutexattr_t attributes;
-  pthread_mutexattr_init(&attributes);
-  pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE_NP);
-  pthread_mutex_init(&caml_global_mutex, &attributes);
-  pthread_mutexattr_destroy(&attributes);
 
   return ctx;
 }
@@ -432,13 +428,36 @@ void* caml_context_local_c_variable_r(CAML_R, caml_c_global_id id){
 
 void caml_scan_caml_globals_r(CAML_R, scanning_action f){
   int i, caml_global_no = ctx->caml_globals.used_size / sizeof(value);
-  /* if(caml_global_no != 0) */
-  /*   printf("Context %p: scanning the %i Caml globals\n", ctx, caml_global_no); */
-  /* else */
-  /*   printf("Context %p: there are no Caml globals to scan\n", ctx); */
+  if(ctx != caml_get_thread_local_context())
+    {fprintf(stderr, "Context %p: it's different from the thread-local context %p !!!\n", ctx, caml_get_thread_local_context()); fflush(stderr);};
+
+  /*
+  fprintf(stderr, "Context %p: ", ctx);;
+  switch(ctx->descriptor->kind){
+  case caml_global_context_main:
+    fprintf(stderr, "this is the main context.\n"); break;
+  case caml_global_context_nonmain_local:
+    fprintf(stderr, "this is a non-main local context.\n"); break;
+  case caml_global_context_remote:
+    fprintf(stderr, "this is a remote context [!!!]\n"); break;
+  default:
+    fprintf(stderr, "impossible [!!!]\n");
+  } // switch
+  fflush(stderr);
+  */
+
+  if(caml_get_thread_local_context()->descriptor->kind == caml_global_context_nonmain_local){
+    if(caml_global_no != 0)
+      {fprintf(stderr, "Context %p: scanning the %i Caml globals\n", ctx, caml_global_no); fflush(stderr);}
+    else
+      {fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~ Context %p: there are no Caml globals to scan [!!!]\n", ctx); fflush(stderr);}
+  }
+
   value *caml_globals = (value*)(ctx->caml_globals.array);
   for(i = 0; i < caml_global_no; i ++){
     value *root_pointer = caml_globals + i;
+    if(*root_pointer == 0)
+      fprintf(stderr, "%%%%%%%%%% Context %p: the %i-th root is zero!\n", ctx, i);
     f(ctx, *root_pointer, root_pointer);
   }
   //printf("Scanning Caml globals: end\n");
@@ -464,13 +483,15 @@ void caml_scan_caml_globals_r(CAML_R, scanning_action f){
    be changed.  --Luca Saiu REENTRANTRUNTIME*/
 void caml_enter_lock_section_default(void)
 {
+  caml_acquire_global_lock(); // FIXME: experimental --Luca Saiu
 }
 
 void caml_leave_lock_section_default(void)
 {
+  caml_release_global_lock(); // FIXME: experimental --Luca Saiu
 }
 
-/* I'm leaving these as globals, shared bu all contexts.  --Luca Saiu REENTRANTRUNTIME*/
+/* I'm leaving these as globals, shared by all contexts.  --Luca Saiu REENTRANTRUNTIME*/
 void (*caml_enter_lock_section_hook)(void) = caml_enter_lock_section_default;
 void (*caml_leave_lock_section_hook)(void)= caml_leave_lock_section_default;
 void caml_enter_lock_section_r(CAML_R)
@@ -569,14 +590,19 @@ static long first_unused_word_offset = 0; // the first word is unused
 void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* Compute the size in words, which is to say how many globals are there: */
   int size_in_words = size_in_bytes / sizeof(void*);
+  /* We keep the module name right after the offset pointer, as a read-only string: */
+  char *module_name = (char*)offset_pointer + sizeof(long);
+
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
-  /* fprintf(stderr, "caml_register_module_r: BEGIN [%lu bytes at %p]\n", */
-  /*        (unsigned long)size_in_bytes, */
-  /*        offset_pointer); */
+  fprintf(stderr, "Context %p: ??????? caml_register_module_r [%s]: BEGIN [%lu bytes at %p]\n",
+          ctx,
+          module_name,
+          (unsigned long)size_in_bytes,
+          offset_pointer); fflush(stderr);
 
   /* If this is the first time we register this module, make space for its globals in
      ctx->caml_globals.  If the module was already registered, do nothing. */
-  caml_acquire_global_lock_r(ctx);
+  caml_acquire_global_lock();
   if(*offset_pointer == -1){
     /* fprintf(stderr, "Registering the module %p for the first time: making place for %i globals\n", offset_pointer, (int)size_in_words); */
     /* fprintf(stderr, "first_unused_word_offset is %i\n", (int)first_unused_word_offset); */
@@ -590,11 +616,11 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   }
   /* else */
   /*   fprintf(stderr, "The module %p has already been registered: its offset is %i\n", offset_pointer, (int)*offset_pointer); */
-  caml_release_global_lock_r(ctx);
+  caml_release_global_lock();
   /* fprintf(stderr, "The offset (in bytes) we just wrote at %p is %li\n", offset_pointer, *offset_pointer); */
   /* fprintf(stderr, "The context is at %p\n", (void*)ctx); */
   /* fprintf(stderr, "Globals are at %p\n", (void*)ctx->caml_globals.array); */
-  /* fprintf(stderr, "caml_register_module_r: registered %p.  END (still alive)\n\n", offset_pointer); */
+  fprintf(stderr, "caml_register_module_r: registered %p [%s].  END (still alive)\n", offset_pointer, module_name); fflush(stderr);
 }
 
 void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
@@ -647,30 +673,66 @@ CAMLprim value caml_context_is_remote_r(CAML_R, value descriptor)
                   == caml_global_context_remote);
 }
 
-/* /\* A function with an interface easier to call from OCaml: *\/ */
-/* CAM__Lprim value caml_context_clone_and_return_value_r(CAML_R, value unit){ */
-/*   return Val_unit; // FIXME: remove this function */
-/* } */
+void caml_context_initialize_global_stuff(void){
+  /* Attempt to prevent multiple initialization.  This will not always
+     work, because of missing synchronization: we can't use the global
+     mutex, since we're gonna initialize it here. */
+  static int already_initialized = 0;
+  if(already_initialized){
+    fprintf(stderr, "caml_initialize_global_stuff: called more than once\n");
+    fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+  already_initialized = 1;
 
-void caml_acquire_global_lock_r(CAML_R){
+  /* Create the global lock: */
+  pthread_mutexattr_t attributes;
+  pthread_mutexattr_init(&attributes);
+  int result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE_NP);
+  if(result){
+    fprintf(stderr, "++++++++ [thread %p] pthread_mutexattr_settype failed\n", (void*)(pthread_self())); fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+  pthread_mutex_init(&caml_global_mutex, &attributes);
+  fprintf(stderr, "= {%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__count, (void*)(pthread_self())); fflush(stderr);
+  pthread_mutexattr_destroy(&attributes);
+}
+
+void caml_acquire_global_lock(void){
   /* FIXME: is this needed?  I wanna play it safe --Luca Saiu REENTRANTRUNTIME */
+  int old_value = caml_global_mutex.__data.__count;
+  int old_owner = caml_global_mutex.__data.__owner;
   int result __attribute__((unused));
-  //caml_enter_lock_section_r(ctx);
+  INIT_CAML_R;
+  //caml_enter_blocking_section_r(ctx);
   result = pthread_mutex_lock(&caml_global_mutex);
+  //caml_leave_blocking_section_r(ctx);
+  /////BEGIN
+  if(result){
+    fprintf(stderr, "++++++++ [context %p] [thread %p] pthread_mutex_lock failed\n", ctx, (void*)(pthread_self())); fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+  //fprintf(stderr, "+[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
+  /////END
   Assert(result == 0);
 }
-void caml_release_global_lock_r(CAML_R){
+void caml_release_global_lock(void){
+  int old_value = caml_global_mutex.__data.__count;
+  int old_owner = caml_global_mutex.__data.__owner;
+  INIT_CAML_R;
+  //caml_enter_blocking_section_r(ctx);
   int result __attribute__((unused)) = pthread_mutex_unlock(&caml_global_mutex);
+  //caml_leave_blocking_section_r(ctx);
   Assert(result == 0);
-  /* FIXME: is this needed?  I wanna play it safe --Luca Saiu REENTRANTRUNTIME */
-  //caml_leave_lock_section_r(ctx);
+  /////BEGIN
+  if(result){
+    fprintf(stderr, "++++++++ [context %p] [thread %p] pthread_mutex_unlock failed\n", ctx, (void*)(pthread_self())); fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+  //fprintf(stderr, "-[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
+  /////END
 }
 
-/* CA__MLprim value caml_context_dump_r(CAML_R, value unit){ */
-/* #ifdef NATIVE_CODE */
-/*   //printf("%p->caml_bottom_of_stack is %p\n", ctx, ctx->caml_bottom_of_stack); */
-/*   return Val_long((long)(ctx->caml_bottom_of_stack)); */
-/* #else */
-/*   return Val_long(0); */
-/* #endif /\* else (#ifdef NATIVE_CODE) *\/ */
-/* } */
+void caml_dump_global_mutex(void){
+  fprintf(stderr, "{%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
+}

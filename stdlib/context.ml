@@ -4,39 +4,19 @@
 type t =
   int
 
-(* type fork_result = *)
-(*   | NewContext of t *)
-(*   | OldContext *)
-
-(* let fork () = failwith "unimplemented" *)
-(* let exit () = failwith "unimplemented" *)
-
 external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"
 external is_remote : t -> bool = "caml_context_is_remote_r" "reentrant"
 
-(* let fork () = *)
-(*   let returned_context = fork_low_level () in *)
-(*   if returned_context = (self ()) then *)
-(*     OldContext *)
-(*   else *)
-(*     NewContext returned_context *)
+external split_into_array : (int -> unit) -> int -> (t array) = "caml_context_split_r" "reentrant"
 
-(* let rec fork_many n f = *)
-(*   if n < 0 then *)
-(*     (failwith "fork_many: negative argument"); *)
-(*   if n > 0 then *)
-(*   match fork () with *)
-(*   | NewContext _ -> *)
-(*       f (n - 1) *)
-(*   | OldContext -> *)
-(*       fork_many (n - 1) f *)
+let split f how_many =
+  Array.to_list (split_into_array f how_many)
 
-(* let fork thunk = *)
-(*   failwith "unimplemented" *)
-external fork : (unit -> unit) -> t = "caml_context_fork_and_run_thunk_r" "reentrant"
-external pthread_create : (unit -> unit) -> t = "caml_context_pthread_create_and_run_thunk_r" "reentrant"
-
+(* FIXME: remove *)
+(* external pthread_create : (int -> unit) -> t = "caml_context_pthread_create_and_run_thunk_r" "reentrant" *)
+let split1 thunk =
+  List.hd (split (fun i -> thunk ()) 1)
 
 (* (iota n) returns the int list [0, n).  The name comes from APL, and
    has also been adopted by Guile Scheme. *)
@@ -48,11 +28,11 @@ let rec iota_acc n a =
 let iota n =
   iota_acc (n - 1) []
 
-let fork_many n f =
-  List.map
-    (fun i ->
-      fork (fun () -> f i))
-    (iota n);;
+(* let fork_many n f = *)
+(*   List.map *)
+(*     (fun i -> *)
+(*       fork (fun () -> f i)) *)
+(*     (iota n);; *)
 
 (* let rec apply_functions functions list = *)
 (*   match list, functions with *)
@@ -73,7 +53,7 @@ let fork_many n f =
 (*   done; *)
 (*   !results *)
 
-external exit : unit -> unit = "caml_context_exit_r" "reentrant"
+(* external exit : unit -> unit = "caml_context_exit_r" "reentrant" *)
 let send message receiver_context = failwith "unimplemented"
 let receive receiver_context = failwith "unimplemented"
 
@@ -93,4 +73,7 @@ let rec global_index_from global globals from =
 let global_index global =
   global_index_from global (globals ()) 0;;
 
-(* external dump : unit -> int = "caml_context_dump_r" "reentrant" *)
+external join1 : t -> unit = "caml_context_join_r" "reentrant"
+
+let join contexts =
+  List.iter join1 contexts

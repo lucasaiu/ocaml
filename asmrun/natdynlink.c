@@ -84,6 +84,7 @@ CAMLprim value caml_natdynlink_run_r(CAML_R, void *handle, value symbol) {
   unit = String_val(symbol);
 
   sym = optsym("__frametable");
+  fprintf(stderr, "$$$$$ FIXME Context %p: caml_natdynlink_run_r [FIXME: make sure this is reentrant; I don't think it is now]\n", ctx);
   if (NULL != sym) caml_register_frametable_r(ctx, sym);
 
   sym = optsym("");

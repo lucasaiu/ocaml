@@ -49,6 +49,7 @@ struct channel {
   int refcount;                 /* For flush_all and for Cash */
   int flags;                    /* Bitfield */
   char buff[IO_BUFFER_SIZE];    /* The buffer itself */
+  int already_closed; /* Horrible kludge, to avoid flushing already-closed buffers at exit time --Luca Saiu REENTRANTRUNTIME */
 };
 
 enum {
@@ -124,5 +125,9 @@ CAMLextern file_offset caml_File_offset_val(value v);
 #define Val_file_offset caml_Val_file_offset
 #define File_offset_val caml_File_offset_val
 #endif
+
+/* Return a freshly-allocated list holding all existing channels in some order;
+   if output_only is nonzero, only include channels open in output mode. */
+value caml_ml_all_channels_list_r (CAML_R);
 
 #endif /* CAML_IO_H */

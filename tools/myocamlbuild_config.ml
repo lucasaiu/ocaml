@@ -47,7 +47,6 @@ let aspp = "gcc -c";;
 let asppprofflags = "-DPROFILING";;
 let profiling = "prof";;
 let dynlinkopts = " -ldl";;
-(* #OTHERLIBRARIES=unix str num dynlink bigarray systhreads threads graph *)
 let otherlibraries = "unix str num dynlink bigarray";;
 let debugger = "ocamldebugger";;
 let cc_profile = "-pg";;

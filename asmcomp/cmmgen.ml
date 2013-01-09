@@ -1878,23 +1878,10 @@ let compunit size ulam =
          Cint(Nativeint.minus_one); (* generate only one word which will store the offset, initializing it with
                                        -1, an invalid value recognized as a special "uninitialized" marker.
                                        --Luca Saiu REENTRANTRUNTIME *)
+         Cstring glob; (* useful for debugging --Luca Saiu REENTRANTRUNTIME *)
+         Cint8 0; (* '\0'-terminate the string *)
+         Calign 8; (* Don't break the alignment of what follows because of the string*)
         ] :: c3
-
-(* Backup, before my possibly extensive changes --Luca Saiu REENTRANTRUNTIME *)
-(* let compunit size ulam = *)
-(*   let glob = Compilenv.make_symbol None in *)
-(*   let init_code = transl ulam in *)
-(*   let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry_r"); *)
-(*                        fun_args = []; *)
-(*                        fun_body = init_code; fun_fast = false; *)
-(*                        fun_dbg  = Debuginfo.none }] in *)
-(*   let c2 = transl_all_functions StringSet.empty c1 in *)
-(*   let c3 = emit_all_constants c2 in *)
-(* Printf.printf "!!!!!!!!!!! size: %i; size_addr: %i\n" size size_addr; *)
-(*   Cdata [Cint(block_header 0 size); *)
-(*          Cglobal_symbol glob; *)
-(*          Cdefine_symbol glob; *)
-(*          Cskip(size * size_addr)] :: c3 (\* FIXME: this Cskip generates the .space line for the module.  Instead of the skip I have to generate a C procedure call --Luca Saiu REENTRANTRUNTIME*\) *)
 
 (*
 CAMLprim value caml_cache_public_method (value meths, value tag, value *cache)

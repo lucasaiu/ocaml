@@ -44,7 +44,7 @@ first argument.
 Once all functions will have been rewritten like that, we should
 implement the former version (without the first argument) by looking
 up the context in the thread local storage, using the function
-"caml_get_global_context()".
+"caml_get_global_context()" [renamed into caml_get_thread_local_context --Luca Saiu].
 
 Since we needed a global lock for all the runtimes, it has been
 implemented as "caml_enter_blocking_section()" (which should still be
@@ -53,7 +53,11 @@ functions "caml_enter_lock_section()" and
 "caml_leave_lock_section()". These functions don't do anything right
 now, but locking should be added within the thread libraries by
 redefining "caml_enter_lock_section_hook" and
-"caml_leave_lock_section_hook".
+"caml_leave_lock_section_hook".  [FIXME: these names are very
+counterintuitive.  Why do we have to name "caml_enter_lock_section"
+and "caml_enter_blocking_section" so similarly? --Luca Saiu. The name
+"caml_enter_lock_section" was terrible to begin with: see
+http://d.hatena.ne.jp/camlspotter/20100309/1268111257 ]
 
 For static variables within libraries, the library should define its
 own runtime context, and use "caml_get_library_context_r(...)" to

@@ -29,8 +29,11 @@
 #include <setjmp.h> // FIXME: remove if not needed in the end --Luca Saiu REENTRANTRUNTIME
 #include "config.h"
 #include "misc.h"
-
 #include "extensible_buffer.h"
+
+/* An initialization function to be called at startup, once and only once: */
+void caml_context_initialize_global_stuff(void);
+
 
 /* The sentinel can be located anywhere in memory, but it must not be
    adjacent to any heap object. */
@@ -298,7 +301,7 @@ struct caml_global_context {
 
   /* FIXME: This is the version by Fabrice, which looks out-of-date
      with respect to his changes in asmrun/roots.c.  Keeping it as it is
-     in this comment, for the time begin  --Luca Saiu REENTRANTRUNTIME */
+     in this comment, for the time being  --Luca Saiu REENTRANTRUNTIME */
   /* char * caml_top_of_stack; */
   /* intnat caml_globals_inited; */
   /* intnat caml_globals_scanned; */
@@ -532,6 +535,7 @@ struct caml_global_context {
   /* Procedure parameters: */
   struct caml_global_context *after_longjmp_context;
   char *after_longjmp_serialized_blob;
+  pthread_t thread;
 }; /* struct caml_global_context */
 
 /* Context descriptors may be either local or remote: */
@@ -541,7 +545,8 @@ enum caml_global_context_descriptor_kind{
   caml_global_context_remote
 }; /* enum caml_global_context_kind */
 
-/* A local context descriptor trivially refers a context: */
+/* A local context descriptor trivially refers a context.  This is
+   used for the main context and for non-main local contexts. */
 struct caml_local_context_descriptor{
   struct caml_global_context *context;
 }; /* struct caml_local_context */
@@ -909,7 +914,9 @@ void* caml_context_local_c_variable_r(CAML_R, caml_c_global_id id);
 void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer);
 
 /* Acquire or release a global mutex: */
-void caml_acquire_global_lock_r(CAML_R);
-void caml_release_global_lock_r(CAML_R);
+void caml_acquire_global_lock(void);
+void caml_release_global_lock(void);
 
+// FIXME: remove this after debugging
+void caml_dump_global_mutex(void);
 #endif

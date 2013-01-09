@@ -84,8 +84,8 @@ extern int caml_frame_descriptors_mask;
 
 extern void caml_init_frame_descriptors(dont_use);
 extern void caml_init_frame_descriptors_r(CAML_R);
-extern void caml_register_frametable(dont_use, intnat *);
-extern void caml_register_frametable_r(CAML_R, intnat *);
+//extern void caml_register_frametable(dont_use, intnat *); // Not used from the outside
+//extern void caml_register_frametable_r(CAML_R, intnat *); // Not used from the outside
 extern void caml_register_dyn_global(dont_use, void *);
 extern void caml_register_dyn_global_r(CAML_R, void *);
 

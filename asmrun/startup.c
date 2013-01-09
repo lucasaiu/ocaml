@@ -146,7 +146,7 @@ static void parse_camlrunparam_r(CAML_R)
   }
 }
 
-extern __thread caml_global_context *caml_context; // in context.c
+//extern __thread caml_global_context *caml_context; // in context.c // FIXME: remove this: it's now a thread-local static variable
 
 /* FIXME: refactor: call this from caml_main_rr --Luca Saiu REENTRANTRUNTIME */
 caml_global_context* caml_make_empty_context(void)
@@ -154,9 +154,10 @@ caml_global_context* caml_make_empty_context(void)
   // FIXME: lock
   /* Make a new context in which to unmarshal back the byte array back
      into a big data structure, copying whatever's needed: */
-  caml_global_context *old_thread_local_context = caml_context;
+  //caml_global_context *old_thread_local_context = caml_get_thread_local_context();
   caml_global_context *ctx = caml_initialize_first_global_context();
-  caml_context = old_thread_local_context; // undo caml_initialize_first_global_context's trashing of the __thread variable
+  ctx->descriptor->kind = caml_global_context_nonmain_local;
+  //caml_set_thread_local_context(old_thread_local_context); // undo caml_initialize_first_global_context's trashing of the __thread variable
   // FIXME: unlock
 
   /* Initialize the abstract machine */
@@ -168,6 +169,10 @@ caml_global_context* caml_make_empty_context(void)
   /* No need to call caml_init_signals for each context: its
      initialization only needs to be performed once */
   caml_debugger_init_r (ctx); /* force debugger.o stub to be linked */
+
+  /* Make the new context be the thread-local context for this thread: */
+  caml_set_thread_local_context(ctx);
+
   return ctx;
 }
 
@@ -184,6 +189,7 @@ caml_global_context* caml_main_rr(char **argv)
 #endif
   value res;
   char tos;
+  caml_context_initialize_global_stuff();
   CAML_R = caml_initialize_first_global_context();
 
   caml_init_ieee_floats();

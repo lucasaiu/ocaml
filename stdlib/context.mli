@@ -2,27 +2,21 @@
 
 type t
 
-(* type fork_result = *)
-(*   | NewContext of t *)
-(*   | OldContext *)
-
-(* val fork : unit -> fork_result *)
-
-(* (\* Make a new context in which the given function will be exectuted, *)
-(*    within a new process.  Return the new context. *\) *)
-(* val fork : (unit -> unit) -> t *)
+val split : (int -> unit) -> int -> (t list)
+val join : t list -> unit
 
 (* Make a new context in which the given function will be exectuted,
    within a new thread.  Return the new context. *)
-val pthread_create : (unit -> unit) -> t
+val split1 : (unit -> unit) -> t
+val join1 : t -> unit
 
 (* (\* Start as many contexts as the given integer, running the given *)
 (*    function in each one.  Each function takes a 0-based index as its *)
 (*    parameter.  Return the new contexts. *\) *)
 (* val fork_many : int -> (int -> unit) -> (t list) *)
 
-(* Exit the process, killing the current context. *)
-val exit : unit -> unit
+(* (\* Exit the process, killing the current context. *\) *)
+(* val exit : unit -> unit *)
 
 val self : unit -> t
 val is_main : t -> bool

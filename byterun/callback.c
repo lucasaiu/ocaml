@@ -94,6 +94,7 @@ CAMLexport value caml_callbackN_exn_r(CAML_R, value closure, int narg, value arg
   local_callback_code[5] =  1;
   local_callback_code[6] = STOP;
 #ifdef THREADED_CODE
+  // FIXME: this hasn't been replaced with an "_r" version; is it intentional? --Luca Saiu REENTRANTRUNTIME
   caml_thread_code(local_callback_code, sizeof(local_callback_code));
 #endif /*THREADED_CODE*/
   res = caml_interprete(local_callback_code, sizeof(local_callback_code));
