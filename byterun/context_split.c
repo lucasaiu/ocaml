@@ -183,6 +183,7 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_va
   /* Deserialize globals and data from the byte array, and access each
      element of the pair. */
   //fprintf(stderr, "Context %p: L0 [thread %p]\n", ctx, (void*)(pthread_self())); fflush(stderr);
+caml_acquire_global_lock();
   globals_and_data =
     caml_input_value_from_block_r(ctx,
                                   globals_and_data_as_c_array,
@@ -191,6 +192,7 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_va
                                      I don't want to mess up the interface myself, since I'm doing a lot of other
                                      invasive changes --Luca Saiu REENTRANTRUNTIME */
                                   LONG_MAX);
+caml_release_global_lock();
   //fprintf(stderr, "Context %p: L1 [thread %p]\n", ctx, (void*)(pthread_self())); fflush(stderr);
     //caml_input_value_from_malloc_r(ctx, globals_and_data_as_c_array, 0); // this also frees the buffer */
   global_tuple = Field(globals_and_data, 0);
@@ -224,17 +226,28 @@ static char* caml_serialize_context(CAML_R, value function)
   CAMLreturnT(char*, result);
 }
 
-static void caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
+/* Return 0 on success and non-zero on failure. */
+static int caml_run_in_this_thread_r(CAML_R, value function, int index)
 {
-  CAML_R = caml_make_empty_context(); // this also sets the thread-local context
+  // FIXME: move part of caml_deserialize_and_run_in_this_thread here.
+}
+
+/* Return 0 on success and non-zero on failure. */
+static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
+{
+  int did_we_fail;
+  CAML_R = caml_make_empty_context(); // ctx also becomes the thread-local context
   CAMLparam0();
   CAMLlocal2(function, result_or_exception);
+  *to_context = ctx;
+
+fprintf(stderr, "======Forcing a GC\n"); fflush(stderr);
+caml_gc_compaction_r(ctx, Val_unit); //!!!!!
+fprintf(stderr, "======It's ok to have warnings about the lack of globals up to this point\n"); fflush(stderr);
 
 //fprintf(stderr, "W0[context %p] [thread %p] (index %i) BBBBBBBBBBBBBBBBBBBBBBBBBB\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_acquire_global_lock(); // FIXME: a test. this is obviously unusable in production
   fprintf(stderr, "W1 [context %p] ctx->caml_local_roots is %p\n", ctx, caml_local_roots); fflush(stderr);
   /* Make a new context, and deserialize the blob into it: */
-  fprintf(stderr, "W2 [context %p] [thread %p] (index %i)\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
-  caml_gc_compaction_r(ctx, Val_unit); //!!!!!
   fprintf(stderr, "W3 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
 
   // Allocate some trash:
@@ -251,8 +264,7 @@ static void caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t
 /* caml_compact_heap_r (ctx); */
 /* caml_final_do_calls_r (ctx); */
 
-  fprintf(stderr, "W5 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
-  *to_context = ctx;
+  fprintf(stderr, "W5 [context %p] [thread %p] (index %i) (function %p).  About to V the semaphore.\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
 
   /* We're done with the blob: unpin it via the semaphore, so that it
      can be destroyed when all threads have deserialized. */
@@ -265,20 +277,29 @@ static void caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t
   fprintf(stderr, "W7 [context %p] [thread %p] (index %i) (%i globals) ctx->caml_local_roots is %p\n", ctx, (void*)(pthread_self()), index, (int)(ctx->caml_globals.used_size / sizeof(value)), caml_local_roots); fflush(stderr);
   caml_dump_global_mutex();
 
+  /* It's important that Extract_exception be used before the next
+     collection, because result_or_exception is an invalid value in
+     case of exception: */
   result_or_exception = caml_callback_exn_r(ctx, function, Val_int(index));
-  if(Is_exception_result(result_or_exception)){
-    fprintf(stderr, "W7.5 [context %p] [thread %p] (index %i): the ocaml code raised an exception: FIXME: implement this case\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
-    exit(EXIT_FAILURE);
-  } // if
+//int i;for(i=0;i<3;i++){
+  did_we_fail = Is_exception_result(result_or_exception);
+  if(did_we_fail){
+    /* FIXME: we can't just do "caml_raise_r(ctx, Extract_exception(result_or_exception));".
 
-  fprintf(stderr, "W8 [context %p] [thread %p] (index %i): STILL ALIVE AFTER RUNNING THE OCAML CODE\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
-#ifdef NATIVE_CODE
-  //fprintf(stderr, "@@@@@ In the child context caml_bottom_of_stack is %p\n", caml_bottom_of_stack);
-#endif // #ifdef NATIVE_CODE
-  caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@
-  fprintf(stderr, "W9 [context %p] [thread %p] (index %i)\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
-  //caml_dump_global_mutex();
-  CAMLreturn0;
+       If we want to propagate the exception to the parent context we
+       have to serialize the exception object, and then deserialize it
+       and raise it in the parent context.  Is that useful? */
+    result_or_exception = Extract_exception(result_or_exception);
+    /* FIXME: shall we do something with the result?  Really?  It's simpler to just discard it. */
+  }
+//}
+  /* Ok, we're done with ctx.  Free its resources, and we're done: */
+
+  /* FIXME: divide this functions into two parts, so that we can call
+     caml_destroy_context out of a CAMLparamX...CAMLreturnX block. */
+  caml_destroy_context(ctx);
+
+  CAMLreturnT(int, did_we_fail);
 }
 
 struct caml_thread_arguments{
@@ -294,11 +315,11 @@ static void* caml_deserialize_and_run_in_this_thread_as_thread_function(void *ar
   //fprintf(stderr, "Q0 (index %i)\n", args->index);
   //sleep(12); // FIXME: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   //fprintf(stderr, "Q1 (index %i)\n", args->index);
-  caml_deserialize_and_run_in_this_thread(args->blob, args->index, args->semaphore, args->split_contexts + args->index);
-  fprintf(stderr, "Q2 (index %i) [about to free args]\n", args->index); fflush(stderr);
+  int did_we_fail = caml_deserialize_and_run_in_this_thread(args->blob, args->index, args->semaphore, args->split_contexts + args->index);
+  fprintf(stderr, "Q2 (index %i) [about to free args].  Did we fail? %i\n", args->index, did_we_fail); fflush(stderr);
   caml_stat_free(args);
   fprintf(stderr, "Q3 (index %i): about to exit the thread\n", args->index); fflush(stderr);
-  return NULL;
+  return (void*)(long)did_we_fail;
 }
 static void caml_split_and_destroy_blob_r(CAML_R, char *blob, caml_global_context **split_contexts, size_t how_many, sem_t *semaphore)
 {
@@ -385,6 +406,8 @@ CAMLprim value caml_context_split_r(CAML_R, value function, value thread_no_as_v
 CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
   struct caml_global_context_descriptor *descriptor;
   int pthread_join_result;
+  void* did_we_fail_as_void_star;
+  int did_we_fail;
   CAMLparam1(context_as_value);
   CAMLlocal1(result);
   descriptor = caml_global_context_descriptor_of_value(context_as_value);
@@ -397,7 +420,9 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
     caml_failwith_r(ctx, "caml_context_join_r: remote context");
   Assert(descriptor->kind == caml_global_context_nonmain_local);
   //fprintf(stderr, "!!!! JOINING %p\n", (void*)descriptor->content.local_context.context->thread); fflush(stderr);
-  pthread_join_result = pthread_join(descriptor->content.local_context.context->thread, NULL);
+  pthread_join_result = pthread_join(descriptor->content.local_context.context->thread, &did_we_fail_as_void_star);
+  did_we_fail = (int)(long)did_we_fail_as_void_star;
+  fprintf(stderr, "!!!! JOINED %p: did we fail? %i\n", (void*)descriptor->content.local_context.context->thread, did_we_fail); fflush(stderr);
   if(pthread_join_result != 0)
     caml_failwith_r(ctx, "caml_context_join_r: pthread_join failed");
   CAMLreturn(Val_unit);

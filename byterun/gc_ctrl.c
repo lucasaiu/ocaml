@@ -452,7 +452,7 @@ CAMLprim value caml_gc_compaction_r(CAML_R, value v)
   //caml_finish_major_cycle_r (ctx);
   //caml_compact_heap_r (ctx);
   //caml_final_do_calls_r (ctx);
-  return Val_unit;
+  //return Val_unit;
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! EXPERIMENTAL: END
   caml_gc_message (0x10, "Heap compaction requested\n", 0);
   caml_empty_minor_heap_r (ctx);

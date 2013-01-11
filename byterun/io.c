@@ -44,9 +44,9 @@
 #define SEEK_END 2
 #endif
 
-// HORRIBLE KLUDGE
-#define fprintf(...)
-#define fflush(...)
+// FIXME: HORRIBLE KLUDGE --Luca Saiu REENTRANTRUNTIME
+#define fprintf(...) {}
+#define fflush(...) {}
 
 /* Hooks for locking channels */
 
@@ -67,11 +67,8 @@ CAMLexport void (*caml_channel_mutex_lock) (struct channel *) = caml_my_lock_cha
 CAMLexport void (*caml_channel_mutex_unlock) (struct channel *) = caml_my_unlock_channel;//NULL;
 CAMLexport void (*caml_channel_mutex_unlock_exn) (void) = NULL;
 
-// FIXME: this should most likely remain global, but I have to
-// actually think about the issues introduced by sharing struct
-// channel pointers among contexts.  Are we sure it doesn't screw up
-// anything?  --Luca Saiu REENTRANTRUNTIME
-/* List of opened channels */
+/* List of opened channels.  Access to this global structure has to be
+   protected via the global lock. */
 CAMLexport struct channel * caml_all_opened_channels = NULL;
 
 /* Basic functions over type struct channel *.
@@ -99,7 +96,7 @@ CAMLexport struct channel * caml_open_descriptor_in_r(CAML_R, int fd)
 caml_acquire_global_lock();
   channel->next = caml_all_opened_channels;
   channel->prev = NULL;
-  channel->already_closed = 0;
+  //channel->already_closed = 0;
   if (caml_all_opened_channels != NULL)
     caml_all_opened_channels->prev = channel;
   caml_all_opened_channels = channel;
@@ -136,11 +133,11 @@ CAMLexport void caml_close_channel(struct channel *channel)
   INIT_CAML_R;
   int greater_than_zero;
   close(channel->fd);
-  caml_acquire_global_lock();
+  Lock(channel);
   greater_than_zero = channel->refcount > 0;
-  fprintf(stderr, "Context %p: Closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, channel, channel->fd, (int)channel->refcount);
-  channel->already_closed = 1;
-  caml_release_global_lock();
+  fprintf(stderr, "Context %p: Closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, channel, channel->fd, (int)channel->refcount); fflush(stderr);
+  //channel->already_closed = 1;
+  Unlock(channel);
   if (greater_than_zero)
     return;
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(channel);
@@ -222,16 +219,15 @@ again:
 
 CAMLexport int caml_flush_partial_r(CAML_R, struct channel *channel)
 {
-caml_acquire_global_lock();
   int towrite, written;
 
-  Lock(channel);
-  if(channel->already_closed){
-    Unlock(channel);
-caml_release_global_lock();
-    return 1;
-  }
-  Unlock(channel);
+/*   Lock(channel); */
+/*   if(channel->already_closed){ */
+/*     Unlock(channel); */
+/* caml_release_global_lock(); */
+/*     return 1; */
+/*   } */
+/*   Unlock(channel); */
   towrite = channel->curr - channel->buff;
   if (towrite > 0) {
     written = do_write_r(ctx, channel->fd, channel->buff, towrite);
@@ -240,21 +236,19 @@ caml_release_global_lock();
       memmove(channel->buff, channel->buff + written, towrite - written);
     channel->curr -= written;
   }
-caml_release_global_lock();
-  int result = (channel->curr == channel->buff);
-  return result;
+  return (channel->curr == channel->buff);
 }
 
 /* Flush completely the buffer. */
 
 CAMLexport void caml_flush_r(CAML_R, struct channel *channel)
 {
-  Lock(channel);
-  if(channel->already_closed){
-    Unlock(channel);
-    return;
-  }
-  Unlock(channel);
+  /* Lock(channel); */
+  /* if(channel->already_closed){ */
+  /*   Unlock(channel); */
+  /*   return; */
+  /* } */
+  /* Unlock(channel); */
   while (! caml_flush_partial_r(ctx, channel)) /*nothing*/;
 }
 
@@ -479,13 +473,13 @@ CAMLexport void caml_finalize_channel(value vchan)
   struct channel * chan = Channel(vchan);
   int greater_than_zero;
   INIT_CAML_R;
-caml_acquire_global_lock();
+  Lock(chan);
   greater_than_zero = --chan->refcount > 0;
-  fprintf(stderr, "Context %p: finalizing the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, chan, chan->fd, chan->refcount);
-caml_release_global_lock();
+  fprintf(stderr, "Context %p: finalizing the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, chan, chan->fd, chan->refcount); fflush(stderr);
+  Unlock(chan);
   if (greater_than_zero)
     return;
-  fprintf(stderr, "Context %p: destroying the channel with struct channel* %p, fd %i\n", ctx, chan, chan->fd);
+  fprintf(stderr, "Context %p: destroying the channel with struct channel* %p, fd %i\n", ctx, chan, chan->fd); fflush(stderr);
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(chan);
   unlink_channel(chan);
   caml_stat_free(chan);
@@ -512,29 +506,22 @@ static void cross_context_serialize_channel(value v,
   CAMLparam1(v);
   /* The channel is used by one more context.  Pin it: */
   struct channel *pointer = Channel(v);
-  /* // FIXME: don't leak channels like this: BEGIN  --Luca Saiu REENTRANTRUNTIME */
-  /* caml_acquire_global_lock(); */
-  /* pointer->refcount ++; */
-  /* fprintf(stderr, "Cross-context-serializing the channel with struct channel* %p, fd %i: its refcount is now %i\n", pointer, pointer->fd, pointer->refcount); */
-  /* caml_release_global_lock(); */
-  /* // FIXME: don't leak channels like this: END  --Luca Saiu REENTRANTRUNTIME */
-  //fprintf(stderr, "Serializing the channel at %p, fd %i, which is to say %li\n", pointer, pointer->fd, (long)pointer);
 
   /* The data part is just the struct channel* pointer. */
   *wsize_32 = 4;
   *wsize_64 = 8;
 #ifdef ARCH_SIXTYFOUR
-  //fprintf(stderr, "Serializing the 8-byte integer %li\n", (long)pointer);
+  //fprintf(stderr, "Serializing the 8-byte integer %li\n", (long)pointer); fflush(stderr);
   caml_serialize_int_8_r(ctx, (int64)pointer);
 #else
-  //fprintf(stderr, "Serialized the 4-byte integer %li\n", (long)pointer);
+  //fprintf(stderr, "Serialized the 4-byte integer %li\n", (long)pointer); fflush(stderr);
   caml_serialize_int_4_r(ctx, (int32)pointer);
 #endif // #else // #ifdef ARCH_SIXTYFOUR
-  //fprintf(stderr, "Serializing the channel at %p, fd %i: still alive at the end\n", pointer, pointer->fd);
+  //fprintf(stderr, "Serializing the channel at %p, fd %i: still alive at the end\n", pointer, pointer->fd); fflush(stderr);
   CAMLreturn0;
 }
 static uintnat cross_context_deserialize_channel(void * dst){
-  //fprintf(stderr, "Deserializing a channel: this is the very beginning\n");
+  //fprintf(stderr, "Deserializing a channel: this is the very beginning\n"); fflush(stderr);
   INIT_CAML_R;
   /* Deserialize the pointer: */
   struct channel *pointer =
@@ -543,18 +530,18 @@ static uintnat cross_context_deserialize_channel(void * dst){
 #else
     (void*)caml_deserialize_uint_4_r(ctx);
 #endif // #else // #ifdef ARCH_SIXTYFOUR
-  //fprintf(stderr, "Deserializing the channel at %p, fd %i\n", pointer, pointer->fd);
+  //fprintf(stderr, "Deserializing the channel at %p, fd %i\n", pointer, pointer->fd); fflush(stderr);
 
   /* Copy the pointer into the custom object payload as its only
      word, and pin it: */
   *((struct channel**)dst) = pointer;
-  caml_acquire_global_lock();
+  Lock(pointer);
   pointer->refcount ++;
-  fprintf(stderr, "Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i\n", pointer, pointer->fd, pointer->refcount);
-  caml_release_global_lock();
+  fprintf(stderr, "Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i\n", pointer, pointer->fd, pointer->refcount); fflush(stderr);
+  Unlock(pointer);
 
-  //fprintf(stderr, "Deserializing the channel at %p, fd %i: still alive at the end\n", pointer, pointer->fd);
-  //fprintf(stderr, "cross_context_deserialize_channel: FIXME: implement\n");
+  //fprintf(stderr, "Deserializing the channel at %p, fd %i: still alive at the end\n", pointer, pointer->fd); fflush(stderr);
+  //fprintf(stderr, "cross_context_deserialize_channel: FIXME: implement\n"); fflush(stderr);
   /* The payload is one word: */
   return sizeof(void*);
 }
@@ -574,10 +561,10 @@ struct custom_operations caml_channel_operations = {
 CAMLexport value caml_alloc_channel_r(CAML_R, struct channel *chan)
 {
   value res;
-  caml_acquire_global_lock();
+  Lock(chan);
   chan->refcount++;             /* prevent finalization during next alloc */
-  fprintf(stderr, "Context %p: allocating the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, chan, chan->fd, chan->refcount);
-  caml_release_global_lock();
+  fprintf(stderr, "Context %p: allocating the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, chan, chan->fd, chan->refcount); fflush(stderr);
+  Unlock(chan);
 
   res = caml_alloc_custom(&caml_channel_operations, sizeof(struct channel *),
                           1, 1000);
@@ -604,10 +591,10 @@ static value caml_ml_channels_list_r (CAML_R, const int output_only)
   struct channel * channel;
 
   res = Val_emptylist;
+caml_acquire_global_lock();
   for (channel = caml_all_opened_channels;
        channel != NULL;
-       channel = channel->next){
-    //fprintf(stderr, "* caml_ml_out_channels_list_r: channel %p, fd %i, refcount %i, channel->max %p\n", channel, channel->fd, channel->refcount, channel->max);
+       channel = channel->next)
     /* Testing channel->fd >= 0 looks unnecessary, as
        caml_ml_close_channel changes max when setting fd to -1. */
     if ((channel->max == NULL) || ! output_only) {
@@ -617,7 +604,7 @@ static value caml_ml_channels_list_r (CAML_R, const int output_only)
       Field (res, 0) = chan;
       Field (res, 1) = tail;
     }
-  }
+caml_release_global_lock();
   CAMLreturn (res);
 }
 
@@ -648,7 +635,7 @@ CAMLprim value caml_ml_close_channel_r(CAML_R, value vchannel)
   struct channel * channel = Channel(vchannel);
   if (channel->fd != -1){
     fd = channel->fd;
-    fprintf(stderr, "Context %p: closing the channel with struct channel* %p, fd %i [now -1]: its refcount is %i\n", ctx, channel, channel->fd, channel->refcount);
+    fprintf(stderr, "Context %p: closing the channel with struct channel* %p, fd %i [now -1]: its refcount is %i\n", ctx, channel, channel->fd, channel->refcount); fflush(stderr);
     channel->fd = -1;
     do_syscall = 1;
   }else{
@@ -727,13 +714,13 @@ CAMLprim value caml_ml_flush_r(CAML_R, value vchannel)
   struct channel * channel = Channel(vchannel);
 
   if (channel->fd == -1) CAMLreturn(Val_unit);
-  //fprintf(stderr, "caml_ml_flush_r: OK1 from thread %p\n", pthread_self());
+  //fprintf(stderr, "caml_ml_flush_r: OK1 from thread %p\n", pthread_self()); fflush(stderr);
   Lock(channel);
-  //fprintf(stderr, "caml_ml_flush_r: OK2 from thread %p\n", pthread_self());
+  //fprintf(stderr, "caml_ml_flush_r: OK2 from thread %p\n", pthread_self()); fflush(stderr);
   caml_flush_r(ctx, channel);
-  //fprintf(stderr, "caml_ml_flush_r: OK3 from thread %p\n", pthread_self());
+  //fprintf(stderr, "caml_ml_flush_r: OK3 from thread %p\n", pthread_self()); fflush(stderr);
   Unlock(channel);
-  //fprintf(stderr, "caml_ml_flush_r: OK4 from thread %p\n", pthread_self());
+  //fprintf(stderr, "caml_ml_flush_r: OK4 from thread %p\n", pthread_self()); fflush(stderr);
   CAMLreturn (Val_unit);
 }
 

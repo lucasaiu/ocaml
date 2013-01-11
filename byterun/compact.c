@@ -115,7 +115,7 @@ static void invert_root_r (CAML_R, value v, value *p)
   invert_pointer_at_r (ctx, (word *) p);
 }
 
-static char *compact_fl;
+//static char *compact_fl;
 
 static void init_compact_allocate_r (CAML_R)
 {

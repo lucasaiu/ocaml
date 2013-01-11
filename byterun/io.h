@@ -49,7 +49,7 @@ struct channel {
   int refcount;                 /* For flush_all and for Cash */
   int flags;                    /* Bitfield */
   char buff[IO_BUFFER_SIZE];    /* The buffer itself */
-  int already_closed; /* Horrible kludge, to avoid flushing already-closed buffers at exit time --Luca Saiu REENTRANTRUNTIME */
+  //int already_closed; /* Horrible kludge, to avoid flushing already-closed buffers at exit time --Luca Saiu REENTRANTRUNTIME */
 };
 
 enum {

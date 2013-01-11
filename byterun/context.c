@@ -327,6 +327,9 @@ section.  */
   ctx->caml_stat_heap_chunks = 0;
   /* ctx->caml_percent_max */
 
+  /* from compact.c */
+  /* ctx->compact_fl */
+
   /* from callback.c */
   ctx->caml_callback_depth = 0;
   ctx->callback_code_threaded = 0;
@@ -448,7 +451,7 @@ void caml_scan_caml_globals_r(CAML_R, scanning_action f){
 
   if(caml_get_thread_local_context()->descriptor->kind == caml_global_context_nonmain_local){
     if(caml_global_no != 0)
-      {fprintf(stderr, "Context %p: scanning the %i Caml globals\n", ctx, caml_global_no); fflush(stderr);}
+      {/* fprintf(stderr, "Context %p: scanning the %i Caml globals\n", ctx, caml_global_no); fflush(stderr); */}
     else
       {fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~ Context %p: there are no Caml globals to scan [!!!]\n", ctx); fflush(stderr);}
   }
@@ -547,40 +550,22 @@ library_context *caml_get_library_context_r(
   return uctx;
 }
 
-// FIXME: caml_realloc_global_r (meta.c) is a dummy stub on the native compiler.  --Luca Saiu REENTRANTRUNTIME
+extern void caml_destroy_context(CAML_R){
+return; /////////////////////////////////////////////////////////
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: really do it\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
-/* void caml_resize_global_array_r(CAML_R, size_t requested_global_no){ */
-/*   size_t old_global_no = Wosize_val(ctx->caml_global_data); */
-/*   size_t new_global_no = old_global_no; */
-/*   value new_array; */
-/*   int i; */
+  /* No global variables are live any more; destroy everything in the Caml heap: */
+  caml_shrink_extensible_buffer(&ctx->caml_globals, ctx->caml_globals.used_size);
+  //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
+  caml_stat_free(ctx->caml_globals.array);
 
-/*   fprintf(stderr, "**           old size: %i\n", (int)old_global_no); */
-/*   fprintf(stderr, "** requested new size: %i\n", (int)requested_global_no); */
-/*   /\* Don't ever shrink: *\/ */
-/*   if(requested_global_no <= old_global_no) */
-/*     return; */
+  // Free every dynamically-allocated object which is pointed by the context data structure [FIXME: really do it]:
+  caml_stat_free(ctx->descriptor);
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
-/*   /\* Find a size large enough to accommodate the given global no, but potentially larger. */
-/*      We want to minimize the number of resizing: *\/ */
-/*   while(new_global_no < requested_global_no) */
-/*     new_global_no *= 2; */
-
-/*   /\* Copy the already-used elements, and simply zero the rest: *\/ */
-/*   new_array = caml_alloc_shr_r(ctx, new_global_no, 0); */
-/*   fprintf(stderr, "** caml_resize_global_array_r: we have now reserved space for %i globals\n", (int)new_global_no); */
-/*   for (i = 0; i < old_global_no; i ++) */
-/*     caml_initialize_r(ctx, &Field(new_array, i), Field(ctx->caml_global_data, i)); */
-/*   for (; i < new_global_no; i ++) */
-/*     caml_initialize_r(ctx, &Field(new_array, i), Val_long(0)); */
-
-/*   /\* Make the new global array the "official" one for this context, */
-/*      and oldify it so we don't waste time scanning it too many times. */
-/*      The old global array will be garbage-collected. *\/ */
-/*   ctx->caml_global_data = new_array; */
-/*   caml_oldify_one_r (ctx, ctx->caml_global_data, &ctx->caml_global_data); */
-/*   caml_oldify_mopup_r (ctx); */
-/* } */
+  /* Free the context data structure ifself: */
+  caml_stat_free(ctx);
+}
 
 /* The index of the first word in caml_globals which is not used yet.
    This variable is shared by all contexts, and accessed in mutual
@@ -594,9 +579,10 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   char *module_name = (char*)offset_pointer + sizeof(long);
 
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
-  fprintf(stderr, "Context %p: ??????? caml_register_module_r [%s]: BEGIN [%lu bytes at %p]\n",
+  fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n",
           ctx,
           module_name,
+          offset_pointer,
           (unsigned long)size_in_bytes,
           offset_pointer); fflush(stderr);
 
@@ -620,10 +606,13 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* fprintf(stderr, "The offset (in bytes) we just wrote at %p is %li\n", offset_pointer, *offset_pointer); */
   /* fprintf(stderr, "The context is at %p\n", (void*)ctx); */
   /* fprintf(stderr, "Globals are at %p\n", (void*)ctx->caml_globals.array); */
-  fprintf(stderr, "caml_register_module_r: registered %p [%s].  END (still alive)\n", offset_pointer, module_name); fflush(stderr);
+  fprintf(stderr, "caml_register_module_r [context %p]: registered %s@%p.  END (still alive)\n", ctx, module_name, offset_pointer); fflush(stderr);
 }
 
 void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
+  /* We keep the module name right after the offset pointer, as a read-only string: */
+  char *module_name = (char*)offset_pointer + sizeof(long);
+  fprintf(stderr, "caml_after_module_initialization_r [context %p]: %s@%p: still alive.\n", ctx, module_name, offset_pointer); fflush(stderr);
   /*
   fprintf(stderr, "caml_after_module_initialization_r: BEGIN [%lu bytes at %p]\n",
          (unsigned long)size_in_bytes,
@@ -694,7 +683,7 @@ void caml_context_initialize_global_stuff(void){
     exit(EXIT_FAILURE);
   }
   pthread_mutex_init(&caml_global_mutex, &attributes);
-  fprintf(stderr, "= {%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__count, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "= {%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__count, (void*)(pthread_self())); fflush(stderr);
   pthread_mutexattr_destroy(&attributes);
 }
 

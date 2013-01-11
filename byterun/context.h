@@ -461,6 +461,8 @@ struct caml_global_context {
   intnat caml_stat_heap_chunks;  /* = 0; */
   uintnat caml_percent_max;  /* used in gc_ctrl.c and memory.c */
 
+  /* from compact.c */
+  char *compact_fl;
 
   /* from callback.c */
   int caml_callback_depth; /* = 0; */
@@ -577,6 +579,8 @@ struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(v
 #define INIT_CAML_R CAML_R = caml_get_thread_local_context()
 
 extern caml_global_context *caml_initialize_first_global_context(void);
+extern caml_global_context *caml_make_empty_context(void); /* defined in startup.c */
+extern void caml_destroy_context(caml_global_context *c);
 
 /* Access a thread-local context pointer */
 extern caml_global_context *caml_get_thread_local_context(void);
@@ -805,6 +809,10 @@ extern library_context *caml_get_library_context_r(
 
 #endif
 
+#endif
+
+#ifdef CAML_CONTEXT_COMPACT
+#define compact_fl ctx->compact_fl
 #endif
 
 #ifdef CAML_CONTEXT_GC_CTRL
