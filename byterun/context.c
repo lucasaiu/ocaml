@@ -551,20 +551,23 @@ library_context *caml_get_library_context_r(
 }
 
 extern void caml_destroy_context(CAML_R){
-return; /////////////////////////////////////////////////////////
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: really do it\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
   /* No global variables are live any more; destroy everything in the Caml heap: */
   caml_shrink_extensible_buffer(&ctx->caml_globals, ctx->caml_globals.used_size);
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
   //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
   caml_stat_free(ctx->caml_globals.array);
 
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-3\n", ctx, (void*)(pthread_self())); fflush(stderr);
   // Free every dynamically-allocated object which is pointed by the context data structure [FIXME: really do it]:
   caml_stat_free(ctx->descriptor);
   fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
   /* Free the context data structure ifself: */
   caml_stat_free(ctx);
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
 }
 
 /* The index of the first word in caml_globals which is not used yet.
