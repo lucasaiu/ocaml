@@ -19,6 +19,7 @@
 
 /* Primitives for the toplevel */
 
+#include <stdio.h> // FIXME: remove after debugging
 #include <string.h>
 #include "alloc.h"
 #include "config.h"
@@ -80,6 +81,7 @@ CAMLprim value caml_register_code_fragment_r(CAML_R, value prog, value len, valu
 
 CAMLprim value caml_realloc_global_r(CAML_R, value size)
 {
+  fprintf(stderr, "&&&&&&&&&&&&&&&&&&&&& caml_realloc_global_r [context %p]: resizing to %i\n", ctx, (int)Long_val(size)); fflush(stderr);
   mlsize_t requested_size, actual_size, i;
   value new_global_data;
 

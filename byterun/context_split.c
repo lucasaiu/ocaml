@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <limits.h> // FIXME: remove if not used in the end
 
 #define CAML_CONTEXT_ROOTS /* GC-protection macros */
@@ -140,17 +138,13 @@ static value caml_globals_and_data_r(CAML_R, value *data, size_t element_no)
   CAMLreturn(caml_pair_r(ctx, globals, values_to_clone));
 }
 
-/* The result is malloc'ed. */
-static char* caml_globals_and_data_as_c_byte_array_r(CAML_R, value *data, size_t element_no){
-  CAMLparam0();
-  CAMLlocal2(globals_and_data, flags);
-  char *serialized_tuple;
-  intnat serialized_tuple_length;
+/* Return a pointer to a malloc'ed buffer: */
+static char* caml_serialize_into_blob_r(CAML_R, value caml_value){
+  CAMLparam1(caml_value);
+  CAMLlocal1(flags);
+  char *blob;
+  intnat blob_length;
 
-  /* Make a big structure holding all globals and user-specified data: */
-  globals_and_data = caml_globals_and_data_r(ctx, data, element_no);
-
-  /* Serialize it into a malloced string, and return the string: */
   flags = /* Marshal.Closures :: Marshal.Cross_context :: [] */
 //caml_pair_r(ctx, Val_int(0), /* Marshal.Closures, 1st constructor */
     caml_pair_r(ctx,
@@ -164,11 +158,31 @@ static char* caml_globals_and_data_as_c_byte_array_r(CAML_R, value *data, size_t
     ;
 
   /* Marshal the big data structure into a byte array: */
-  caml_output_value_to_malloc_r(ctx, globals_and_data, flags,
-                                &serialized_tuple, &serialized_tuple_length);
-  fprintf(stderr, "Ok-Q 100: ...serialized the huge structure into the blob at %p (length %.2fMB).\n", (void*)globals_and_data, serialized_tuple_length / 1024. / 1024.);
+  caml_output_value_to_malloc_r(ctx, caml_value, flags, &blob, &blob_length);
+  //fprintf(stderr, "Ok-Q 100: ...serialized a structure into the blob at %p (length %.2fMB).\n", blob, blob_length / 1024. / 1024.); fflush(stderr);
 
-  CAMLreturnT(char*, serialized_tuple);
+  CAMLreturnT(char*, blob);
+}
+
+static value caml_deserialize_blob_r(CAML_R, char *blob){
+  CAMLparam0();
+  CAMLlocal1(result);
+caml_acquire_global_lock(); // FIXME: remove after de-staticizing deserialization
+  result = caml_input_value_from_block_r(ctx,
+                                         blob,
+                                         /* FIXME: this third parameter is useless in practice: ask the OCaml people to
+                                            provide an alternate version of caml_input_value_from_block_r with two parameters.
+                                            I don't want to mess up the interface myself, since I'm doing a lot of other
+                                            invasive changes --Luca Saiu REENTRANTRUNTIME */
+                                         LONG_MAX);
+caml_release_global_lock(); // FIXME: remove after de-staticizing deserialization
+  CAMLreturn(result);
+}
+
+/* Of course the result is malloc'ed. */
+static char* caml_globals_and_data_as_c_byte_array_r(CAML_R, value *data, size_t element_no){
+  /* Make a big structure holding all globals and user-specified data, and marshal it into a blob: */
+  return caml_serialize_into_blob_r(ctx, caml_globals_and_data_r(ctx, data, element_no));
 }
 
 static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_values, char *globals_and_data_as_c_array){
@@ -183,16 +197,8 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_va
   /* Deserialize globals and data from the byte array, and access each
      element of the pair. */
   //fprintf(stderr, "Context %p: L0 [thread %p]\n", ctx, (void*)(pthread_self())); fflush(stderr);
-caml_acquire_global_lock();
-  globals_and_data =
-    caml_input_value_from_block_r(ctx,
-                                  globals_and_data_as_c_array,
-                                  /* FIXME: this third parameter is useless in practice: ask the OCaml people to
-                                     provide an alternate version of caml_input_value_from_block_r with two parameters.
-                                     I don't want to mess up the interface myself, since I'm doing a lot of other
-                                     invasive changes --Luca Saiu REENTRANTRUNTIME */
-                                  LONG_MAX);
-caml_release_global_lock();
+  globals_and_data = caml_deserialize_blob_r(ctx, globals_and_data_as_c_array);
+
   //fprintf(stderr, "Context %p: L1 [thread %p]\n", ctx, (void*)(pthread_self())); fflush(stderr);
     //caml_input_value_from_malloc_r(ctx, globals_and_data_as_c_array, 0); // this also frees the buffer */
   global_tuple = Field(globals_and_data, 0);
@@ -254,12 +260,10 @@ caml_gc_compaction_r(ctx, Val_unit); //!!!!!
 /* caml_compact_heap_r (ctx); */
 /* caml_final_do_calls_r (ctx); */
 
-  fprintf(stderr, "W5 [context %p] [thread %p] (index %i) (function %p).  About to V the semaphore.\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
-
   /* Run the Caml function: */
-  fprintf(stderr, "W6 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
+  fprintf(stderr, "W5 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!
-  fprintf(stderr, "W7 [context %p] [thread %p] (index %i) (%i globals) ctx->caml_local_roots is %p\n", ctx, (void*)(pthread_self()), index, (int)(ctx->caml_globals.used_size / sizeof(value)), caml_local_roots); fflush(stderr);
+  //fprintf(stderr, "W7 [context %p] [thread %p] (index %i) (%i globals) ctx->caml_local_roots is %p\n", ctx, (void*)(pthread_self()), index, (int)(ctx->caml_globals.used_size / sizeof(value)), caml_local_roots); fflush(stderr);
   caml_dump_global_mutex();
 
   /* It's important that Extract_exception be used before the next
@@ -294,6 +298,7 @@ static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t 
   /* We're done with the blob: unpin it via the semaphore, so that it
      can be destroyed when all split threads have deserialized. */
 //fprintf(stderr, "W5.5context %p] [thread %p] (index %i) EEEEEEEEEEEEEEEEEEEEEEEEEE\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_release_global_lock();
+  fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  About to V the semaphore.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
   sem_post(semaphore);
 
   /* Now do the actual work, in a function which correctly GC-protects its locals: */
@@ -304,76 +309,6 @@ static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t 
      for accessing the pthread_t objecet from the C join code. */
   return did_we_fail;
 }
-
-/* /\* Return 0 on success and non-zero on failure. *\/ */
-/* static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t *semaphore, /\*out*\/caml_global_context **to_context) */
-/* { */
-/*   int did_we_fail; */
-/*   CAML_R = caml_make_empty_context(); // ctx also becomes the thread-local context */
-/*   CAMLparam0(); */
-/*   CAMLlocal2(function, result_or_exception); */
-/*   *to_context = ctx; */
-
-/* fprintf(stderr, "======Forcing a GC\n"); fflush(stderr); */
-/* caml_gc_compaction_r(ctx, Val_unit); //!!!!! */
-/* fprintf(stderr, "======It's ok to have warnings about the lack of globals up to this point\n"); fflush(stderr); */
-
-/* //fprintf(stderr, "W0[context %p] [thread %p] (index %i) BBBBBBBBBBBBBBBBBBBBBBBBBB\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_acquire_global_lock(); // FIXME: a test. this is obviously unusable in production */
-/*   fprintf(stderr, "W1 [context %p] ctx->caml_local_roots is %p\n", ctx, caml_local_roots); fflush(stderr); */
-/*   /\* Make a new context, and deserialize the blob into it: *\/ */
-/*   fprintf(stderr, "W3 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr); */
-
-/*   // Allocate some trash: */
-/*   caml_pair_r(ctx, */
-/*               caml_pair_r(ctx, Val_int(1), Val_int(2)), */
-/*               caml_pair_r(ctx, Val_int(3), Val_int(4))); */
-
-/*   caml_install_globals_and_data_as_c_byte_array_r(ctx, &function, blob); */
-/*   fprintf(stderr, "W4 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr); */
-/*   caml_gc_compaction_r(ctx, Val_unit); //!!!!! */
-
-/* /\* caml_empty_minor_heap_r(ctx); *\/ */
-/* /\* caml_finish_major_cycle_r (ctx); *\/ */
-/* /\* caml_compact_heap_r (ctx); *\/ */
-/* /\* caml_final_do_calls_r (ctx); *\/ */
-
-/*   fprintf(stderr, "W5 [context %p] [thread %p] (index %i) (function %p).  About to V the semaphore.\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr); */
-
-/*   /\* We're done with the blob: unpin it via the semaphore, so that it */
-/*      can be destroyed when all threads have deserialized. *\/ */
-/* //fprintf(stderr, "W5.5context %p] [thread %p] (index %i) EEEEEEEEEEEEEEEEEEEEEEEEEE\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_release_global_lock(); // FIXME: a test. this is obviously inefficient */
-/*   sem_post(semaphore); */
-
-/*   /\* Run the Caml function: *\/ */
-/*   fprintf(stderr, "W6 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr); */
-/*   caml_gc_compaction_r(ctx, Val_unit); //!!!!! */
-/*   fprintf(stderr, "W7 [context %p] [thread %p] (index %i) (%i globals) ctx->caml_local_roots is %p\n", ctx, (void*)(pthread_self()), index, (int)(ctx->caml_globals.used_size / sizeof(value)), caml_local_roots); fflush(stderr); */
-/*   caml_dump_global_mutex(); */
-
-/*   /\* It's important that Extract_exception be used before the next */
-/*      collection, because result_or_exception is an invalid value in */
-/*      case of exception: *\/ */
-/*   result_or_exception = caml_callback_exn_r(ctx, function, Val_int(index)); */
-/* //int i;for(i=0;i<3;i++){ */
-/*   did_we_fail = Is_exception_result(result_or_exception); */
-/*   if(did_we_fail){ */
-/*     /\* FIXME: we can't just do "caml_raise_r(ctx, Extract_exception(result_or_exception));". */
-
-/*        If we want to propagate the exception to the parent context we */
-/*        have to serialize the exception object, and then deserialize it */
-/*        and raise it in the parent context.  Is that useful? *\/ */
-/*     result_or_exception = Extract_exception(result_or_exception); */
-/*     /\* FIXME: shall we do something with the result?  Really?  It's simpler to just discard it. *\/ */
-/*   } */
-/* //} */
-/*   /\* Ok, we're done with ctx.  Free its resources, and we're done: *\/ */
-
-/*   /\* FIXME: divide this functions into two parts, so that we can call */
-/*      caml_destroy_context out of a CAMLparamX...CAMLreturnX block. *\/ */
-/*   caml_destroy_context(ctx); */
-
-/*   CAMLreturnT(int, did_we_fail); */
-/* } */
 
 struct caml_thread_arguments{
   char *blob;
@@ -426,17 +361,16 @@ static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **spli
   fprintf(stderr, "Context %p: >>>> Every thread has deserialized.\n", ctx); fflush(stderr);
 }
 
-void caml_split_context_r(CAML_R,
-                          caml_global_context **split_contexts,
-                          value function,
-                          size_t how_many)
+CAMLprim value caml_context_split_r(CAML_R, value function, value thread_no_as_value)
 {
   CAMLparam1(function);
-  CAMLlocal1(open_channels);
+  CAMLlocal2(result, open_channels);
+  int thread_no = Int_val(thread_no_as_value);
+  caml_global_context **new_contexts = caml_stat_alloc(sizeof(caml_global_context*) * thread_no);
+  char *blob;
   sem_t semaphore;
-  int init_result = sem_init(&semaphore, /*not process-shared*/0, /*initial value*/0);
-  if(init_result != 0)
-    caml_failwith_r(ctx, "sem_init failed");
+  int i;
+  caml_initialize_semaphore(&semaphore, 0);
 
   /* Make sure that the currently-existing channels stay alive until
      after deserialization; we can't keep reference counts within the
@@ -445,8 +379,8 @@ void caml_split_context_r(CAML_R,
 
   /* Serialize the context in the main thread, then create threads,
      and in each one of them deserialize it back in parallel:  */
-  char *blob = caml_serialize_context(ctx, function);
-  caml_split_and_wait_r(ctx, blob, split_contexts, how_many, &semaphore);
+  blob = caml_serialize_context(ctx, function);
+  caml_split_and_wait_r(ctx, blob, new_contexts, thread_no, &semaphore);
 
   /* Now we're done with the blob: */
   fprintf(stderr, "Context %p: >>>> All child threads have finished with the blob.  Destroying the blob...\n", ctx);
@@ -455,21 +389,13 @@ void caml_split_context_r(CAML_R,
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!
   fprintf(stderr, "Context %p: >>>> Done, still alive after a GC\n", ctx);
 
-  sem_destroy(&semaphore);
+  caml_finalize_semaphore(&semaphore);
   fprintf(stderr, "Context %p: ]]]]] Still alive after splitting and destroying the blob.  Good.\n", ctx);
-  CAMLreturn0;
-}
+  /////
 
-CAMLprim value caml_context_split_r(CAML_R, value function, value thread_no_as_value)
-{
-  CAMLparam1(function);
-  CAMLlocal1(result);
-  int thread_no = Int_val(thread_no_as_value);
-  caml_global_context **new_contexts = caml_stat_alloc(sizeof(caml_global_context*) * thread_no);
-  caml_split_context_r(ctx, new_contexts, function, thread_no);
+  /* Copy the contexts we got, and we're done with new_contexts as well: */
   fprintf(stderr, "Context %p: ]]]] Copying the new context (descriptors) into the Caml data structure result\n", ctx);
   result = caml_alloc_r(ctx, thread_no, 0);
-  int i;
   for(i = 0; i < thread_no; i ++)
     caml_initialize_r(ctx, &Field(result, i), caml_value_of_context_descriptor(new_contexts[i]->descriptor));
   caml_stat_free(new_contexts);
@@ -510,4 +436,72 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
   if(pthread_join_result != 0)
     caml_failwith_r(ctx, "caml_context_join_r: failed");
   CAMLreturn(Val_unit);
+}
+
+CAMLprim value caml_context_send_r(CAML_R, value receiver_context_as_value, value message){
+  struct caml_global_context_descriptor *receiver_descriptor;
+  struct caml_global_context *receiver_context;
+  char *message_blob;
+  CAMLparam2(receiver_context_as_value, message);
+  receiver_descriptor = caml_global_context_descriptor_of_value(receiver_context_as_value);
+
+  if((receiver_descriptor->kind != caml_global_context_nonmain_local) &&
+     (receiver_descriptor->kind != caml_global_context_main))
+    caml_failwith_r(ctx, "caml_context_send_r: remote contexts aren't implemented yet");
+  receiver_context = receiver_descriptor->content.local_context.context;
+  message_blob = caml_serialize_into_blob_r(ctx, message);
+  //fprintf(stderr, "caml_context_send_r [%p]: the receiver context is %p. Waiting for a free queue slot...\n", ctx, receiver_context); fflush(stderr);
+
+  /* Wait till the receiver has space in its queue: */
+  caml_enter_blocking_section_r(ctx);
+  sem_wait(&receiver_context->free_slot_no_semaphore);
+  caml_leave_blocking_section_r(ctx);
+
+  //fprintf(stderr, "caml_context_send_r [%p]: sending the message...\n", ctx); fflush(stderr);
+
+  /* Write the message into the receiver's data structure, and unblock him: */
+  pthread_mutex_lock(&ctx->context_mutex);  // this will be useful when we have an actual queue, of size greater than 1
+  receiver_context->message.message_blob = message_blob;
+  receiver_context->message.sender_descriptor = ctx->descriptor;
+  pthread_mutex_unlock(&ctx->context_mutex);  // this will be useful when we have an actual queue, of size greater than 1
+  sem_post(&receiver_context->message_no_semaphore);
+
+  //fprintf(stderr, "caml_context_send_r [%p]: done\n", ctx); fflush(stderr);
+
+  CAMLreturn(Val_unit);
+}
+
+CAMLprim value caml_context_receive_r(CAML_R){
+  struct caml_global_context_descriptor *sender_descriptor;
+  char *message_blob;
+  CAMLparam0();
+  CAMLlocal1(message);
+  //fprintf(stderr, "caml_context_receive_r [%p]: WAITING FOR A MESSAGE.\n", ctx); fflush(stderr);
+  caml_enter_blocking_section_r(ctx);
+  sem_wait(&ctx->message_no_semaphore);
+  caml_leave_blocking_section_r(ctx);
+
+  /* Get what we need, and immediately unblock the next sender; we can
+     process our message after V'ing. */
+  pthread_mutex_lock(&ctx->context_mutex); // this will be useful when we have an actual queue, of size greater than 1
+  sender_descriptor = ctx->message.sender_descriptor;
+  message_blob = ctx->message.message_blob;
+  pthread_mutex_unlock(&ctx->context_mutex);  // this will be useful when we have an actual queue, of size greater than 1
+  sem_post(&ctx->free_slot_no_semaphore);
+
+  //fprintf(stderr, "caml_context_receive_r [%p]: GOT A MESSAGE.\n", ctx); fflush(stderr);
+
+  struct caml_global_context *sender_context;
+  if((sender_descriptor->kind != caml_global_context_nonmain_local) &&
+     (sender_descriptor->kind != caml_global_context_main))
+    caml_failwith_r(ctx, "caml_context_receive_r: remote contexts aren't implemented yet");
+  sender_context = sender_descriptor->content.local_context.context;
+
+  //fprintf(stderr, "caml_context_receive_r [%p]: the sender context is %p.\n", ctx, sender_context); fflush(stderr);
+  message = caml_deserialize_blob_r(ctx, message_blob);
+  free(message_blob);
+
+  CAMLreturn(caml_pair_r(ctx,
+                         caml_value_of_context_descriptor(sender_descriptor),
+                         message));
 }

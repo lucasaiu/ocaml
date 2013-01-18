@@ -502,15 +502,16 @@ static void extern_rec_r(CAML_R, value v)
     writeblock_r(ctx, (char *) cf->digest, 16);
     //fprintf(stderr, "ZZZZ dumping a code pointer: END\n");
   } else {
-    /* if(extern_cross_context){ */
-    /*   fprintf(stderr, "ZZZZ Copying an external pointer: %p, which is to say %li [cf is %p]\n", (void*)v, (long)v, cf); */
-    /*   fprintf(stderr, "ZZZZ I'm doing a horrible, horrible thing: serializing the pointer as a tagged 0.\n"); */
-    /*   extern_rec_r(ctx, Val_int(0)); */
-    /*   /\* fprintf(stderr, "ZZZZ [This is probably wrong: I'm marshalling an out-of-heap pointer as an int64]\n"); *\/ */
-    /*   /\* writecode64_r(ctx, CODE_INT64, (v << 1) | 1); *\/ */
-    /*   //extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap) [FIXME: implement]"); */
-    /* } */
-    /* else */
+    if(extern_cross_context){
+      fprintf(stderr, "ZZZZ Copying an external pointer: %p, which is to say %li [cf is %p]\n", (void*)v, (long)v, cf);
+      fprintf(stderr, "ZZZZ I'm doing a horrible, horrible thing: serializing the pointer as a tagged 0.\n");
+      volatile int a = 1; a /= 0;
+      extern_rec_r(ctx, Val_int(0));
+      /* fprintf(stderr, "ZZZZ [This is probably wrong: I'm marshalling an out-of-heap pointer as an int64]\n"); */
+      /* writecode64_r(ctx, CODE_INT64, (v << 1) | 1); */
+      //extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap) [FIXME: implement]");
+    }
+    else
       extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap)");
   }
   next_item:

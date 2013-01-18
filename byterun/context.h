@@ -27,6 +27,11 @@
 /* If these includes are missing, the offsets of fields might differ ! */
 #include <signal.h>
 #include <setjmp.h> // FIXME: remove if not needed in the end --Luca Saiu REENTRANTRUNTIME
+
+#define __USE_UNIX98
+#include <pthread.h>
+#include <semaphore.h>
+
 #include "config.h"
 #include "misc.h"
 #include "extensible_buffer.h"
@@ -174,6 +179,11 @@ struct extern_item { value * v; mlsize_t count; }; /* Stack holding pending valu
 enum { NO_SHARING = 1, CLOSURES = 2, CROSS_CONTEXT = 4 };
 
 
+struct caml_message{
+  struct caml_global_context_descriptor *sender_descriptor;
+  char *message_blob;
+}; // struct
+
 /* The field ordering should not be changing without also updating the
    macro definitions at the beginning of asmrun/ARCHITECTURE.s. */
 struct caml_global_context {
@@ -188,14 +198,15 @@ struct caml_global_context {
   /* 6 */ int caml_backtrace_active;
   int padding1; /* FIXME: is there some good reason for caml_backtrace_active to
                    be int rather than long?  --Luca Saiu REENTRANTRUNTIME */
-#endif
   /* Context-local "global" OCaml variables: */
 #define INITIAL_CAML_GLOBALS_ALLOCATED_SIZE 8 /* in bytes */
   /* 7, 8, 9 */struct caml_extensible_buffer caml_globals; /* = {dynamic, INITIAL_CAML_GLOBALS_ALLOCATED_SIZE, 0} */
-  /* 10 */ value caml_global_data; // Moved by Luca Saiu REENTRANTRUNTIME: FIXME: I can put it back where it was
+#endif
 
-/* /\* How many elements caml_global_data contains at startup: *\/ */
-/* #define CAML_INITIAL_GLOBAL_NO 50000 // Luca Saiu REENTRANTRUNTIME */
+#ifndef NATIVE_CODE
+  // FIXME: should I rename this?  It's not clear from tha name that this is bytecode-only
+  value caml_global_data; // Moved by Luca Saiu REENTRANTRUNTIME: FIXME: I can put it back where it was
+#endif /* #ifndef NATIVE_CODE */
 
 
 #ifdef NATIVE_CODE
@@ -537,6 +548,16 @@ struct caml_global_context {
   /* Procedure parameters: */
   struct caml_global_context *after_longjmp_context;
   char *after_longjmp_serialized_blob;
+
+  /* The context mutex, protecting concurrent accesses to contextual data such as the message queue: */
+  pthread_mutex_t context_mutex;
+
+  /* The message queue, and its synchronization structure.  This holds malloced buffers to be deserialized. */
+  sem_t message_no_semaphore; /* count the number of messages: only 0 or 1 with this simplistic implementation */
+  sem_t free_slot_no_semaphore; /* count the number of free slots: only 0 or 1 with this simplistic implementation */
+  struct caml_message message;
+
+  /* The (POSIX) thread associated to this context: */
   pthread_t thread;
 }; /* struct caml_global_context */
 
@@ -927,4 +948,11 @@ void caml_release_global_lock(void);
 
 // FIXME: remove this after debugging
 void caml_dump_global_mutex(void);
+
+/* Utility: */
+void caml_initialize_mutex(pthread_mutex_t *mutex);
+void caml_finalize_mutex(pthread_mutex_t *mutex);
+void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
+void caml_finalize_semaphore(sem_t *semaphore);
+
 #endif

@@ -25,9 +25,6 @@
 #include <unistd.h> // for sleep
 #include <string.h>
 
-#define __USE_UNIX98
-#include <pthread.h>
-
 #include "mlvalues.h"
 #include "gc.h"
 #include "startup.h"
@@ -63,6 +60,34 @@ extern char caml_globals_map[];
 /* The global lock: */
 static pthread_mutex_t caml_global_mutex = (pthread_mutex_t)(long)0xdeaddeaddeaddead;
 
+void caml_initialize_mutex(pthread_mutex_t *mutex){
+  pthread_mutexattr_t attributes;
+  pthread_mutexattr_init(&attributes);
+  int result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE_NP);
+  if(result){
+    fprintf(stderr, "++++++++ [thread %p] pthread_mutexattr_settype failed\n", (void*)(pthread_self())); fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+  pthread_mutex_init(&caml_global_mutex, &attributes);
+  //fprintf(stderr, "= {%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__count, (void*)(pthread_self())); fflush(stderr);
+  pthread_mutexattr_destroy(&attributes);
+}
+
+void caml_finalize_mutex(pthread_mutex_t *mutex){
+  pthread_mutex_destroy(mutex);
+}
+
+void caml_initialize_semaphore(sem_t *semaphore, int initial_value){
+  int init_result = sem_init(semaphore, /*not process-shared*/0, initial_value);
+  if(init_result != 0){
+    fprintf(stderr, "++++++++ [thread %p] sem_init failed\n", (void*)(pthread_self())); fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+}
+void caml_finalize_semaphore(sem_t *semaphore){
+  sem_destroy(semaphore);
+}
+
 caml_global_context *caml_initialize_first_global_context(void)
 {
   /* Maybe we should use partial contexts for specific tasks, that
@@ -71,6 +96,17 @@ each part of the context, to allocate only what is probably required
 by all threads, and then allocate other sub-contexts on demand. */
 
   caml_global_context* ctx = (caml_global_context*)malloc( sizeof(caml_global_context) );
+  /*
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT  --Luca Saiu REENTRANTRUNTIME: BEGIN
+FIXME: This is a pretty bad symptom.  If I replace the 0 with a 1, the
+thing always crashes; but the memset call was just there for
+defensiveness, [I suppose, actually, the memset call has been there
+since the original version by Fabrice]... There is some struct field
+which is never correctly initialized.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT  --Luca Saiu REENTRANTRUNTIME: END
+*/
+  //memset(ctx, 1, sizeof(caml_global_context));
+  //memset(ctx, -1, sizeof(caml_global_context));
   memset(ctx, 0, sizeof(caml_global_context));
 
 #ifdef NATIVE_CODE
@@ -380,9 +416,11 @@ section.  */
   */
 
   /* Global context-local OCaml variables */
+#ifdef NATIVE_CODE
   ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE;
   ctx->caml_globals.used_size = 0;
   ctx->caml_globals.array = caml_stat_alloc(ctx->caml_globals.allocated_size);
+#endif /* #ifdef NATIVE_CODE */
 
   /* Global context-local C variables */
   ctx->c_globals.allocated_size = INITIAL_C_GLOBALS_ALLOCATED_SIZE;
@@ -393,20 +431,30 @@ section.  */
   ctx->thread = pthread_self();
   caml_set_thread_local_context(ctx);
 
+  /* Make the message queue: */
+  caml_initialize_semaphore(&ctx->message_no_semaphore, 0);
+  caml_initialize_semaphore(&ctx->free_slot_no_semaphore, 1);
+  ctx->message.sender_descriptor = NULL; // just to ease debugging
+  ctx->message.message_blob = NULL;
+
   /* Make a local descriptor for this context: */
+  fprintf(stderr, "Initializing the context descriptor...\n"); fflush(stderr);
   ctx->descriptor = caml_stat_alloc(sizeof(struct caml_global_context_descriptor));
   ctx->descriptor->kind = caml_global_context_main;
   ctx->descriptor->content.local_context.context = ctx;
+  fprintf(stderr, "Initialized the context [%p] descriptor [%p]\n", ctx, ctx->descriptor); fflush(stderr);
 
   return ctx;
 }
 
+#ifdef NATIVE_CODE
 /* Return an index, in words */
 int caml_allocate_caml_globals_r(CAML_R, size_t added_caml_global_no){
   size_t new_used_size =
     caml_allocate_from_extensible_buffer(&ctx->caml_globals, added_caml_global_no * sizeof(value), /*as the least-significant byte, this yields a non-pointer*/1);
   return new_used_size / sizeof(value);
 }
+#endif /* #ifdef NATIVE_CODE */
 
 /* Reserve space for a new element of the given size.  Return the new
    object byte offset from the beginning of c_global.array */
@@ -430,6 +478,7 @@ void* caml_context_local_c_variable_r(CAML_R, caml_c_global_id id){
 }
 
 void caml_scan_caml_globals_r(CAML_R, scanning_action f){
+#ifdef NATIVE_CODE
   int i, caml_global_no = ctx->caml_globals.used_size / sizeof(value);
   if(ctx != caml_get_thread_local_context())
     {fprintf(stderr, "Context %p: it's different from the thread-local context %p !!!\n", ctx, caml_get_thread_local_context()); fflush(stderr);};
@@ -464,6 +513,7 @@ void caml_scan_caml_globals_r(CAML_R, scanning_action f){
     f(ctx, *root_pointer, root_pointer);
   }
   //printf("Scanning Caml globals: end\n");
+#endif /* #ifdef NATIVE_CODE */
 }
 
 /* // FIXME: untyped globals.  Experimental --Luca Saiu REENTRANTRUNTIME */
@@ -510,10 +560,9 @@ void caml_leave_lock_section_r(CAML_R)
 
 /* the first other context (at pos 0) is always NULL, so that we are sure the first
    line of caml_get_library_context_r is ok to execute. */
-static int nbr_other_contexts = 0;
+static int nbr_other_contexts = 0; // FIXME: I've never touched this, nor library contexts.  Ask Fabrice
 
-library_context *caml_get_library_context_r(
-					    CAML_R,
+library_context *caml_get_library_context_r(CAML_R,
 					    int* library_context_pos,
 					    int sizeof_library_context,
 					    void (*library_context_init_hook)(library_context*)){
@@ -551,23 +600,25 @@ library_context *caml_get_library_context_r(
 }
 
 extern void caml_destroy_context(CAML_R){
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
   /* No global variables are live any more; destroy everything in the Caml heap: */
+#ifdef NATIVE_CODE
   caml_shrink_extensible_buffer(&ctx->caml_globals, ctx->caml_globals.used_size);
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
   //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
   caml_stat_free(ctx->caml_globals.array);
+#endif /* #ifdef NATIVE_CODE */
 
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-3\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-3\n", ctx, (void*)(pthread_self())); fflush(stderr);
   // Free every dynamically-allocated object which is pointed by the context data structure [FIXME: really do it]:
   caml_stat_free(ctx->descriptor);
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
   /* Free the context data structure ifself: */
   caml_stat_free(ctx);
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
 }
 
 /* The index of the first word in caml_globals which is not used yet.
@@ -575,6 +626,7 @@ extern void caml_destroy_context(CAML_R){
    exclusion. */
 static long first_unused_word_offset = 0; // the first word is unused
 
+#ifdef NATIVE_CODE
 void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* Compute the size in words, which is to say how many globals are there: */
   int size_in_words = size_in_bytes / sizeof(void*);
@@ -611,6 +663,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* fprintf(stderr, "Globals are at %p\n", (void*)ctx->caml_globals.array); */
   fprintf(stderr, "caml_register_module_r [context %p]: registered %s@%p.  END (still alive)\n", ctx, module_name, offset_pointer); fflush(stderr);
 }
+#endif /* #ifdef NATIVE_CODE */
 
 void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* We keep the module name right after the offset pointer, as a read-only string: */
@@ -678,16 +731,7 @@ void caml_context_initialize_global_stuff(void){
   already_initialized = 1;
 
   /* Create the global lock: */
-  pthread_mutexattr_t attributes;
-  pthread_mutexattr_init(&attributes);
-  int result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE_NP);
-  if(result){
-    fprintf(stderr, "++++++++ [thread %p] pthread_mutexattr_settype failed\n", (void*)(pthread_self())); fflush(stderr);
-    exit(EXIT_FAILURE);
-  }
-  pthread_mutex_init(&caml_global_mutex, &attributes);
-  //fprintf(stderr, "= {%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__count, (void*)(pthread_self())); fflush(stderr);
-  pthread_mutexattr_destroy(&attributes);
+  caml_initialize_mutex(&caml_global_mutex);
 }
 
 void caml_acquire_global_lock(void){

@@ -454,6 +454,12 @@ CAMLexport caml_global_context* caml_main_rr(char **argv)
   chan = caml_open_descriptor_in_r(ctx, fd);
   caml_global_data = caml_input_val_r(ctx, chan);
   caml_close_channel(chan); /* this also closes fd */
+  //////////////
+
+  fprintf(stderr, "[bytecode] startup: A\n"); fflush(stderr);
+  fprintf(stderr, "caml_global_data is %i words long\n", (int)Wosize_val(caml_global_data)); fflush(stderr);
+
+  //////////////
   caml_stat_free(trail.section);
   /* Ensure that the globals are in the major heap. */
   caml_oldify_one_r (ctx, caml_global_data, &caml_global_data);
@@ -543,6 +549,9 @@ CAMLexport void caml_startup_code(
   caml_build_primitive_table_builtin_r(ctx);
   /* Load the globals */
   caml_global_data = caml_input_value_from_block_r(ctx, data, data_size);
+  //////////////////////////////////////////////////////////////////////////////
+  fprintf(stderr, "[bytecode] startup: B\n"); fflush(stderr);
+  //////////////////////////////////////////////////////////////////////////////
   /* Ensure that the globals are in the major heap. */
   caml_oldify_one_r (ctx, caml_global_data, &caml_global_data);
   caml_oldify_mopup_r (ctx);

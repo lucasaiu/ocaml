@@ -4,6 +4,8 @@
 type t =
   int
 
+let core_no () = failwith "unimplemented"
+
 external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"
 external is_remote : t -> bool = "caml_context_is_remote_r" "reentrant"
@@ -54,8 +56,8 @@ let iota n =
 (*   !results *)
 
 (* external exit : unit -> unit = "caml_context_exit_r" "reentrant" *)
-let send message receiver_context = failwith "unimplemented"
-let receive receiver_context = failwith "unimplemented"
+external send : t -> 'a -> unit = "caml_context_send_r" "reentrant"
+external receive : unit -> (t * 'a) = "caml_context_receive_r" "reentrant"
 
 let to_string context =
   string_of_int ((Obj.magic context) :> int)

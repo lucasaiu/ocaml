@@ -202,12 +202,8 @@ caml_global_context* caml_main_rr(char **argv)
   caml_init_gc_r (ctx, minor_heap_init, heap_size_init, heap_chunk_init,
                 percent_free_init, max_percent_free_init);
 
-  /* I don't think that ctx->caml_global_data is actually used for
-     native code.  Just to be sure, I set it to a non-pointer and then
-     forget about it.  If the field is used then the thing will crash,
-     and I will know.  --Luca Saiu REENTRANTRUNTIME */
-  ctx->caml_global_data = Val_long(42);
-
+  /* ctx->caml_global_data is only used for bytecode */
+  /* ctx->caml_global_data = Val_int(42); // Unused with native code: set to a valid OCaml value, and forget about it. */
 /*   caml_oldify_one_r (ctx, ctx->caml_global_data, &ctx->caml_global_data); */
 /*   caml_oldify_mopup_r (ctx); // FIXME: what's this for, exactly?  --Luca Saiu REENTRANTRUNTIME */
 

@@ -2,6 +2,8 @@
 
 type t
 
+let core_no : unit -> int
+
 val split : (int -> unit) -> int -> (t list)
 val join : t list -> unit
 
@@ -22,8 +24,8 @@ val self : unit -> t
 val is_main : t -> bool
 val is_remote : t -> bool
 
-val send : 'a -> t -> unit
-val receive : t -> 'a
+val send : t -> 'a -> unit
+val receive : unit -> (t * 'a)
 
 (*
 val send_to_any : 'a -> (t list) -> unit

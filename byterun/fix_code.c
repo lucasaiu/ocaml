@@ -96,6 +96,7 @@ void caml_fixup_endianness_r(CAML_R, code_t code, asize_t len)
 
 void caml_thread_code_r (CAML_R, code_t code, asize_t len)
 {
+  fprintf(stderr, "&&&&&&&&&&&&&&&&&&&&& caml_thread_code_r [context %p]\n", ctx); fflush(stderr);
   code_t p;
   int l [STOP + 1];
   int i;
