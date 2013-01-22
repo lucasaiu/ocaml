@@ -79,3 +79,14 @@ external join1 : t -> unit = "caml_context_join_r" "reentrant"
 
 let join contexts =
   List.iter join1 contexts
+
+(* Mailboxes: not implemented yet *)
+type mailbox = int
+let msplit context_no f =
+  failwith "msplit: unimplemented"
+let msend mailbox message =
+  failwith "msend: unimplemented"
+let mreceive mailbox =
+  failwith "mreceive: unimplemented"
+let make_local_mailbox () =
+  failwith "make_local_mailbox: unimplemented"

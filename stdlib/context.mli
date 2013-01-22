@@ -2,6 +2,14 @@
 
 type t
 
+(* Experimental and not implemnted yet: BEGIN *)
+type mailbox
+val msplit : int -> (mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
+val msend : mailbox -> 'a -> unit
+val mreceive : mailbox -> 'a
+val make_local_mailbox : unit -> mailbox
+(* Experimental and not implemnted yet: END *)
+
 val cpu_no : unit -> int
 
 val split : (int -> unit) -> int -> (t list)
