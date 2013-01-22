@@ -4,7 +4,7 @@
 type t =
   int
 
-let core_no () = failwith "unimplemented"
+external cpu_no : unit -> int = "caml_cpu_no_r" "reentrant"
 
 external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"

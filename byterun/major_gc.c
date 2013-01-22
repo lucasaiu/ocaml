@@ -466,7 +466,7 @@ asize_t caml_round_heap_chunk_size_r (CAML_R, asize_t request)
 
 void caml_init_major_heap_r (CAML_R, asize_t heap_size)
 {
-  fprintf(stderr, "§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§ caml_init_major_heap_r [context %p]\n", ctx); fflush(stderr);
+  //fprintf(stderr, "§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§ caml_init_major_heap_r [context %p]\n", ctx); fflush(stderr);
   caml_stat_heap_size = clip_heap_chunk_size (heap_size);
   caml_stat_top_heap_size = caml_stat_heap_size;
   Assert (caml_stat_heap_size % Page_size == 0);

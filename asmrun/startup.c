@@ -231,17 +231,17 @@ caml_global_context* caml_main_rr(char **argv)
   /* if (Is_exception_result(res)) */
   /*   caml_fatal_uncaught_exception_r(ctx, Extract_exception(res)); */
 
-  /* printf("HHH OK2\n"); */
+  /* fprintf(stderr, "HHH OK2\n"); */
 
   /* return ctx; */
   // Before my experimental changes: end --Luca Saiu REENTRANTRUNTIME
 
   //// Very experimental: begin --Luca Saiu REENTRANTRUNTIME
   
-  printf("caml_main_rr: setjmp'ing [%p]\n", *((void**)(ctx->where_to_longjmp)));
+  //fprintf(stderr, "caml_main_rr: setjmp'ing [%p]\n", *((void**)(ctx->where_to_longjmp)));
   if(setjmp(ctx->where_to_longjmp)){
-    printf("caml_main_rr: back from a longjmp [%p]\n", *((void**)(ctx->where_to_longjmp)));
-    printf("In the parent context caml_bottom_of_stack is %p\n", caml_bottom_of_stack);    ////
+    fprintf(stderr, "caml_main_rr: back from a longjmp [%p]\n", *((void**)(ctx->where_to_longjmp)));
+    //fprintf(stderr, "In the parent context caml_bottom_of_stack is %p\n", caml_bottom_of_stack);    ////
     //caml_init_gc_r (ctx->after_longjmp_context, minor_heap_init, heap_size_init, heap_chunk_init, percent_free_init, max_percent_free_init);
     // Very experimental.  Begin.  What the fuck happens here?
     // caml_top_of_stack = &tos;
@@ -252,11 +252,11 @@ caml_global_context* caml_main_rr(char **argv)
     return NULL; /* this should be unreachable */
   }
   else{
-    printf("caml_main_rr: right after the setjmp call [%p]\n", *((void**)(ctx->where_to_longjmp)));
+    //fprintf(stderr, "caml_main_rr: right after the setjmp call [%p]\n", *((void**)(ctx->where_to_longjmp)));
     res = caml_start_program_r(ctx);
     if (Is_exception_result(res))
       caml_fatal_uncaught_exception_r(ctx, Extract_exception(res));
-    printf("caml_main_rr: exiting normally\n");
+    //fprintf(stderr, "caml_main_rr: exiting normally\n");
     return ctx;
   }
   //// Very experimental: end --Luca Saiu REENTRANTRUNTIME

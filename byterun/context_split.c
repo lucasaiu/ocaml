@@ -303,7 +303,10 @@ static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t 
 
   /* Now do the actual work, in a function which correctly GC-protects its locals: */
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
-
+  if(did_we_fail){
+    fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  FAILED.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
+    volatile int a = 1; a /= 0; /*die horribly*/
+  }
   /* We're done.  But we can't destroy the context yet, until it's
      joined: the object must remain visibile to the OCaml code, and
      for accessing the pthread_t objecet from the C join code. */
@@ -419,7 +422,7 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
   else if(descriptor->kind == caml_global_context_remote)
     caml_failwith_r(ctx, "caml_context_join_r: remote context");
   Assert(descriptor->kind == caml_global_context_nonmain_local);
-  //fprintf(stderr, "!!!! JOINING %p\n", (void*)descriptor->content.local_context.context->thread); fflush(stderr);
+  fprintf(stderr, "!!!! JOINING %p\n", (void*)descriptor->content.local_context.context->thread); fflush(stderr);
   pthread_join_result = pthread_join(descriptor->content.local_context.context->thread, &did_we_fail_as_void_star);
   did_we_fail = (int)(long)did_we_fail_as_void_star;
   fprintf(stderr, "!!!! JOINED %p: did we fail? %i\n", (void*)descriptor->content.local_context.context->thread, did_we_fail); fflush(stderr);

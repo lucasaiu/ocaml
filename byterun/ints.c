@@ -321,6 +321,9 @@ CAMLprim value caml_int32_of_int_r(CAML_R, value v)
 CAMLprim value caml_int32_to_int(value v)
 { return Val_long(Int32_val(v)); }
 
+CAMLprim value caml_int32_to_int_r(CAML_R, value v)
+{ return caml_int32_to_int(v); } // FIXME: remove
+
 CAMLprim value caml_int32_of_float_r(CAML_R, value v)
 { return caml_copy_int32_r(ctx,(int32)(Double_val(v))); }
 

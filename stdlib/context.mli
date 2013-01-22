@@ -2,7 +2,7 @@
 
 type t
 
-let core_no : unit -> int
+val cpu_no : unit -> int
 
 val split : (int -> unit) -> int -> (t list)
 val join : t list -> unit

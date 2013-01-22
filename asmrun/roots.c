@@ -51,7 +51,7 @@ static caml_link *frametables = NULL;
 
 void caml_register_frametable_r(CAML_R, intnat *table) {
 caml_acquire_global_lock();
-  fprintf(stderr, "$$$$$ Context %p: caml_register_frametable_r (table is at %p)\n", ctx, table);
+//fprintf(stderr, "$$$$$ Context %p: caml_register_frametable_r (table is at %p)\n", ctx, table);
   frametables = cons(table,frametables);
 
   if (NULL != caml_frame_descriptors) {
@@ -64,7 +64,7 @@ caml_release_global_lock();
 
 void caml_init_frame_descriptors_r(CAML_R)
 {
-  fprintf(stderr, "$$$$$ Context %p: caml_init_frame_descriptors_r: BEGIN\n", ctx);
+  //fprintf(stderr, "$$$$$ Context %p: caml_init_frame_descriptors_r: BEGIN\n", ctx);
 caml_acquire_global_lock();
   intnat num_descr, tblsize, i, j, len;
   intnat * tbl;
@@ -119,7 +119,7 @@ caml_acquire_global_lock();
     }
   }
 caml_release_global_lock();
-  fprintf(stderr, "$$$$$ Context %p: caml_init_frame_descriptors_r: END\n", ctx);
+//fprintf(stderr, "$$$$$ Context %p: caml_init_frame_descriptors_r: END\n", ctx);
 }
 
 void caml_register_dyn_global_r(CAML_R, void *v) {
@@ -131,7 +131,7 @@ void caml_register_dyn_global_r(CAML_R, void *v) {
    heap. */
 void caml_oldify_local_roots_r (CAML_R)
 {
-  fprintf(stderr, "$$$$$ Context %p [thread %p]: caml_oldify_local_roots_r\n", ctx, (void*)(pthread_self()));caml_dump_global_mutex();
+  //fprintf(stderr, "$$$$$ Context %p [thread %p]: caml_oldify_local_roots_r\n", ctx, (void*)(pthread_self()));caml_dump_global_mutex();
 caml_acquire_global_lock();
   char * sp;
   uintnat retaddr;
@@ -357,9 +357,11 @@ caml_release_global_lock();
 uintnat caml_stack_usage_r (CAML_R)
 {
   uintnat sz;
+caml_acquire_global_lock();
   sz = (value *) caml_top_of_stack - (value *) caml_bottom_of_stack;
   if (caml_stack_usage_hook != NULL)
     sz += (*caml_stack_usage_hook)();
+caml_release_global_lock();
   return sz;
 }
 

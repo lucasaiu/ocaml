@@ -24,7 +24,7 @@
 //#include <stddef.h> /* for offsetof */
 #include <unistd.h> // for sleep
 #include <string.h>
-
+#include <sys/sysinfo.h> // for sysconf
 #include "mlvalues.h"
 #include "gc.h"
 #include "startup.h"
@@ -438,11 +438,11 @@ section.  */
   ctx->message.message_blob = NULL;
 
   /* Make a local descriptor for this context: */
-  fprintf(stderr, "Initializing the context descriptor...\n"); fflush(stderr);
+  //fprintf(stderr, "Initializing the context descriptor...\n"); fflush(stderr);
   ctx->descriptor = caml_stat_alloc(sizeof(struct caml_global_context_descriptor));
   ctx->descriptor->kind = caml_global_context_main;
   ctx->descriptor->content.local_context.context = ctx;
-  fprintf(stderr, "Initialized the context [%p] descriptor [%p]\n", ctx, ctx->descriptor); fflush(stderr);
+  //fprintf(stderr, "Initialized the context [%p] descriptor [%p]\n", ctx, ctx->descriptor); fflush(stderr);
 
   return ctx;
 }
@@ -634,12 +634,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   char *module_name = (char*)offset_pointer + sizeof(long);
 
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
-  fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n",
-          ctx,
-          module_name,
-          offset_pointer,
-          (unsigned long)size_in_bytes,
-          offset_pointer); fflush(stderr);
+  //fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n", ctx, module_name, offset_pointer, (unsigned long)size_in_bytes, offset_pointer); fflush(stderr);
 
   /* If this is the first time we register this module, make space for its globals in
      ctx->caml_globals.  If the module was already registered, do nothing. */
@@ -661,14 +656,14 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* fprintf(stderr, "The offset (in bytes) we just wrote at %p is %li\n", offset_pointer, *offset_pointer); */
   /* fprintf(stderr, "The context is at %p\n", (void*)ctx); */
   /* fprintf(stderr, "Globals are at %p\n", (void*)ctx->caml_globals.array); */
-  fprintf(stderr, "caml_register_module_r [context %p]: registered %s@%p.  END (still alive)\n", ctx, module_name, offset_pointer); fflush(stderr);
+  //fprintf(stderr, "caml_register_module_r [context %p]: registered %s@%p.  END (still alive)\n", ctx, module_name, offset_pointer); fflush(stderr);
 }
 #endif /* #ifdef NATIVE_CODE */
 
 void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* We keep the module name right after the offset pointer, as a read-only string: */
   char *module_name = (char*)offset_pointer + sizeof(long);
-  fprintf(stderr, "caml_after_module_initialization_r [context %p]: %s@%p: still alive.\n", ctx, module_name, offset_pointer); fflush(stderr);
+  //fprintf(stderr, "caml_after_module_initialization_r [context %p]: %s@%p: still alive.\n", ctx, module_name, offset_pointer); fflush(stderr);
   /*
   fprintf(stderr, "caml_after_module_initialization_r: BEGIN [%lu bytes at %p]\n",
          (unsigned long)size_in_bytes,
@@ -708,14 +703,21 @@ CAMLprim value caml_context_self_r(CAML_R)
 
 CAMLprim value caml_context_is_main_r(CAML_R, value descriptor)
 {
-  return Val_bool(caml_global_context_descriptor_of_value(descriptor)->kind
-                  == caml_global_context_main);
+  //fprintf(stderr, "caml_context_is_main_r [context %p] [thread %p]: the result is %i\n", ctx, (void*)(pthread_self()), caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_main); fflush(stderr);
+  return Val_bool(caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_main);
 }
 
 CAMLprim value caml_context_is_remote_r(CAML_R, value descriptor)
 {
-  return Val_bool(caml_global_context_descriptor_of_value(descriptor)->kind
-                  == caml_global_context_remote);
+  return Val_bool(caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_remote);
+}
+
+CAMLprim value caml_cpu_no_r(CAML_R, value unit){
+  /* FIXME: this is a GNU extension.  What should we do on non-GNU systems? */
+  int cpu_no =
+    //get_nprocs_conf(); 
+    sysconf(_SC_NPROCESSORS_ONLN);
+  return Val_int(cpu_no);
 }
 
 void caml_context_initialize_global_stuff(void){

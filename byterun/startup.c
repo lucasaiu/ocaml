@@ -456,8 +456,8 @@ CAMLexport caml_global_context* caml_main_rr(char **argv)
   caml_close_channel(chan); /* this also closes fd */
   //////////////
 
-  fprintf(stderr, "[bytecode] startup: A\n"); fflush(stderr);
-  fprintf(stderr, "caml_global_data is %i words long\n", (int)Wosize_val(caml_global_data)); fflush(stderr);
+  //fprintf(stderr, "[bytecode] startup: A\n"); fflush(stderr);
+  //fprintf(stderr, "caml_global_data is %i words long\n", (int)Wosize_val(caml_global_data)); fflush(stderr);
 
   //////////////
   caml_stat_free(trail.section);
@@ -550,7 +550,7 @@ CAMLexport void caml_startup_code(
   /* Load the globals */
   caml_global_data = caml_input_value_from_block_r(ctx, data, data_size);
   //////////////////////////////////////////////////////////////////////////////
-  fprintf(stderr, "[bytecode] startup: B\n"); fflush(stderr);
+  //fprintf(stderr, "[bytecode] startup: B\n"); fflush(stderr);
   //////////////////////////////////////////////////////////////////////////////
   /* Ensure that the globals are in the major heap. */
   caml_oldify_one_r (ctx, caml_global_data, &caml_global_data);

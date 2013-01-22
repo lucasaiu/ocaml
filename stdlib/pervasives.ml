@@ -446,10 +446,10 @@ let at_exit f =
   let g = !exit_function in
   exit_function := (fun () -> f(); g())
 
-(* (\* Unchanged code: *\) *)
+(* Unchanged code: *)
 (* let do_at_exit () = (!exit_function) () *)
 
-let do_at_exit () = prerr_string "do_at_exit: begin\n"; (!exit_function) (); prerr_string "do_at_exit: still alive\n"
+let do_at_exit () = (!exit_function) ()
 
 let exit retcode =
   do_at_exit ();
