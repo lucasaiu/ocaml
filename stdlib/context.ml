@@ -81,7 +81,7 @@ let join contexts =
   List.iter join1 contexts
 
 (* Mailboxes: not implemented yet *)
-type mailbox = int
+(*type mailbox = int
 let msplit context_no f =
   failwith "msplit: unimplemented"
 let msend mailbox message =
@@ -90,3 +90,101 @@ let mreceive mailbox =
   failwith "mreceive: unimplemented"
 let make_local_mailbox () =
   failwith "make_local_mailbox: unimplemented"
+*)
+
+(* Temporary, horrible, inefficient and generally revolting implemantation of mailboxes: *)
+type mailbox = t * int
+exception ForeignMailbox of mailbox
+
+let local_mailbox_counter = ref 0
+
+let make_local_mailbox () =
+  let index = !local_mailbox_counter in
+  local_mailbox_counter := index + 1;
+  (self ()), index
+
+let context_of_mailbox (context, _) =
+  context
+
+let is_mailbox_local (context, _) =
+  (self ()) = context
+
+let msplit context_no f =
+  let contexts =
+    split
+      (fun index ->
+        local_mailbox_counter := 0; (* reset the local index *)
+        f index (make_local_mailbox ()))
+      context_no in
+  List.map (fun context -> (context, 0)) contexts;;
+
+let msend mailbox message =
+  let context, index = mailbox in
+  send context (index, message)
+
+let rec mreceive mailbox =
+  if is_mailbox_local mailbox then
+    let context, mailbox_index = mailbox in
+    let (*sender*)_, (message_index, message) = receive () in
+    Printf.fprintf stderr "%i,%i: received a message for ourself.  Good\n" context mailbox_index; flush stderr;
+    if mailbox_index = message_index then
+      message
+    else
+      (Printf.fprintf stderr "%i,%i: received a message for %i,%i; trying again\n" context mailbox_index context message_index; flush stderr;
+       msend mailbox message;
+       mreceive mailbox)
+  else
+    raise (ForeignMailbox mailbox)
+
+
+let taskfarm worker_no work_function =
+  let collector_mailbox = make_local_mailbox () in
+  let worker_mailboxes =
+    msplit
+      worker_no
+      (fun worker_index worker_mailbox ->
+        let availability_mailbox = mreceive worker_mailbox in
+        while true do
+          (* Tell the emitter that we're free, by sending it the mailbox he can
+             use to send us tasks: *)
+          msend availability_mailbox worker_mailbox;
+          (* Receive a parameter, compute on it, and send the result: *)
+          let (sequence_number, parameter) = mreceive worker_mailbox in
+          let result = work_function parameter in
+          msend collector_mailbox (sequence_number, result);
+        done) in
+  let emitter_mailboxes =
+    msplit
+      1
+      (fun _ emitter_mailbox ->
+        let availability_mailbox = make_local_mailbox () in
+        (* Send the mailbox used to signal that a worker is available to workers: *)
+        List.iter
+          (fun worker_mailbox -> msend worker_mailbox availability_mailbox)
+          worker_mailboxes;
+        let counter = ref 0 in
+        while true do
+          (* Get a task: *)
+          let parameter_index = !counter in
+          counter := parameter_index + 1;
+          let parameter = mreceive emitter_mailbox in
+          (* Get a free worker mailbox (waiting if needed): *)
+          let worker_mailbox = mreceive availability_mailbox in
+          (* Send the task to the worker: *)
+          msend worker_mailbox (parameter_index, parameter);
+        done) in
+  let emitter_mailbox = List.hd emitter_mailboxes in
+  (fun parameters ->
+    List.iter
+      (fun parameter -> msend emitter_mailbox parameter)
+      parameters;
+    let results = ref [] in
+    for i = 1 to List.length parameters do
+      ignore i; (* this is silly, but the compiler bitches when I don't use i, and I can't have a pattern instead of the variable as the for loop index *)
+      results := (mreceive collector_mailbox) :: !results;
+    done;
+    List.rev_map
+      snd
+      (List.sort
+         (fun (index1, _) (index2, _) -> (*reversed compare*)compare index2 index1)
+         !results))

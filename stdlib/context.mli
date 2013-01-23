@@ -4,10 +4,13 @@ type t
 
 (* Experimental and not implemnted yet: BEGIN *)
 type mailbox
-val msplit : int -> (mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
-val msend : mailbox -> 'a -> unit
-val mreceive : mailbox -> 'a
+exception ForeignMailbox of mailbox
 val make_local_mailbox : unit -> mailbox
+val context_of_mailbox : mailbox -> t
+val is_mailbox_local : mailbox -> bool
+val msplit : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
+val msend : mailbox -> 'a -> unit
+val mreceive : mailbox -> 'a (* raises ForeignMailbox on a foreign mailbox *)
 (* Experimental and not implemnted yet: END *)
 
 val cpu_no : unit -> int
@@ -53,3 +56,8 @@ val globals : unit -> 'a
 val global_index : 'a -> int
 
 (* val dump : unit -> int *)
+
+(* Given a number of workers and a sequential function f, return a
+   parallel version of (List.map f).  The processed list can have any
+   length *)
+val taskfarm : int -> ('a -> 'b) -> ('a list -> 'b list)
