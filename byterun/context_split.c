@@ -19,6 +19,43 @@
 #include "gc_ctrl.h" // FIXME: remove after debugging, if possible
 #include "compact.h" // FIXME: remove after debugging, if possible
 
+struct caml_mailbox* caml_make_local_mailbox_r(CAML_R){
+  struct caml_mailbox *m = caml_stat_alloc(sizeof(struct caml_mailbox));
+  m->descriptor = ctx->descriptor;
+  caml_initialize_mutex(&m->mutex);
+  //caml_initialize_semaphore(&m->free_slot_no_semaphore, MESSAGE_QUEUE_SIZE);
+  caml_initialize_semaphore(&m->message_no_semaphore, 0);
+  m->message_queue = caml_stat_alloc(sizeof(struct caml_message) * CAML_INITIAL_ALLOCATED_MESSAGE_NO);
+  m->allocated_message_no = CAML_INITIAL_ALLOCATED_MESSAGE_NO;
+  m->message_no = 0;
+  //fprintf(stderr, "caml_make_local_mailbox_r [%p]: made m %p\n", ctx, m); fflush(stderr);
+
+  return m;
+}
+
+CAMLprim value caml_camlprim_make_local_mailbox_r(CAML_R){
+  return caml_value_of_mailbox(caml_make_local_mailbox_r(ctx));
+}
+
+CAMLprim value caml_camlprim_context_of_mailbox_r(CAML_R, value mailbox_as_value){
+  CAMLparam1(mailbox_as_value);
+  struct caml_mailbox *m = caml_mailbox_of_value(mailbox_as_value);
+
+  CAMLreturn(caml_value_of_context_descriptor(m->descriptor));
+}
+
+void caml_destroy_local_mailbox_r(CAML_R, struct caml_mailbox *mailbox){
+  /* Destroy all blobs still in the queue, if any: */
+  int i;
+  for(i = 0; i < mailbox->message_no; i ++)
+    free(mailbox->message_queue[i].message_blob);
+  free(mailbox->message_queue);
+
+  caml_finalize_mutex(&mailbox->mutex);
+  caml_finalize_semaphore(&mailbox->message_no_semaphore);
+  free(mailbox);
+}
+
 /* We implement a slightly more general facility than what is declared
    in the header.  Each serialized context contains globals, plus a
    tuple of values which may share pointers (not necessarily one
@@ -26,23 +63,21 @@
 
 static value caml_tuple_of_c_array_r(CAML_R, value *array, size_t element_no)
 {
-  /* No need for GC protection: this is the only allocation, and if
-     the GC moves the objects pointed by array at allocation time,
-     that's no problem. */
-  //fprintf(stderr, ">>>>>>>>>element_no is %i\n", (int)element_no);
-  value result = caml_alloc_tuple_r(ctx, element_no);
+  CAMLparam0();
+  CAMLlocal1(result);
+  result = caml_alloc_tuple_r(ctx, element_no);
   int i;
   for(i = 0; i < element_no; i ++){
     if(array[i] == 0)
       fprintf(stderr, "%%%%%%%%%% Context %p: the %i-th array element is zero!\n", ctx, i);
     caml_initialize_r(ctx, &Field(result, i), array[i]);
   }
-  return result;
+  CAMLreturn(result);
 }
 
 static void caml_copy_tuple_elements_r(CAML_R, value *to_array, size_t *to_element_no, value from_tuple)
 {
-  /* No need for GC-protection: there is no allocation here. */
+  CAMLparam1(from_tuple);
   size_t element_no = Wosize_val(from_tuple);
   *to_element_no = element_no;
   int i;
@@ -51,6 +86,7 @@ static void caml_copy_tuple_elements_r(CAML_R, value *to_array, size_t *to_eleme
       fprintf(stderr, "%%%%%%%%%% Context %p: the %i-th tuple element is zero!\n", ctx, i);
     to_array[i] = Field(from_tuple, i);
   }
+  CAMLreturn0;
 }
 
 static value caml_pair_r(CAML_R, value left, value right)
@@ -69,12 +105,12 @@ static value caml_pair_r(CAML_R, value left, value right)
 value caml_global_tuple_r(CAML_R)
 {
 #ifdef NATIVE_CODE
-  /* No need for GC-protection here: there is only one allocation, and
-     we don't use parameters or temporaries of type value. */
+  CAMLparam0();
+  CAMLlocal1(globals);
   const int global_no = ctx->caml_globals.used_size / sizeof(value);
   /* This is the only allocation, and no Caml locals are alive at this
      point: no need fot GC protection: */
-  value globals = caml_alloc_tuple_r(ctx, global_no);
+  globals = caml_alloc_tuple_r(ctx, global_no);
   int i;
   for(i = 0; i < global_no; i ++){
     if(((value*)ctx->caml_globals.array)[i] == 0)
@@ -84,7 +120,7 @@ value caml_global_tuple_r(CAML_R)
   int element_no = Wosize_val(globals);
   fprintf(stderr, "[native] The tuple has %i elements; it should be %i\n", (int)element_no, (int)global_no);
 
-  return globals;
+  CAMLreturn(globals);
 #else /* bytecode */
   /* No need for GC-protection: there is no allocation here. */
   // FIXME: for debugging only.  Remove: BEGIN
@@ -237,6 +273,7 @@ static int caml_run_function_this_thread_r(CAML_R, value function, int index)
 {
   CAMLparam1(function);
   CAMLlocal1(result_or_exception);
+  int did_we_fail;
 
 /* fprintf(stderr, "======Forcing a GC\n"); fflush(stderr); */
 caml_gc_compaction_r(ctx, Val_unit); //!!!!!
@@ -275,23 +312,25 @@ caml_gc_compaction_r(ctx, Val_unit); //!!!!!
      (when it's an exception) before the next Caml allocation: in case
      of exception result_or_exception is an invalid value, messing up
      the GC. */
-  CAMLreturnT(int, Is_exception_result(result_or_exception));
+  did_we_fail = Is_exception_result(result_or_exception);
+  if(did_we_fail)
+    result_or_exception = Extract_exception(result_or_exception);
+  CAMLreturnT(int, did_we_fail);
 }
 
 /* Return 0 on success and non-zero on failure. */
 static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
 {
-  CAML_R;
-  value function;
-  int did_we_fail;
-
   /* Make a new empty context, and use it to deserialize the blob
      into.  We don't want to GC-protect local variables here, since we
      will destroy the context at exit.  This is ok: the only Caml
      allocations are in
      caml_install_globals_and_data_as_c_byte_array_r and in the function
      itself, which correctly GC-protect their own locals. */
-  ctx = caml_make_empty_context(); // ctx also becomes the thread-local context
+  CAML_R = caml_make_empty_context(); // ctx also becomes the thread-local context
+  CAMLparam0();
+  CAMLlocal1(function);
+  int did_we_fail;
   *to_context = ctx;
   caml_install_globals_and_data_as_c_byte_array_r(ctx, &function, blob);
 
@@ -310,7 +349,7 @@ static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t 
   /* We're done.  But we can't destroy the context yet, until it's
      joined: the object must remain visibile to the OCaml code, and
      for accessing the pthread_t objecet from the C join code. */
-  return did_we_fail;
+  CAMLreturnT(int, did_we_fail);
 }
 
 struct caml_thread_arguments{
@@ -441,79 +480,92 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value caml_context_send_r(CAML_R, value receiver_context_as_value, value message){
-  struct caml_global_context_descriptor *receiver_descriptor;
-  struct caml_global_context *receiver_context;
+CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, value message){
+  CAMLparam2(receiver_mailbox_as_value, message);
+  struct caml_mailbox *receiver_mailbox;
   char *message_blob;
-  CAMLparam2(receiver_context_as_value, message);
-  receiver_descriptor = caml_global_context_descriptor_of_value(receiver_context_as_value);
+  receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
 
-  if((receiver_descriptor->kind != caml_global_context_nonmain_local) &&
-     (receiver_descriptor->kind != caml_global_context_main))
-    caml_failwith_r(ctx, "caml_context_send_r: remote contexts aren't implemented yet");
-  receiver_context = receiver_descriptor->content.local_context.context;
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-1\n", ctx, receiver_mailbox); fflush(stderr);
+  /* First serialize the message; this is the slow part, and we can do
+     it out of the critical section: */
   message_blob = caml_serialize_into_blob_r(ctx, message);
-  //fprintf(stderr, "caml_context_send_r [%p]: the receiver context is %p. Waiting for a free queue slot...\n", ctx, receiver_context); fflush(stderr);
 
-  /* Wait till the receiver has space in its queue: */
-  caml_enter_blocking_section_r(ctx);
-  sem_wait(&receiver_context->free_slot_no_semaphore);
-  caml_leave_blocking_section_r(ctx);
-
-  //fprintf(stderr, "caml_context_send_r [%p]: sending the message...\n", ctx); fflush(stderr);
-
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-20 BEFORE LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   /* Write the message into the receiver's data structure, and unblock it: */
-  pthread_mutex_lock(&ctx->context_mutex);
-  int message_no = receiver_context->message_no;
-  Assert(message_no < MESSAGE_QUEUE_SIZE);
-  receiver_context->message_queue[message_no].message_blob = message_blob;
-  receiver_context->message_queue[message_no].sender_descriptor = ctx->descriptor;
-  receiver_context->message_no = message_no + 1;
-  pthread_mutex_unlock(&ctx->context_mutex);
-  sem_post(&receiver_context->message_no_semaphore);
-
-  //fprintf(stderr, "caml_context_send_r [%p]: done\n", ctx); fflush(stderr);
+  pthread_mutex_lock(&receiver_mailbox->mutex);
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-30 AFTER LOCK\n", ctx, receiver_mailbox); fflush(stderr);
+  int message_no = receiver_mailbox->message_no;
+  /* Make sure there is enough space, enlarging the queue if needed: */
+  if(message_no == receiver_mailbox->allocated_message_no){
+    receiver_mailbox->allocated_message_no *= 2;
+    receiver_mailbox->message_queue =
+      realloc(receiver_mailbox->message_queue, sizeof(struct caml_message) * receiver_mailbox->allocated_message_no);
+    fprintf(stderr, "caml_context_send_r [%p, m %p]: doubled the messaque queue size to %i\n", ctx, receiver_mailbox, receiver_mailbox->allocated_message_no); fflush(stderr);
+  } // if
+  receiver_mailbox->message_queue[message_no].message_blob = message_blob;
+  receiver_mailbox->message_queue[message_no].sender_descriptor = ctx->descriptor;
+  receiver_mailbox->message_no = message_no + 1;
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+  pthread_mutex_unlock(&receiver_mailbox->mutex);
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-50 AFTER UNLOCK BEFORE V\n", ctx, receiver_mailbox); fflush(stderr);
+  sem_post(&receiver_mailbox->message_no_semaphore);
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-60 AFTER V\n", ctx, receiver_mailbox); fflush(stderr);
+  //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
 
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value caml_context_receive_r(CAML_R){
-  struct caml_global_context_descriptor *sender_descriptor;
-  char *message_blob;
-  CAMLparam0();
+CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
+  CAMLparam1(receiver_mailbox_as_value);
   CAMLlocal1(message);
+  struct caml_mailbox *receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
+  struct caml_global_context_descriptor *sender_descriptor;
+  struct caml_global_context *sender_context;
+  char *message_blob;
   //fprintf(stderr, "caml_context_receive_r [%p]: WAITING FOR A MESSAGE.\n", ctx); fflush(stderr);
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-1\n", ctx, receiver_mailbox); fflush(stderr);
+
+  /* Fail if the mailbox is not local; */
+  if(ctx->descriptor != receiver_mailbox->descriptor)
+    caml_failwith_r(ctx, "foreign mailbox");
+
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-10 BEFORE P, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+  /* Wait until there is a message: */
   caml_enter_blocking_section_r(ctx);
-  sem_wait(&ctx->message_no_semaphore);
+  sem_wait(&receiver_mailbox->message_no_semaphore);
   caml_leave_blocking_section_r(ctx);
 
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-20 AFTER P, BEFORE LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   /* Get what we need, and immediately unblock the next sender; we can
      process our message after V'ing. */
-  pthread_mutex_lock(&ctx->context_mutex);
-  int message_no = ctx->message_no;
+  pthread_mutex_lock(&receiver_mailbox->mutex);
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-30 AFTER LOCK\n", ctx, receiver_mailbox); fflush(stderr);
+  int message_no = receiver_mailbox->message_no;
   Assert(message_no > 0);
-  sender_descriptor = ctx->message_queue[0].sender_descriptor;
-  message_blob = ctx->message_queue[0].message_blob;
- /* Shift the queue elements to the left by one position */
+  sender_descriptor = receiver_mailbox->message_queue[0].sender_descriptor;
+  message_blob = receiver_mailbox->message_queue[0].message_blob;
+  /* Shift the queue elements to the left by one position */
   int i; for(i = 0; i < (message_no - 1); i ++)
-    ctx->message_queue[i] = ctx->message_queue[i + 1];
-  ctx->message_queue[message_no - 1].sender_descriptor = NULL; ctx->message_queue[message_no - 1].message_blob = NULL; // just for debugging
-  ctx->message_no = message_no - 1;
-  pthread_mutex_unlock(&ctx->context_mutex);
-  sem_post(&ctx->free_slot_no_semaphore);
+    receiver_mailbox->message_queue[i] = receiver_mailbox->message_queue[i + 1];
+  /* Invalidate the rightmost message.  This is useful at destruction
+     time, for not freeing structures more than once: */
+  receiver_mailbox->message_queue[message_no - 1].sender_descriptor = NULL; receiver_mailbox->message_queue[message_no - 1].message_blob = NULL; // just for debugging
+  receiver_mailbox->message_no = message_no - 1;
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+  pthread_mutex_unlock(&receiver_mailbox->mutex);
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-50 AFTER UNLOCK\n", ctx, receiver_mailbox); fflush(stderr);
 
   //fprintf(stderr, "caml_context_receive_r [%p]: GOT A MESSAGE.\n", ctx); fflush(stderr);
-
-  struct caml_global_context *sender_context;
   if((sender_descriptor->kind != caml_global_context_nonmain_local) &&
      (sender_descriptor->kind != caml_global_context_main))
     caml_failwith_r(ctx, "caml_context_receive_r: remote contexts aren't implemented yet");
   sender_context = sender_descriptor->content.local_context.context;
 
-  //fprintf(stderr, "caml_context_receive_r [%p]: the sender context is %p.\n", ctx, sender_context); fflush(stderr);
   message = caml_deserialize_blob_r(ctx, message_blob);
   free(message_blob);
 
+  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
   CAMLreturn(caml_pair_r(ctx,
                          caml_value_of_context_descriptor(sender_descriptor),
                          message));

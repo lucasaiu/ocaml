@@ -68,8 +68,8 @@ void caml_initialize_mutex(pthread_mutex_t *mutex){
     fprintf(stderr, "++++++++ [thread %p] pthread_mutexattr_settype failed\n", (void*)(pthread_self())); fflush(stderr);
     exit(EXIT_FAILURE);
   }
-  pthread_mutex_init(&caml_global_mutex, &attributes);
-  //fprintf(stderr, "= {%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__count, (void*)(pthread_self())); fflush(stderr);
+  pthread_mutex_init(mutex, &attributes);
+  //fprintf(stderr, "= {%u %p | %p}\n", mutex->__data.__count, (void*)(long)mutex->__data.__count, (void*)(pthread_self())); fflush(stderr);
   pthread_mutexattr_destroy(&attributes);
 }
 
@@ -431,12 +431,6 @@ section.  */
   ctx->thread = pthread_self();
   caml_set_thread_local_context(ctx);
 
-  /* Make the message queue: */
-  caml_initialize_semaphore(&ctx->message_no_semaphore, 0);
-  caml_initialize_semaphore(&ctx->free_slot_no_semaphore, MESSAGE_QUEUE_SIZE);
-  ctx->message_no = 0;
-  memset(ctx->message_queue, 0, sizeof(struct caml_message) * MESSAGE_QUEUE_SIZE); // just to ease debugging
-
   /* Make a local descriptor for this context: */
   //fprintf(stderr, "Initializing the context descriptor...\n"); fflush(stderr);
   ctx->descriptor = caml_stat_alloc(sizeof(struct caml_global_context_descriptor));
@@ -689,6 +683,15 @@ void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offs
 
 /* FIXME: use a custom value instead.  However this in practice works
    fine on 64-bit architectures: */
+value caml_value_of_mailbox(struct caml_mailbox *c){
+  return Val_long((long)c);
+}
+struct caml_mailbox* caml_mailbox_of_value(value l){
+  return (struct caml_mailbox*)(Long_val(l));
+}
+
+/* FIXME: use a custom value instead.  However this in practice works
+   fine on 64-bit architectures: */
 value caml_value_of_context_descriptor(struct caml_global_context_descriptor *c){
   return Val_long((long)c);
 }
@@ -765,6 +768,7 @@ void caml_release_global_lock(void){
   /////BEGIN
   if(result){
     fprintf(stderr, "++++++++ [context %p] [thread %p] pthread_mutex_unlock failed\n", ctx, (void*)(pthread_self())); fflush(stderr);
+    volatile int a = 1; a /= 0;
     exit(EXIT_FAILURE);
   }
   //fprintf(stderr, "-[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);

@@ -1,8 +1,20 @@
 (* Luca Saiu, REENTRANTRUNTIME *)
 
+(* Utility.  These should be moved to List, in an ideal world. *)
+let range a b =
+  let rec range_acc a b acc =
+    if a > b then
+      acc
+    else
+      range_acc a (b - 1) (b :: acc) in
+  range_acc a b [];;
+
+let iota n =
+  range 0 (n - 1);;
+
 (* FIXME: use a custom type instead *)
 type t =
-  int
+  int (*whatever*)
 
 external cpu_no : unit -> int = "caml_cpu_no_r" "reentrant"
 
@@ -20,15 +32,6 @@ let split how_many f =
 let split1 thunk =
   List.hd (split 1 (fun i -> thunk ()))
 
-(* (iota n) returns the int list [0, n).  The name comes from APL, and
-   has also been adopted by Guile Scheme. *)
-let rec iota_acc n a =
-  if n < 0 then
-    a
-  else
-    iota_acc (n - 1) (n :: a)
-let iota n =
-  iota_acc (n - 1) []
 
 (* let fork_many n f = *)
 (*   List.map *)
@@ -55,9 +58,9 @@ let iota n =
 (*   done; *)
 (*   !results *)
 
-(* external exit : unit -> unit = "caml_context_exit_r" "reentrant" *)
-external send : t -> 'a -> unit = "caml_context_send_r" "reentrant"
-external receive : unit -> (t * 'a) = "caml_context_receive_r" "reentrant"
+(* (\* external exit : unit -> unit = "caml_context_exit_r" "reentrant" *\) *)
+(* external send : t -> 'a -> unit = "caml_context_send_r" "reentrant" *)
+(* external receive : unit -> (t * 'a) = "caml_context_receive_r" "reentrant" *)
 
 let to_string context =
   string_of_int ((Obj.magic context) :> int)
@@ -80,54 +83,78 @@ external join1 : t -> unit = "caml_context_join_r" "reentrant"
 let join contexts =
   List.iter join1 contexts
 
-(* Temporary, horrible, inefficient and generally revolting implemantation of mailboxes: *)
-type mailbox = t * int
+(* FIXME: use a custom type instead *)
+type mailbox = int (*whatever*)
 exception ForeignMailbox of mailbox
 
-let local_mailbox_counter = ref 0
+external make_local_mailbox : unit -> mailbox = "caml_camlprim_make_local_mailbox_r" "reentrant"
 
-let make_local_mailbox () =
-  let index = !local_mailbox_counter in
-  local_mailbox_counter := index + 1;
-  (self ()), index
+(* let local_mailbox_counter = ref 0 *)
+(* let make_local_mailbox () = *)
+(*   let index = !local_mailbox_counter in *)
+(*   local_mailbox_counter := index + 1; *)
+(*   (self ()), index *)
+external msend : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
 
-let context_of_mailbox (context, _) =
-  context
+external mreceive_ugly_exception : mailbox -> (t * 'a) = "caml_context_receive_r" "reentrant"
+let mreceive mailbox =
+  try
+    let _, message = mreceive_ugly_exception mailbox in
+    message
+  with _ ->
+    raise (ForeignMailbox mailbox)
 
-let is_mailbox_local (context, _) =
-  (self ()) = context
+external context_of_mailbox : mailbox -> 'a = "caml_camlprim_context_of_mailbox_r" "reentrant"
+
+let is_mailbox_local mailbox =
+  (context_of_mailbox mailbox) = (self ())
 
 let msplit context_no f =
+  let msplit_mailbox_receiving_mailbox =
+    make_local_mailbox () in
   let contexts =
     split
       context_no
       (fun index ->
-        local_mailbox_counter := 0; (* reset the local index *)
-        f index (make_local_mailbox ())) in
-  List.map (fun context -> (context, 0)) contexts;;
+        let mailbox = make_local_mailbox () in
+        msend msplit_mailbox_receiving_mailbox (index, mailbox);
+        f index mailbox) in
+  Printf.fprintf stderr "@@@@ msplit: made %i contexts\n%!" (List.length contexts);
+  List.rev_map
+    snd
+    (List.sort
+       (fun (index1, _) (index2, _) -> compare index2 index1)
+       (List.map
+          (fun _ -> mreceive msplit_mailbox_receiving_mailbox)
+          (iota context_no)))
+
+(* let msplit context_no f = *)
+(*   let contexts = *)
+(*     split *)
+(*       context_no *)
+(*       (fun index -> *)
+(*         local_mailbox_counter := 0; (\* reset the local index *\) *)
+(*         f index (make_local_mailbox ())) in *)
+(*   List.map (fun context -> (context, 0)) contexts;; *)
 
 let msplit1 f =
   List.hd (msplit 1 (fun _ mailbox -> f mailbox))
 
-let msend mailbox message =
-  let context, index = mailbox in
-  send context (index, message)
-
-let rec mreceive mailbox =
-  if is_mailbox_local mailbox then
-    let context, mailbox_index = mailbox in
-    let (*sender*)_, (message_index, message) = receive () in
-    Printf.fprintf stderr "%i,%i: received a message for ourself.  Good\n" context mailbox_index; flush stderr;
-    if mailbox_index = message_index then
-      message
-    else
-      (* This solution is only correct on an UNBOUNDED-LENGTH queue. *)
-      (* Re-enqueue the message which was for the other mailbox, and try again: *)
-      (Printf.fprintf stderr "%i,%i: received a message for %i,%i; trying again\n" context mailbox_index context message_index; flush stderr;
-       msend (context, message_index) message;
-       mreceive mailbox)
-  else
-    raise (ForeignMailbox mailbox)
+(* let rec mreceive mailbox = *)
+(*   if is_mailbox_local mailbox then *)
+(*     let context, mailbox_index = mailbox in *)
+(*     let (\*sender*\)_, (message_index, message) = receive () in *)
+(*     Printf.fprintf stderr "%i,%i: received a message for ourself.  Good\n" context mailbox_index; flush stderr; *)
+(*     if mailbox_index = message_index then *)
+(*       message *)
+(*     else *)
+(*       (\* This solution is only correct on an UNBOUNDED-LENGTH queue. *\) *)
+(*       (\* Re-enqueue the message which was for the other mailbox, and try again: *\) *)
+(*       (Printf.fprintf stderr "%i,%i: received a message for %i,%i; trying again\n" context mailbox_index context message_index; flush stderr; *)
+(*        msend (context, message_index) message; *)
+(*        mreceive mailbox) *)
+(*   else *)
+(*     raise (ForeignMailbox mailbox) *)
 
 
 let taskfarm worker_no work_function =
@@ -174,8 +201,8 @@ let taskfarm worker_no work_function =
       ignore i; (* this is silly, but the compiler complains when I don't use i, and I can't have a pattern instead of the variable as the for loop index *)
       results := (mreceive collector_mailbox) :: !results;
     done;
-    (* List.rev_map *)
-    (*   snd *)
+    List.rev_map
+      snd
       (List.sort
          (fun (index1, _) (index2, _) -> (*reversed compare*)compare index2 index1)
          !results))

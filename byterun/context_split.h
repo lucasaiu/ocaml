@@ -17,4 +17,7 @@ void caml_split_context_r(CAML_R,
                           value function,
                           size_t how_many);
 
+struct caml_mailbox* caml_make_local_mailbox_r(CAML_R);
+void caml_destroy_local_mailbox_r(CAML_R, struct caml_mailbox *mailbox);
+
 #endif /* #ifndef CAML_CONTEXT_SPLIT_H */

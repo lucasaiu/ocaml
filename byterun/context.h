@@ -178,10 +178,27 @@ struct extern_item { value * v; mlsize_t count; }; /* Stack holding pending valu
 #define EXTERN_STACK_MAX_SIZE (1024*1024*100)
 enum { NO_SHARING = 1, CLOSURES = 2, CROSS_CONTEXT = 4 };
 
+struct caml_mailbox{
+  /* This mailbox belongs to some context: */
+  struct caml_global_context_descriptor *descriptor;
 
-struct caml_message{
-  struct caml_global_context_descriptor *sender_descriptor;
-  char *message_blob;
+  /* We need to protec concurrent accesses to this structure: */
+
+#define CAML_INITIAL_ALLOCATED_MESSAGE_NO 10
+  /* The message queue, and its synchronization structures. */
+  /* FIXME: implement an efficient queue (in a separate file).  This
+     is currently a left-aligned array (with the unused elements on
+     the right) where elements are enqueued on the right, and dequeued
+     on the left.  Dequeuing is expensive, since elements have to be
+     shifted by one position. */
+  struct caml_message{
+    struct caml_global_context_descriptor *sender_descriptor;
+    char *message_blob; // malloc'd
+  } *message_queue;
+  int allocated_message_no;
+  sem_t message_no_semaphore;   /* a semaphore counting messages */
+  int message_no; /* same value as the semaphore; needed for synchronization reasons */
+  pthread_mutex_t mutex;
 }; // struct
 
 /* The field ordering should not be changing without also updating the
@@ -549,21 +566,6 @@ struct caml_global_context {
   struct caml_global_context *after_longjmp_context;
   char *after_longjmp_serialized_blob;
 
-  /* The context mutex, protecting concurrent accesses to contextual data such as the message queue: */
-  pthread_mutex_t context_mutex;
-
-  /* The message queue, and its synchronization structure.  This holds malloced buffers to be deserialized. */
-#define MESSAGE_QUEUE_SIZE 1000 // in elements
-  sem_t message_no_semaphore;   /* a semaphore counting messages */
-  sem_t free_slot_no_semaphore; /* a semaphore counting free slots */
-  /* FIXME: implement an efficient queue (in a separate file).  This
-     is currently a left-aligned array (with the unused elements on
-     the right) where elements are enqueued on the right, and dequeued
-     on the left.  Dequeuing is expensive, since elements have to be
-     shifted by one position. */
-  struct caml_message message_queue[MESSAGE_QUEUE_SIZE];
-  int message_no; /* same value as the semaphore; needed for synchronization reasons */
-
   /* The (POSIX) thread associated to this context: */
   pthread_t thread;
 }; /* struct caml_global_context */
@@ -602,6 +604,8 @@ struct caml_global_context_descriptor{
    descriptors, not contexts. --Luca Saiu REENTRANTRUNTIME */
 value caml_value_of_context_descriptor(struct caml_global_context_descriptor *c);
 struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(value v);
+value caml_value_of_mailbox(struct caml_mailbox *m);
+struct caml_mailbox* caml_mailbox_of_value(value v);
 
 #define CAML_R caml_global_context *ctx
 #define INIT_CAML_R CAML_R = caml_get_thread_local_context()

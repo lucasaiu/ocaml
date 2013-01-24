@@ -39,8 +39,8 @@ val self : unit -> t
 val is_main : t -> bool
 val is_remote : t -> bool
 
-val send : t -> 'a -> unit
-val receive : unit -> (t * 'a)
+(* val send : t -> 'a -> unit *)
+(* val receive : unit -> (t * 'a) *)
 
 (*
 val send_to_any : 'a -> (t list) -> unit
@@ -64,5 +64,4 @@ val global_index : 'a -> int
 (* Given a number of workers and a sequential function f, return a
    parallel version of (List.map f).  The processed list can have any
    length *)
-(* val taskfarm : int -> ('a -> 'b) -> ('a list -> 'b list) *)
-val taskfarm : int -> ('a -> 'b) -> ('a list -> (int * 'b) list)
+val taskfarm : int -> ('a -> 'b) -> ('a list -> 'b list)
