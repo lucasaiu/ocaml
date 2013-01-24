@@ -433,9 +433,9 @@ section.  */
 
   /* Make the message queue: */
   caml_initialize_semaphore(&ctx->message_no_semaphore, 0);
-  caml_initialize_semaphore(&ctx->free_slot_no_semaphore, 1);
-  ctx->message.sender_descriptor = NULL; // just to ease debugging
-  ctx->message.message_blob = NULL;
+  caml_initialize_semaphore(&ctx->free_slot_no_semaphore, MESSAGE_QUEUE_SIZE);
+  ctx->message_no = 0;
+  memset(ctx->message_queue, 0, sizeof(struct caml_message) * MESSAGE_QUEUE_SIZE); // just to ease debugging
 
   /* Make a local descriptor for this context: */
   //fprintf(stderr, "Initializing the context descriptor...\n"); fflush(stderr);

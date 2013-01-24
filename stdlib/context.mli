@@ -9,13 +9,17 @@ val make_local_mailbox : unit -> mailbox
 val context_of_mailbox : mailbox -> t
 val is_mailbox_local : mailbox -> bool
 val msplit : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
+val msplit1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
 val msend : mailbox -> 'a -> unit
-val mreceive : mailbox -> 'a (* raises ForeignMailbox on a foreign mailbox *)
+val mreceive : mailbox -> 'a (* raises ForeignMailbox if the mailbox is foreign *)
 (* Experimental and not implemnted yet: END *)
 
+(* Return the total number of CPUs in the system, counting each core or
+   similar element as one unit: *)
 val cpu_no : unit -> int
 
-val split : (int -> unit) -> int -> (t list)
+val split : int -> (int -> unit) -> (t list)
+val split_into_array : int -> (int -> unit) -> (t array)
 val join : t list -> unit
 
 (* Make a new context in which the given function will be exectuted,
@@ -60,4 +64,5 @@ val global_index : 'a -> int
 (* Given a number of workers and a sequential function f, return a
    parallel version of (List.map f).  The processed list can have any
    length *)
-val taskfarm : int -> ('a -> 'b) -> ('a list -> 'b list)
+(* val taskfarm : int -> ('a -> 'b) -> ('a list -> 'b list) *)
+val taskfarm : int -> ('a -> 'b) -> ('a list -> (int * 'b) list)

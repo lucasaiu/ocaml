@@ -10,15 +10,15 @@ external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"
 external is_remote : t -> bool = "caml_context_is_remote_r" "reentrant"
 
-external split_into_array : (int -> unit) -> int -> (t array) = "caml_context_split_r" "reentrant"
+external split_into_array : int -> (int -> unit) -> (t array) = "caml_context_split_r" "reentrant"
 
-let split f how_many =
-  Array.to_list (split_into_array f how_many)
+let split how_many f =
+  Array.to_list (split_into_array how_many f)
 
 (* FIXME: remove *)
 (* external pthread_create : (int -> unit) -> t = "caml_context_pthread_create_and_run_thunk_r" "reentrant" *)
 let split1 thunk =
-  List.hd (split (fun i -> thunk ()) 1)
+  List.hd (split 1 (fun i -> thunk ()))
 
 (* (iota n) returns the int list [0, n).  The name comes from APL, and
    has also been adopted by Guile Scheme. *)
@@ -80,18 +80,6 @@ external join1 : t -> unit = "caml_context_join_r" "reentrant"
 let join contexts =
   List.iter join1 contexts
 
-(* Mailboxes: not implemented yet *)
-(*type mailbox = int
-let msplit context_no f =
-  failwith "msplit: unimplemented"
-let msend mailbox message =
-  failwith "msend: unimplemented"
-let mreceive mailbox =
-  failwith "mreceive: unimplemented"
-let make_local_mailbox () =
-  failwith "make_local_mailbox: unimplemented"
-*)
-
 (* Temporary, horrible, inefficient and generally revolting implemantation of mailboxes: *)
 type mailbox = t * int
 exception ForeignMailbox of mailbox
@@ -112,11 +100,14 @@ let is_mailbox_local (context, _) =
 let msplit context_no f =
   let contexts =
     split
+      context_no
       (fun index ->
         local_mailbox_counter := 0; (* reset the local index *)
-        f index (make_local_mailbox ()))
-      context_no in
+        f index (make_local_mailbox ())) in
   List.map (fun context -> (context, 0)) contexts;;
+
+let msplit1 f =
+  List.hd (msplit 1 (fun _ mailbox -> f mailbox))
 
 let msend mailbox message =
   let context, index = mailbox in
@@ -130,8 +121,10 @@ let rec mreceive mailbox =
     if mailbox_index = message_index then
       message
     else
+      (* This solution is only correct on an UNBOUNDED-LENGTH queue. *)
+      (* Re-enqueue the message which was for the other mailbox, and try again: *)
       (Printf.fprintf stderr "%i,%i: received a message for %i,%i; trying again\n" context mailbox_index context message_index; flush stderr;
-       msend mailbox message;
+       msend (context, message_index) message;
        mreceive mailbox)
   else
     raise (ForeignMailbox mailbox)
@@ -153,10 +146,9 @@ let taskfarm worker_no work_function =
           let result = work_function parameter in
           msend collector_mailbox (sequence_number, result);
         done) in
-  let emitter_mailboxes =
-    msplit
-      1
-      (fun _ emitter_mailbox ->
+  let emitter_mailbox =
+    msplit1
+      (fun emitter_mailbox ->
         let availability_mailbox = make_local_mailbox () in
         (* Send the mailbox used to signal that a worker is available to workers: *)
         List.iter
@@ -173,18 +165,17 @@ let taskfarm worker_no work_function =
           (* Send the task to the worker: *)
           msend worker_mailbox (parameter_index, parameter);
         done) in
-  let emitter_mailbox = List.hd emitter_mailboxes in
   (fun parameters ->
     List.iter
       (fun parameter -> msend emitter_mailbox parameter)
       parameters;
     let results = ref [] in
     for i = 1 to List.length parameters do
-      ignore i; (* this is silly, but the compiler bitches when I don't use i, and I can't have a pattern instead of the variable as the for loop index *)
+      ignore i; (* this is silly, but the compiler complains when I don't use i, and I can't have a pattern instead of the variable as the for loop index *)
       results := (mreceive collector_mailbox) :: !results;
     done;
-    List.rev_map
-      snd
+    (* List.rev_map *)
+    (*   snd *)
       (List.sort
          (fun (index1, _) (index2, _) -> (*reversed compare*)compare index2 index1)
          !results))

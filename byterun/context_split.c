@@ -324,7 +324,7 @@ static void* caml_deserialize_and_run_in_this_thread_as_thread_function(void *ar
 {
   struct caml_thread_arguments *args = args_as_void_star;
   int did_we_fail = caml_deserialize_and_run_in_this_thread(args->blob, args->index, args->semaphore, args->split_contexts + args->index);
-  fprintf(stderr, "caml_deserialize_and_run_in_this_thread_as_thread_function (index %i) [about to free args].  Did we fail? %i\n", args->index, did_we_fail); fflush(stderr);
+  //fprintf(stderr, "caml_deserialize_and_run_in_this_thread_as_thread_function (index %i) [about to free args].  Did we fail? %i\n", args->index, did_we_fail); fflush(stderr);
   caml_stat_free(args);
   return (void*)(long)did_we_fail;
 }
@@ -364,7 +364,7 @@ static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **spli
   fprintf(stderr, "Context %p: >>>> Every thread has deserialized.\n", ctx); fflush(stderr);
 }
 
-CAMLprim value caml_context_split_r(CAML_R, value function, value thread_no_as_value)
+CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
 {
   CAMLparam1(function);
   CAMLlocal2(result, open_channels);
@@ -422,17 +422,17 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
   else if(descriptor->kind == caml_global_context_remote)
     caml_failwith_r(ctx, "caml_context_join_r: remote context");
   Assert(descriptor->kind == caml_global_context_nonmain_local);
-  fprintf(stderr, "!!!! JOINING %p\n", (void*)descriptor->content.local_context.context->thread); fflush(stderr);
+  //fprintf(stderr, "!!!! JOINING %p\n", (void*)descriptor->content.local_context.context->thread); fflush(stderr);
   pthread_join_result = pthread_join(descriptor->content.local_context.context->thread, &did_we_fail_as_void_star);
   did_we_fail = (int)(long)did_we_fail_as_void_star;
-  fprintf(stderr, "!!!! JOINED %p: did we fail? %i\n", (void*)descriptor->content.local_context.context->thread, did_we_fail); fflush(stderr);
+  //fprintf(stderr, "!!!! JOINED %p: did we fail? %i\n", (void*)descriptor->content.local_context.context->thread, did_we_fail); fflush(stderr);
   if(pthread_join_result != 0)
     caml_failwith_r(ctx, "caml_context_join_r: pthread_join failed");
 
   /* Now we will not need the context any longer, and we can finally free its resources: */
-  fprintf(stderr, "caml_context_join [context %p] [thread %p]: destroyING the context %p\n", ctx, (void*)(pthread_self()), descriptor->content.local_context.context); fflush(stderr);
+  //fprintf(stderr, "caml_context_join [context %p] [thread %p]: destroyING the context %p\n", ctx, (void*)(pthread_self()), descriptor->content.local_context.context); fflush(stderr);
   caml_destroy_context(descriptor->content.local_context.context);
-  fprintf(stderr, "caml_context_join [context %p] [thread %p]: destroyED  the context.\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_context_join [context %p] [thread %p]: destroyED  the context.\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
   /* FIXME: this is probably *not* the right policy.  Freeing
      resources becomes a mess in this case. */
@@ -462,11 +462,14 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_context_as_value, valu
 
   //fprintf(stderr, "caml_context_send_r [%p]: sending the message...\n", ctx); fflush(stderr);
 
-  /* Write the message into the receiver's data structure, and unblock him: */
-  pthread_mutex_lock(&ctx->context_mutex);  // this will be useful when we have an actual queue, of size greater than 1
-  receiver_context->message.message_blob = message_blob;
-  receiver_context->message.sender_descriptor = ctx->descriptor;
-  pthread_mutex_unlock(&ctx->context_mutex);  // this will be useful when we have an actual queue, of size greater than 1
+  /* Write the message into the receiver's data structure, and unblock it: */
+  pthread_mutex_lock(&ctx->context_mutex);
+  int message_no = receiver_context->message_no;
+  Assert(message_no < MESSAGE_QUEUE_SIZE);
+  receiver_context->message_queue[message_no].message_blob = message_blob;
+  receiver_context->message_queue[message_no].sender_descriptor = ctx->descriptor;
+  receiver_context->message_no = message_no + 1;
+  pthread_mutex_unlock(&ctx->context_mutex);
   sem_post(&receiver_context->message_no_semaphore);
 
   //fprintf(stderr, "caml_context_send_r [%p]: done\n", ctx); fflush(stderr);
@@ -486,10 +489,17 @@ CAMLprim value caml_context_receive_r(CAML_R){
 
   /* Get what we need, and immediately unblock the next sender; we can
      process our message after V'ing. */
-  pthread_mutex_lock(&ctx->context_mutex); // this will be useful when we have an actual queue, of size greater than 1
-  sender_descriptor = ctx->message.sender_descriptor;
-  message_blob = ctx->message.message_blob;
-  pthread_mutex_unlock(&ctx->context_mutex);  // this will be useful when we have an actual queue, of size greater than 1
+  pthread_mutex_lock(&ctx->context_mutex);
+  int message_no = ctx->message_no;
+  Assert(message_no > 0);
+  sender_descriptor = ctx->message_queue[0].sender_descriptor;
+  message_blob = ctx->message_queue[0].message_blob;
+ /* Shift the queue elements to the left by one position */
+  int i; for(i = 0; i < (message_no - 1); i ++)
+    ctx->message_queue[i] = ctx->message_queue[i + 1];
+  ctx->message_queue[message_no - 1].sender_descriptor = NULL; ctx->message_queue[message_no - 1].message_blob = NULL; // just for debugging
+  ctx->message_no = message_no - 1;
+  pthread_mutex_unlock(&ctx->context_mutex);
   sem_post(&ctx->free_slot_no_semaphore);
 
   //fprintf(stderr, "caml_context_receive_r [%p]: GOT A MESSAGE.\n", ctx); fflush(stderr);

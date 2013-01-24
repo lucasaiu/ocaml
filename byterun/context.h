@@ -553,9 +553,16 @@ struct caml_global_context {
   pthread_mutex_t context_mutex;
 
   /* The message queue, and its synchronization structure.  This holds malloced buffers to be deserialized. */
-  sem_t message_no_semaphore; /* count the number of messages: only 0 or 1 with this simplistic implementation */
-  sem_t free_slot_no_semaphore; /* count the number of free slots: only 0 or 1 with this simplistic implementation */
-  struct caml_message message;
+#define MESSAGE_QUEUE_SIZE 1000 // in elements
+  sem_t message_no_semaphore;   /* a semaphore counting messages */
+  sem_t free_slot_no_semaphore; /* a semaphore counting free slots */
+  /* FIXME: implement an efficient queue (in a separate file).  This
+     is currently a left-aligned array (with the unused elements on
+     the right) where elements are enqueued on the right, and dequeued
+     on the left.  Dequeuing is expensive, since elements have to be
+     shifted by one position. */
+  struct caml_message message_queue[MESSAGE_QUEUE_SIZE];
+  int message_no; /* same value as the semaphore; needed for synchronization reasons */
 
   /* The (POSIX) thread associated to this context: */
   pthread_t thread;
