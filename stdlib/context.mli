@@ -1,51 +1,66 @@
 (* Luca Saiu, REENTRANTRUNTIME *)
 
+(* Basic context operations*)
 type t
 
-(* Experimental and not implemnted yet: BEGIN *)
+val self : unit -> t
+val is_main : t -> bool
+
+(* Make a new context in which the given function will be exectuted,
+   within a new thread.  Return the new context. *)
+val split1 : (unit -> unit) -> t
+
+val split : int -> (int -> unit) -> (t list)
+val split_into_array : int -> (int -> unit) -> (t array)
+
+val join1 : t -> unit
+val join : t list -> unit
+
+
+(* Mailboxes *)
 type mailbox
+
 exception ForeignMailbox of mailbox
+
 val make_local_mailbox : unit -> mailbox
+
 val context_of_mailbox : mailbox -> t
 val is_mailbox_local : mailbox -> bool
-val msplit : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
+
 val msplit1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
+val msplit : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
+
 val msend : mailbox -> 'a -> unit
 val mreceive : mailbox -> 'a (* raises ForeignMailbox if the mailbox is foreign *)
-(* Experimental and not implemnted yet: END *)
+
+
+(* Algorithmic skeletons *)
+type 'a sink =   'a -> unit
+type 'a source = unit -> 'a
+type ('a, 'b) skeleton = ('a sink) * ('b source)
+
+(* Given a source containing <index, element> pairs and an expected
+   first index, return a source emitting the same elements, ordered by
+   the indices in the output: *)
+val reorder_source : (int * 'a) source -> int -> ('a source)
+
+val list_map_of_skeleton : ('a, 'b) skeleton -> ('a list) -> ('b list)
+
+(* Given a number of workers and a sequential function f, return a
+   parallel version of (List.map f).  The processed list can have any
+   length: *)
+val task_farm : int -> ('a -> 'b) -> (('a, 'b) skeleton)
+
+
+(* Utility *)
 
 (* Return the total number of CPUs in the system, counting each core or
    similar element as one unit: *)
 val cpu_no : unit -> int
 
-val split : int -> (int -> unit) -> (t list)
-val split_into_array : int -> (int -> unit) -> (t array)
-val join : t list -> unit
 
-(* Make a new context in which the given function will be exectuted,
-   within a new thread.  Return the new context. *)
-val split1 : (unit -> unit) -> t
-val join1 : t -> unit
+(* Scratch.  Horrible things which are only useful for debugging. *)
 
-(* (\* Start as many contexts as the given integer, running the given *)
-(*    function in each one.  Each function takes a 0-based index as its *)
-(*    parameter.  Return the new contexts. *\) *)
-(* val fork_many : int -> (int -> unit) -> (t list) *)
-
-(* (\* Exit the process, killing the current context. *\) *)
-(* val exit : unit -> unit *)
-
-val self : unit -> t
-val is_main : t -> bool
-val is_remote : t -> bool
-
-(* val send : t -> 'a -> unit *)
-(* val receive : unit -> (t * 'a) *)
-
-(*
-val send_to_any : 'a -> (t list) -> unit
-val receive_from_any : (t list) -> 'a
-*)
 val to_string : t -> string
 val sself : unit -> string
 
@@ -60,8 +75,3 @@ val globals : unit -> 'a
 val global_index : 'a -> int
 
 (* val dump : unit -> int *)
-
-(* Given a number of workers and a sequential function f, return a
-   parallel version of (List.map f).  The processed list can have any
-   length *)
-val taskfarm : int -> ('a -> 'b) -> ('a list -> 'b list)

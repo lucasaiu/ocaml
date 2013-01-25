@@ -501,7 +501,7 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
     receiver_mailbox->allocated_message_no *= 2;
     receiver_mailbox->message_queue =
       realloc(receiver_mailbox->message_queue, sizeof(struct caml_message) * receiver_mailbox->allocated_message_no);
-    fprintf(stderr, "caml_context_send_r [%p, m %p]: doubled the messaque queue size to %i\n", ctx, receiver_mailbox, receiver_mailbox->allocated_message_no); fflush(stderr);
+    //fprintf(stderr, "caml_context_send_r [%p, m %p]: doubled the messaque queue size to %i\n", ctx, receiver_mailbox, receiver_mailbox->allocated_message_no); fflush(stderr);
   } // if
   receiver_mailbox->message_queue[message_no].message_blob = message_blob;
   receiver_mailbox->message_queue[message_no].sender_descriptor = ctx->descriptor;
