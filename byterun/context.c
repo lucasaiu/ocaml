@@ -604,15 +604,20 @@ extern void caml_destroy_context(CAML_R){
   caml_stat_free(ctx->caml_globals.array);
 #endif /* #ifdef NATIVE_CODE */
 
+  /* Mark the context as dead in the descriptor, but do *not* free the
+     descriptor, which might well be still alive. */
+  ctx->descriptor->kind = caml_global_context_dead;
+  ctx->descriptor->content.local_context.context = NULL;
+
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-3\n", ctx, (void*)(pthread_self())); fflush(stderr);
   // Free every dynamically-allocated object which is pointed by the context data structure [FIXME: really do it]:
-  caml_stat_free(ctx->descriptor);
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
   /* Free the context data structure ifself: */
   caml_stat_free(ctx);
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
+  // FIXME: really destroy stuff
 }
 
 /* The index of the first word in caml_globals which is not used yet.
@@ -708,6 +713,12 @@ CAMLprim value caml_context_is_main_r(CAML_R, value descriptor)
 {
   //fprintf(stderr, "caml_context_is_main_r [context %p] [thread %p]: the result is %i\n", ctx, (void*)(pthread_self()), caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_main); fflush(stderr);
   return Val_bool(caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_main);
+}
+
+CAMLprim value caml_context_is_alive_r(CAML_R, value descriptor)
+{
+  //fprintf(stderr, "caml_context_is_main_r [context %p] [thread %p]: the result is %i\n", ctx, (void*)(pthread_self()), caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_main); fflush(stderr);
+  return Val_bool(caml_global_context_descriptor_of_value(descriptor)->kind == caml_global_context_dead);
 }
 
 CAMLprim value caml_context_is_remote_r(CAML_R, value descriptor)

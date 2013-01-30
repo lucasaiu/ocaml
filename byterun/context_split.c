@@ -313,8 +313,12 @@ caml_gc_compaction_r(ctx, Val_unit); //!!!!!
      of exception result_or_exception is an invalid value, messing up
      the GC. */
   did_we_fail = Is_exception_result(result_or_exception);
-  if(did_we_fail)
+  if(did_we_fail){
     result_or_exception = Extract_exception(result_or_exception);
+    char *printed_exception = caml_format_exception_r(ctx, result_or_exception);
+    fprintf(stderr, "FAILED with the exception %s\n", printed_exception); fflush(stderr);
+    free(printed_exception);
+  }
   CAMLreturnT(int, did_we_fail);
 }
 
@@ -460,6 +464,8 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
     caml_failwith_r(ctx, "caml_context_join_r: main context");
   else if(descriptor->kind == caml_global_context_remote)
     caml_failwith_r(ctx, "caml_context_join_r: remote context");
+  else if(descriptor->kind == caml_global_context_dead)
+    caml_failwith_r(ctx, "caml_context_join_r: dead context");
   Assert(descriptor->kind == caml_global_context_nonmain_local);
   //fprintf(stderr, "!!!! JOINING %p\n", (void*)descriptor->content.local_context.context->thread); fflush(stderr);
   pthread_join_result = pthread_join(descriptor->content.local_context.context->thread, &did_we_fail_as_void_star);
@@ -526,9 +532,9 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   //fprintf(stderr, "caml_context_receive_r [%p]: WAITING FOR A MESSAGE.\n", ctx); fflush(stderr);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-1\n", ctx, receiver_mailbox); fflush(stderr);
 
-  /* Fail if the mailbox is not local; */
-  if(ctx->descriptor != receiver_mailbox->descriptor)
-    caml_failwith_r(ctx, "foreign mailbox");
+  /* /\* Fail if the mailbox is not local; *\/ */
+  /* if(ctx->descriptor != receiver_mailbox->descriptor) */
+  /*   caml_failwith_r(ctx, "foreign mailbox"); */
 
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-10 BEFORE P, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   /* Wait until there is a message: */

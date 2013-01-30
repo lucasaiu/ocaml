@@ -20,47 +20,16 @@ external cpu_no : unit -> int = "caml_cpu_no_r" "reentrant"
 
 external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"
-(* external is_remote : t -> bool = "caml_context_is_remote_r" "reentrant" *)
+(* external is_alive : t -> bool = "caml_context_is_alive_r" "reentrant" *)
 
 external split_into_array : int -> (int -> unit) -> (t array) = "caml_context_split_r" "reentrant"
 
-let split how_many f =
+let split_into_contexts how_many f =
   Array.to_list (split_into_array how_many f)
 
-(* FIXME: remove *)
-(* external pthread_create : (int -> unit) -> t = "caml_context_pthread_create_and_run_thunk_r" "reentrant" *)
-let split1 thunk =
-  List.hd (split 1 (fun i -> thunk ()))
+let split_into_context thunk =
+  List.hd (split_into_contexts 1 (fun i -> thunk ()))
 
-
-(* let fork_many n f = *)
-(*   List.map *)
-(*     (fun i -> *)
-(*       fork (fun () -> f i)) *)
-(*     (iota n);; *)
-
-(* let rec apply_functions functions list = *)
-(*   match list, functions with *)
-(*   | [], [] -> *)
-(*       [] *)
-(*   | (first_f :: more_fs), (first_x :: more_xs) -> *)
-(*       (first_f first_x) :: (apply_functions more_fs more_xs);; *)
-(*   | _, [] -> *)
-(*       failwith "apply_functions: too many functions" *)
-(*   | [], _ -> *)
-(*       failwith "apply_functions: too many arguments" *)
-
-(* let fork_many n f = *)
-(*   let results = ref [] in *)
-(*   for i = n - 1 downto 0 do *)
-(*     let context = fork (fun () -> f i) in *)
-(*     results := context :: !results; *)
-(*   done; *)
-(*   !results *)
-
-(* (\* external exit : unit -> unit = "caml_context_exit_r" "reentrant" *\) *)
-(* external send : t -> 'a -> unit = "caml_context_send_r" "reentrant" *)
-(* external receive : unit -> (t * 'a) = "caml_context_receive_r" "reentrant" *)
 
 let to_string context =
   string_of_int ((Obj.magic context) :> int)
@@ -78,138 +47,67 @@ let rec global_index_from global globals from =
 let global_index global =
   global_index_from global (globals ()) 0;;
 
-external join1 : t -> unit = "caml_context_join_r" "reentrant"
+external join_context : t -> unit = "caml_context_join_r" "reentrant"
 
-let join contexts =
-  List.iter join1 contexts
+let join_contexts contexts =
+  List.iter join_context contexts
+
 
 (* FIXME: use a custom type instead *)
 type mailbox = int (*whatever*)
-exception ForeignMailbox of mailbox
+(* exception ForeignMailbox of mailbox *)
 
 external make_local_mailbox : unit -> mailbox = "caml_camlprim_make_local_mailbox_r" "reentrant"
 
-(* let local_mailbox_counter = ref 0 *)
-(* let make_local_mailbox () = *)
-(*   let index = !local_mailbox_counter in *)
-(*   local_mailbox_counter := index + 1; *)
-(*   (self ()), index *)
-external msend : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
+external send : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
 
-external mreceive_ugly_exception : mailbox -> (t * 'a) = "caml_context_receive_r" "reentrant"
-let mreceive mailbox =
-  try
-    let _, message = mreceive_ugly_exception mailbox in
+external receive_ugly_exception : mailbox -> (t * 'a) = "caml_context_receive_r" "reentrant"
+let receive mailbox =
+  (* try *)
+    let _, message = receive_ugly_exception mailbox in
     message
-  with _ ->
-    raise (ForeignMailbox mailbox)
+  (* with _ -> *)
+  (*   raise (ForeignMailbox mailbox) *)
 
 external context_of_mailbox : mailbox -> 'a = "caml_camlprim_context_of_mailbox_r" "reentrant"
 
 let is_mailbox_local mailbox =
   (context_of_mailbox mailbox) = (self ())
 
-let msplit context_no f =
-  let msplit_mailbox_receiving_mailbox =
+let join1 mailbox =
+  join_context (context_of_mailbox mailbox)
+
+let join mailboxes =
+  List.iter join1 mailboxes
+
+let split context_no f =
+  let split_mailbox_receiving_mailbox =
     make_local_mailbox () in
-  let contexts =
-    split
+  let _ =
+    split_into_contexts
       context_no
       (fun index ->
         let mailbox = make_local_mailbox () in
-        msend msplit_mailbox_receiving_mailbox (index, mailbox);
+        send split_mailbox_receiving_mailbox (index, mailbox);
         f index mailbox) in
-  Printf.fprintf stderr "@@@@ msplit: made %i contexts\n%!" (List.length contexts);
+  (* Printf.fprintf stderr "@@@@ split: made %i contexts\n%!" (List.length contexts); *)
   List.rev_map
     snd
     (List.sort
        (fun (index1, _) (index2, _) -> compare index2 index1)
        (List.map
-          (fun _ -> mreceive msplit_mailbox_receiving_mailbox)
+          (fun _ -> receive split_mailbox_receiving_mailbox)
           (iota context_no)))
 
-(* let msplit context_no f = *)
-(*   let contexts = *)
-(*     split *)
-(*       context_no *)
-(*       (fun index -> *)
-(*         local_mailbox_counter := 0; (\* reset the local index *\) *)
-(*         f index (make_local_mailbox ())) in *)
-(*   List.map (fun context -> (context, 0)) contexts;; *)
+let split1 f =
+  List.hd (split 1 (fun _ mailbox -> f mailbox))
 
-let msplit1 f =
-  List.hd (msplit 1 (fun _ mailbox -> f mailbox))
-
-(* let rec mreceive mailbox = *)
-(*   if is_mailbox_local mailbox then *)
-(*     let context, mailbox_index = mailbox in *)
-(*     let (\*sender*\)_, (message_index, message) = receive () in *)
-(*     Printf.fprintf stderr "%i,%i: received a message for ourself.  Good\n" context mailbox_index; flush stderr; *)
-(*     if mailbox_index = message_index then *)
-(*       message *)
-(*     else *)
-(*       (\* This solution is only correct on an UNBOUNDED-LENGTH queue. *\) *)
-(*       (\* Re-enqueue the message which was for the other mailbox, and try again: *\) *)
-(*       (Printf.fprintf stderr "%i,%i: received a message for %i,%i; trying again\n" context mailbox_index context message_index; flush stderr; *)
-(*        msend (context, message_index) message; *)
-(*        mreceive mailbox) *)
-(*   else *)
-(*     raise (ForeignMailbox mailbox) *)
-
-
-(* let taskfarm worker_no work_function = *)
-(*   let collector_mailbox = make_local_mailbox () in *)
-(*   let worker_mailboxes = *)
-(*     msplit *)
-(*       worker_no *)
-(*       (fun worker_index worker_mailbox -> *)
-(*         let availability_mailbox = mreceive worker_mailbox in *)
-(*         while true do *)
-(*           (\* Tell the emitter that we're free, by sending it the mailbox he can *)
-(*              use to send us tasks: *\) *)
-(*           msend availability_mailbox worker_mailbox; *)
-(*           (\* Receive a parameter, compute on it, and send the result: *\) *)
-(*           let (sequence_number, parameter) = mreceive worker_mailbox in *)
-(*           let result = work_function parameter in *)
-(*           msend collector_mailbox (sequence_number, result); *)
-(*         done) in *)
-(*   let emitter_mailbox = *)
-(*     msplit1 *)
-(*       (fun emitter_mailbox -> *)
-(*         let availability_mailbox = make_local_mailbox () in *)
-(*         (\* Send the mailbox used to signal that a worker is available to workers: *\) *)
-(*         List.iter *)
-(*           (fun worker_mailbox -> msend worker_mailbox availability_mailbox) *)
-(*           worker_mailboxes; *)
-(*         let counter = ref 0 in *)
-(*         while true do *)
-(*           (\* Get a task: *\) *)
-(*           let parameter_index = !counter in *)
-(*           counter := parameter_index + 1; *)
-(*           let parameter = mreceive emitter_mailbox in *)
-(*           (\* Get a free worker mailbox (waiting if needed): *\) *)
-(*           let worker_mailbox = mreceive availability_mailbox in *)
-(*           (\* Send the task to the worker: *\) *)
-(*           msend worker_mailbox (parameter_index, parameter); *)
-(*         done) in *)
-(*   (fun parameters -> *)
-(*     List.iter *)
-(*       (fun parameter -> msend emitter_mailbox parameter) *)
-(*       parameters; *)
-(*     let results = ref [] in *)
-(*     for i = 1 to List.length parameters do *)
-(*       ignore i; (\* this is silly, but the compiler complains when I don't use i, and I can't have a pattern instead of the variable as the for loop index *\) *)
-(*       results := (mreceive collector_mailbox) :: !results; *)
-(*     done; *)
-(*     List.rev_map *)
-(*       snd *)
-(*       (List.sort *)
-(*          (fun (index1, _) (index2, _) -> (\*reversed compare*\)compare index2 index1) *)
-(*          !results)) *)
 
 type 'a sink =   'a -> unit
 type 'a source = unit -> 'a
-type ('a, 'b) skeleton = ('a sink) * ('b source)
+
+(* let instantiate skeleton = *)
+(*   skeleton () *)
 
 let insert pair sorted_pairs =
   let rec insert_acc pair sorted_pairs reversed_part_to_prepend =
@@ -223,7 +121,6 @@ let insert pair sorted_pairs =
         else
           insert_acc pair rest (first_pair :: reversed_part_to_prepend) in
   insert_acc pair sorted_pairs []
-
 let remove index sorted_pairs =
   let rec remove_acc index sorted_pairs reversed_part_to_prepend =
     match sorted_pairs with
@@ -235,7 +132,6 @@ let remove index sorted_pairs =
         else
           remove_acc index rest (first_pair :: reversed_part_to_prepend) in
   remove_acc index sorted_pairs []
-
 let rec is_in index sorted_pairs =
   match sorted_pairs with
   | [] ->
@@ -247,7 +143,6 @@ let rec is_in index sorted_pairs =
         false
       else
         is_in index rest
-
 let rec lookup index sorted_pairs =
   match sorted_pairs with
   | [] ->
@@ -259,7 +154,6 @@ let rec lookup index sorted_pairs =
         failwith "lookup"
       else
         lookup index rest
-
 let reorder_source source required_minimum_index =
   let already_emitted = ref [] in
   let required_minimum_index = ref required_minimum_index in
@@ -276,43 +170,147 @@ let reorder_source source required_minimum_index =
       result_source () in
   result_source
 
-let task_farm worker_no work_function =
-  let collector_mailbox = make_local_mailbox () in
-  let availability_mailbox = make_local_mailbox () in
-  let counter = ref 0 in
-  let worker_mailboxes =
-    msplit
-      worker_no
-      (fun worker_index worker_mailbox ->
-        let availability_mailbox = mreceive worker_mailbox in
-        while true do
-          (* Tell the emitter that we're free, by sending it the mailbox he can
-             use to send us tasks: *)
-          msend availability_mailbox worker_mailbox;
-          (* Receive a parameter, compute on it, and send the result: *)
-          let (sequence_number, parameter) = mreceive worker_mailbox in
-          Printf.fprintf stderr "Worker #%i: got parameter #%i\n%!" worker_index sequence_number;
-          let result = work_function parameter in
-          msend collector_mailbox (sequence_number, result);
-        done) in
-  (* Send the availability mailbox to workers, so that they know where
-     to communicate their availability: *)
-  List.iter
-    (fun worker_mailbox -> msend worker_mailbox availability_mailbox)
-    worker_mailboxes;
-  let emitter_sink parameter =
-    let parameter_index = !counter in
-    counter := parameter_index + 1;
-    (* Get a free worker mailbox (waiting if needed): *)
-    let worker_mailbox = mreceive availability_mailbox in
-    (* Send the task to the worker: *)
-    msend worker_mailbox (parameter_index, parameter) in
-  let collector_source () =
-    (* let parameter_index, result = mreceive collector_mailbox in result *)
-    mreceive collector_mailbox in
-  emitter_sink, (reorder_source collector_source 0)
+let make_reordering_sink sink first_index =
+  let pending = ref [] in
+  let required_minimum_index = ref first_index in
+  let rec process_pending () =
+    while is_in !required_minimum_index !pending do
+      let element = lookup !required_minimum_index !pending in
+      (* Printf.fprintf stderr "SINKING %i AS PENDING\n%!" !required_minimum_index; *)
+      pending := remove !required_minimum_index !pending;
+      required_minimum_index := !required_minimum_index + 1;
+      sink element;
+      process_pending ();
+    done in
+  fun ((index, element) as pair) ->
+    (* Printf.fprintf stderr "@%i [WAITING FOR INDEX %i; GOT %i\n%!" (Obj.magic required_minimum_index)!required_minimum_index index; *)
+    if index = !required_minimum_index then
+      ((* Printf.fprintf stderr "DIRECTLY SINKING, WITHOUT TOUCHING THE CACHE; NOW WAITING FOR %i\n%!" !required_minimum_index; *)
+       sink element;
+       required_minimum_index := index + 1;
+       process_pending ())
+    else if is_in index !pending then
+      (let element = lookup index !pending in
+      required_minimum_index := index + 1;
+      pending := remove index !pending;
+      (* Printf.fprintf stderr "SINKING FROM THE CACHE; NOW WAITING FOR %i\n%!"  !required_minimum_index; *)
+      sink element;
+      process_pending ())
+    else
+      ((* Printf.fprintf stderr "CACHING %i\n%!" index; *)
+       pending := insert pair !pending)
 
-let list_map_of_skeleton (sink, source) =
-  fun list ->
-    List.iter sink list;
-    List.map (fun _ -> source ()) list
+type 'b postprocessor = 'b -> unit
+type ('a, 'b) skeleton = ('b postprocessor) -> ('a sink)
+type ('a, 'b) instantiated_skeleton = ('a sink) * ('b source)
+
+let instantiate_with_postprocessor skeleton postprocessor =
+  skeleton postprocessor
+
+let instantiate skeleton =
+  let mailbox = make_local_mailbox () in
+  (instantiate_with_postprocessor
+     skeleton
+     (fun result -> send mailbox result)),
+  (fun () ->
+    receive mailbox)
+
+let list_map_of_instantiated_skeleton instantiated_skeleton =
+  fun elements ->
+    let sink, source = instantiated_skeleton in
+    List.iter sink elements;
+    List.map (fun _ -> source ()) elements
+
+let feed instantiated_skeleton argument =
+  let (sink, _) = instantiated_skeleton in
+  sink argument
+
+let pull instantiated_skeleton =
+  let (_, source) = instantiated_skeleton in
+  source ()
+
+let trivial f =
+  fun postprocessor ->
+    (fun x ->
+      let result = f x in
+      postprocessor result)
+
+let sequence stage1_skeleton stage2_skeleton =
+  fun sequence_postprocessor ->
+    instantiate_with_postprocessor
+      stage1_skeleton
+      (fun stage1_result ->
+        (instantiate_with_postprocessor
+           stage2_skeleton
+           sequence_postprocessor)
+          stage1_result)
+
+let pipeline stage1_skeleton stage2_skeleton =
+  fun pipeline_postprocessor ->
+    let stage2_mailbox =
+      split1
+        (fun stage2_mailbox ->
+          let stage2_sink =
+            instantiate_with_postprocessor
+              stage2_skeleton
+              pipeline_postprocessor in
+          while true do
+            let stage2_parameter = receive stage2_mailbox in
+            stage2_sink stage2_parameter;
+          done) in
+    instantiate_with_postprocessor
+      stage1_skeleton
+      (fun stage1_result ->
+        send stage2_mailbox stage1_result)
+
+let label unlabeled_skeleton =
+  fun labeled_postprocessor ->
+    let label_mailbox =
+      make_local_mailbox () in
+    let unlabeled_sink =
+      instantiate_with_postprocessor
+        unlabeled_skeleton
+        (fun result ->
+          (* this label is not local to the current context: *)
+          let label = receive label_mailbox in
+          labeled_postprocessor (label, result)) in
+    (fun (label, parameter) ->
+      send label_mailbox label;
+      unlabeled_sink parameter)
+
+let task_farm worker_no worker_skeleton =
+  fun taskfarm_postprocessor ->
+    let availability_mailbox = make_local_mailbox () in
+    let collector_mailbox =
+      split1
+        (fun collector_mailbox ->
+          let reordering_sink =
+            make_reordering_sink taskfarm_postprocessor 0 in
+          while true do
+            let pair = receive collector_mailbox in
+            reordering_sink pair;
+          done) in
+    let _ =
+      split
+        worker_no
+        (fun worker_index worker_mailbox ->
+          let instantiated_worker_skeleton =
+            instantiate_with_postprocessor
+              (label worker_skeleton)
+              (fun ((_, _) as pair) -> send collector_mailbox pair) in
+          while true do
+            (* Tell the emitter that we're free, by sending it the mailbox he can
+               use to send us tasks: *)
+            send availability_mailbox worker_mailbox;
+            (* Receive a parameter with its sequence number, from the emitter: *)
+            let (sequence_number, parameter) = receive worker_mailbox in
+            (* Printf.fprintf stderr "Worker #%i: got parameter #%i\n%!" worker_index sequence_number; *)
+            (* Feed what we got to the worker, without waiting for it to finish *)
+            instantiated_worker_skeleton (sequence_number, parameter);
+          done) in
+    let counter = ref 0 in
+    (fun parameter ->
+      let index = !counter in
+      counter := index + 1;
+      let worker_mailbox = receive availability_mailbox in
+      send worker_mailbox (index, parameter))

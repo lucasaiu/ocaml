@@ -182,8 +182,6 @@ struct caml_mailbox{
   /* This mailbox belongs to some context: */
   struct caml_global_context_descriptor *descriptor;
 
-  /* We need to protec concurrent accesses to this structure: */
-
 #define CAML_INITIAL_ALLOCATED_MESSAGE_NO 10
   /* The message queue, and its synchronization structures. */
   /* FIXME: implement an efficient queue (in a separate file).  This
@@ -574,7 +572,8 @@ struct caml_global_context {
 enum caml_global_context_descriptor_kind{
   caml_global_context_main,
   caml_global_context_nonmain_local,
-  caml_global_context_remote
+  caml_global_context_remote, // FIXME: remove
+  caml_global_context_dead
 }; /* enum caml_global_context_kind */
 
 /* A local context descriptor trivially refers a context.  This is
