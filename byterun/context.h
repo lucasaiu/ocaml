@@ -179,7 +179,7 @@ struct extern_item { value * v; mlsize_t count; }; /* Stack holding pending valu
 enum { NO_SHARING = 1, CLOSURES = 2, CROSS_CONTEXT = 4 };
 
 struct caml_mailbox{
-  /* This mailbox belongs to some context: */
+  /* By convention a mailbox "belongs" to the context which created it: */
   struct caml_global_context_descriptor *descriptor;
 
 #define CAML_INITIAL_ALLOCATED_MESSAGE_NO 10
