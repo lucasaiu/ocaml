@@ -13,7 +13,7 @@ type mailbox
 
 (* exception ForeignMailbox of mailbox (\* FIXME: this should be removed *\) *)
 
-val make_local_mailbox : unit -> mailbox
+val make_mailbox : unit -> mailbox
 
 val context_of_mailbox : mailbox -> t
 val is_mailbox_local : mailbox -> bool

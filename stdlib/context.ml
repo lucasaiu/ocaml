@@ -57,7 +57,7 @@ let join_contexts contexts =
 type mailbox = int (*whatever*)
 (* exception ForeignMailbox of mailbox *)
 
-external make_local_mailbox : unit -> mailbox = "caml_camlprim_make_local_mailbox_r" "reentrant"
+external make_mailbox : unit -> mailbox = "caml_camlprim_make_mailbox_r" "reentrant"
 
 external send : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
 
@@ -76,12 +76,12 @@ let join mailboxes =
 
 let split context_no f =
   let split_mailbox_receiving_mailbox =
-    make_local_mailbox () in
+    make_mailbox () in
   let _ =
     split_into_contexts
       context_no
       (fun index ->
-        let mailbox = make_local_mailbox () in
+        let mailbox = make_mailbox () in
         send split_mailbox_receiving_mailbox (index, mailbox);
         f index mailbox) in
   (* Printf.fprintf stderr "@@@@ split: made %i contexts\n%!" (List.length contexts); *)
@@ -202,7 +202,7 @@ let instantiate_with_postprocessor skeleton postprocessor =
   skeleton postprocessor
 
 let instantiate skeleton =
-  let mailbox = make_local_mailbox () in
+  let mailbox = make_mailbox () in
   (instantiate_with_postprocessor
      skeleton
      (fun result -> send mailbox result)),
@@ -231,13 +231,16 @@ let trivial f =
 
 let sequence stage1_skeleton stage2_skeleton =
   fun sequence_postprocessor ->
-    instantiate_with_postprocessor
-      stage1_skeleton
-      (fun stage1_result ->
-        (instantiate_with_postprocessor
-           stage2_skeleton
-           sequence_postprocessor)
-          stage1_result)
+    let stage2_sink =
+      instantiate_with_postprocessor
+        stage2_skeleton
+        sequence_postprocessor in
+    let stage1_sink =
+      instantiate_with_postprocessor
+        stage1_skeleton
+        (fun stage1_result ->
+          stage2_sink stage1_result) in
+    stage1_sink
 
 let pipeline stage1_skeleton stage2_skeleton =
   fun pipeline_postprocessor ->
@@ -260,7 +263,7 @@ let pipeline stage1_skeleton stage2_skeleton =
 let label unlabeled_skeleton =
   fun labeled_postprocessor ->
     let label_mailbox =
-      make_local_mailbox () in
+      make_mailbox () in
     let unlabeled_sink =
       instantiate_with_postprocessor
         unlabeled_skeleton
@@ -274,7 +277,7 @@ let label unlabeled_skeleton =
 
 let task_farm worker_no worker_skeleton =
   fun taskfarm_postprocessor ->
-    let availability_mailbox = make_local_mailbox () in
+    let availability_mailbox = make_mailbox () in
     let collector_mailbox =
       split1
         (fun collector_mailbox ->
