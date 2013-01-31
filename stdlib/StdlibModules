@@ -56,6 +56,7 @@ STDLIB_MODULES=\
   random \
   scanf \
   set \
+  skeleton \
   sort \
   stack \
   stdLabels \

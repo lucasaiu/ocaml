@@ -39,9 +39,8 @@ OTHERS=array.cmo list.cmo char.cmo string.cmo sys.cmo \
   camlinternalOO.cmo oo.cmo camlinternalMod.cmo \
   genlex.cmo weak.cmo \
   filename.cmo complex.cmo \
-  context.cmo \
+  context.cmo skeleton.cmo \
   arrayLabels.cmo listLabels.cmo stringLabels.cmo moreLabels.cmo stdLabels.cmo
-
 all: stdlib.cma std_exit.cmo camlheader camlheader_ur
 
 test: all

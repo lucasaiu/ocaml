@@ -7,11 +7,10 @@
 (* A skeleton is a graph of computing elements possibly organized to
    work in parallel, which when instantiated will consume a stream of
    inputs and produce the stream of their associated results, in the
-   same order.  Computing elements are abstract in a non-instantiated
-   skeleton, and they are not yet mapped to physical computing
-   resources.  In particular, the same skeleton can be instantiated
-   multiple times, yielding independent replicated graphs of computing
-   resources. *)
+   same order.  Computing elements not yet mapped to physical
+   computing resources in a non-instantiated skeleton; in particular,
+   one skeleton can be instantiated multiple times, yielding
+   independent replicated graphs of computing resources. *)
 type ('a, 'b) skeleton
 
 (* We define sinks and sources as interfaces between instantiated
