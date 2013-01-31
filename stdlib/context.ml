@@ -61,13 +61,7 @@ external make_local_mailbox : unit -> mailbox = "caml_camlprim_make_local_mailbo
 
 external send : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
 
-external receive_ugly_exception : mailbox -> (t * 'a) = "caml_context_receive_r" "reentrant"
-let receive mailbox =
-  (* try *)
-    let _, message = receive_ugly_exception mailbox in
-    message
-  (* with _ -> *)
-  (*   raise (ForeignMailbox mailbox) *)
+external receive : mailbox -> 'a = "caml_context_receive_r" "reentrant"
 
 external context_of_mailbox : mailbox -> 'a = "caml_camlprim_context_of_mailbox_r" "reentrant"
 

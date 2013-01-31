@@ -183,6 +183,7 @@ struct caml_mailbox{
   struct caml_global_context_descriptor *descriptor;
 
 #define CAML_INITIAL_ALLOCATED_MESSAGE_NO 10
+  //#define CAML_QUEUE_SLOT_NO 8
   /* The message queue, and its synchronization structures. */
   /* FIXME: implement an efficient queue (in a separate file).  This
      is currently a left-aligned array (with the unused elements on
@@ -190,12 +191,13 @@ struct caml_mailbox{
      on the left.  Dequeuing is expensive, since elements have to be
      shifted by one position. */
   struct caml_message{
-    struct caml_global_context_descriptor *sender_descriptor;
     char *message_blob; // malloc'd
-  } *message_queue;
+  } //message_queue[CAML_QUEUE_SLOT_NO];
+    *message_queue;
   int allocated_message_no;
   sem_t message_no_semaphore;   /* a semaphore counting messages */
   int message_no; /* same value as the semaphore; needed for synchronization reasons */
+  //sem_t free_slot_no_semaphore;   /* a semaphore counting messages */
   pthread_mutex_t mutex;
 }; // struct
 

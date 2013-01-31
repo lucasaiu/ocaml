@@ -19,22 +19,23 @@
 #include "gc_ctrl.h" // FIXME: remove after debugging, if possible
 #include "compact.h" // FIXME: remove after debugging, if possible
 
-struct caml_mailbox* caml_make_local_mailbox_r(CAML_R){
+struct caml_mailbox* caml_make_mailbox_r(CAML_R){
   struct caml_mailbox *m = caml_stat_alloc(sizeof(struct caml_mailbox));
   m->descriptor = ctx->descriptor;
   caml_initialize_mutex(&m->mutex);
   //caml_initialize_semaphore(&m->free_slot_no_semaphore, MESSAGE_QUEUE_SIZE);
   caml_initialize_semaphore(&m->message_no_semaphore, 0);
+  //caml_initialize_semaphore(&m->free_slot_no_semaphore, CAML_QUEUE_SLOT_NO);
   m->message_queue = caml_stat_alloc(sizeof(struct caml_message) * CAML_INITIAL_ALLOCATED_MESSAGE_NO);
   m->allocated_message_no = CAML_INITIAL_ALLOCATED_MESSAGE_NO;
   m->message_no = 0;
-  //fprintf(stderr, "caml_make_local_mailbox_r [%p]: made m %p\n", ctx, m); fflush(stderr);
+  //fprintf(stderr, "caml_make_mailbox_r [%p]: made m %p\n", ctx, m); fflush(stderr);
 
   return m;
 }
 
 CAMLprim value caml_camlprim_make_local_mailbox_r(CAML_R){
-  return caml_value_of_mailbox(caml_make_local_mailbox_r(ctx));
+  return caml_value_of_mailbox(caml_make_mailbox_r(ctx));
 }
 
 CAMLprim value caml_camlprim_context_of_mailbox_r(CAML_R, value mailbox_as_value){
@@ -53,6 +54,7 @@ void caml_destroy_local_mailbox_r(CAML_R, struct caml_mailbox *mailbox){
 
   caml_finalize_mutex(&mailbox->mutex);
   caml_finalize_semaphore(&mailbox->message_no_semaphore);
+  //caml_finalize_semaphore(&mailbox->free_slot_no_semaphore);
   free(mailbox);
 }
 
@@ -492,25 +494,31 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   char *message_blob;
   receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
 
+  fprintf(stderr, "caml_context_send_r    [%p, m %p]: OK-10 BEFORE P, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-1\n", ctx, receiver_mailbox); fflush(stderr);
   /* First serialize the message; this is the slow part, and we can do
      it out of the critical section: */
   message_blob = caml_serialize_into_blob_r(ctx, message);
+
+  /* /\* Wait until there is a free slot: *\/ */
+  /* caml_enter_blocking_section_r(ctx); */
+  /* sem_wait(&receiver_mailbox->free_slot_no_semaphore); */
+  /* caml_leave_blocking_section_r(ctx); */
 
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-20 BEFORE LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   /* Write the message into the receiver's data structure, and unblock it: */
   pthread_mutex_lock(&receiver_mailbox->mutex);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-30 AFTER LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   int message_no = receiver_mailbox->message_no;
+
   /* Make sure there is enough space, enlarging the queue if needed: */
   if(message_no == receiver_mailbox->allocated_message_no){
     receiver_mailbox->allocated_message_no *= 2;
     receiver_mailbox->message_queue =
       realloc(receiver_mailbox->message_queue, sizeof(struct caml_message) * receiver_mailbox->allocated_message_no);
-    //fprintf(stderr, "caml_context_send_r [%p, m %p]: doubled the messaque queue size to %i\n", ctx, receiver_mailbox, receiver_mailbox->allocated_message_no); fflush(stderr);
+    fprintf(stderr, "caml_context_send_r [%p, m %p]: doubled the messaque queue size to %i\n", ctx, receiver_mailbox, receiver_mailbox->allocated_message_no); fflush(stderr);
   } // if
   receiver_mailbox->message_queue[message_no].message_blob = message_blob;
-  receiver_mailbox->message_queue[message_no].sender_descriptor = ctx->descriptor;
   receiver_mailbox->message_no = message_no + 1;
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   pthread_mutex_unlock(&receiver_mailbox->mutex);
@@ -518,6 +526,7 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   sem_post(&receiver_mailbox->message_no_semaphore);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-60 AFTER V\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
+  fprintf(stderr, "caml_context_send_r    [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
 
   CAMLreturn(Val_unit);
 }
@@ -526,8 +535,6 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   CAMLparam1(receiver_mailbox_as_value);
   CAMLlocal1(message);
   struct caml_mailbox *receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
-  struct caml_global_context_descriptor *sender_descriptor;
-  struct caml_global_context *sender_context;
   char *message_blob;
   //fprintf(stderr, "caml_context_receive_r [%p]: WAITING FOR A MESSAGE.\n", ctx); fflush(stderr);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-1\n", ctx, receiver_mailbox); fflush(stderr);
@@ -536,7 +543,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   /* if(ctx->descriptor != receiver_mailbox->descriptor) */
   /*   caml_failwith_r(ctx, "foreign mailbox"); */
 
-  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-10 BEFORE P, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+  fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-10 BEFORE P, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   /* Wait until there is a message: */
   caml_enter_blocking_section_r(ctx);
   sem_wait(&receiver_mailbox->message_no_semaphore);
@@ -549,30 +556,25 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-30 AFTER LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   int message_no = receiver_mailbox->message_no;
   Assert(message_no > 0);
-  sender_descriptor = receiver_mailbox->message_queue[0].sender_descriptor;
   message_blob = receiver_mailbox->message_queue[0].message_blob;
   /* Shift the queue elements to the left by one position */
   int i; for(i = 0; i < (message_no - 1); i ++)
     receiver_mailbox->message_queue[i] = receiver_mailbox->message_queue[i + 1];
   /* Invalidate the rightmost message.  This is useful at destruction
      time, for not freeing structures more than once: */
-  receiver_mailbox->message_queue[message_no - 1].sender_descriptor = NULL; receiver_mailbox->message_queue[message_no - 1].message_blob = NULL; // just for debugging
+  receiver_mailbox->message_queue[message_no - 1].message_blob = NULL; // just for debugging
   receiver_mailbox->message_no = message_no - 1;
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   pthread_mutex_unlock(&receiver_mailbox->mutex);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-50 AFTER UNLOCK\n", ctx, receiver_mailbox); fflush(stderr);
 
-  //fprintf(stderr, "caml_context_receive_r [%p]: GOT A MESSAGE.\n", ctx); fflush(stderr);
-  if((sender_descriptor->kind != caml_global_context_nonmain_local) &&
-     (sender_descriptor->kind != caml_global_context_main))
-    caml_failwith_r(ctx, "caml_context_receive_r: remote contexts aren't implemented yet");
-  sender_context = sender_descriptor->content.local_context.context;
+  /* /\* Signal the fact that there one slot has been freed: *\/ */
+  /* sem_post(&receiver_mailbox->free_slot_no_semaphore); */
 
   message = caml_deserialize_blob_r(ctx, message_blob);
   free(message_blob);
 
-  //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
-  CAMLreturn(caml_pair_r(ctx,
-                         caml_value_of_context_descriptor(sender_descriptor),
-                         message));
+  fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+
+  CAMLreturn(message);
 }
