@@ -35,8 +35,8 @@ type ('a, 'b) instantiated_skeleton = ('a sink) * ('b source)
 val feed : (('a, 'b) instantiated_skeleton) -> 'a -> unit
 val pull : (('a, 'b) instantiated_skeleton) -> 'b
 
-(* Turn a skeleton into an instantiated skeleton or a sink with side
-   effects, allocating computing resources: *)
+(* Allocate computing resources and turn a skeleton into an
+   instantiated skeleton or a sink with side effects: *)
 type 'b postprocessor = 'b -> unit (* what to do with each emitted element *)
 val instantiate : (('a, 'b) skeleton) -> (('a, 'b) instantiated_skeleton)
 val instantiate_with_postprocessor : (('a, 'b) skeleton) -> ('b postprocessor) -> ('a sink)
