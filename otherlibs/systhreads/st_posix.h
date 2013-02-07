@@ -48,10 +48,10 @@ static int st_initialize(void)
 
 /* Thread creation.  Created in detached mode if [res] is NULL. */
 
-typedef pthread_t st_thread_id;
+//typedef pthread_t st_thread_id;
 
-static int st_thread_create(st_thread_id * res,
-                            void * (*fn)(void *), void * arg)
+static int st_thread_create_r(CAML_R, st_thread_id * res,
+                              void * (*fn)(void *), void * arg)
 {
   pthread_t thr;
   pthread_attr_t attr;
@@ -113,18 +113,6 @@ static INLINE void st_tls_set(st_tlskey k, void * v)
 {
   pthread_setspecific(k, v);
 }
-
-/* The master lock.  This is a mutex that is held most of the time,
-   so we implement it in a slightly consoluted way to avoid
-   all risks of busy-waiting.  Also, we count the number of waiting
-   threads. */
-
-typedef struct {
-  pthread_mutex_t lock;         /* to protect contents  */
-  int busy;                     /* 0 = free, 1 = taken */
-  volatile int waiters;         /* number of threads waiting on master lock */
-  pthread_cond_t is_free;       /* signaled when free */
-} st_masterlock;
 
 static void st_masterlock_init(st_masterlock * m)
 {
@@ -316,10 +304,12 @@ static void st_check_error_r(CAML_R, int retcode, char * msg)
 
 /* The tick thread: posts a SIGPREEMPTION signal periodically */
 
-static void * caml_thread_tick(void * arg)
+static void * caml_thread_tick(void * context_as_void_star)
 {
+  CAML_R = context_as_void_star;
   struct timeval timeout;
   sigset_t mask;
+  //fprintf(stderr, "caml_thread_tick: started ticker for context %p\n", ctx); fflush(stderr);
 
   /* Block all signals so that we don't try to execute an OCaml signal handler*/
   sigfillset(&mask);
@@ -335,7 +325,7 @@ static void * caml_thread_tick(void * arg)
     /* The preemption signal should never cause a callback, so don't
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
-    caml_record_signal(SIGPREEMPTION);
+    caml_record_signal_r(ctx, SIGPREEMPTION);
   }
   return NULL;                  /* prevents compiler warning */
 }
@@ -363,26 +353,29 @@ static void st_decode_sigset(value vset, sigset_t * set)
 #define NSIG 64
 #endif
 
-static value st_encode_sigset(sigset_t * set)
+static value st_encode_sigset_r(CAML_R, sigset_t * set)
 {
   value res = Val_int(0);
+  //CAMLparam0();
+  //CAMLlocal1(res);
   int i;
 
   Begin_root(res)
     for (i = 1; i < NSIG; i++)
       if (sigismember(set, i) > 0) {
-        value newcons = alloc_small(2, 0);
+        value newcons = caml_alloc_small_r(ctx, 2, 0);
         Field(newcons, 0) = Val_int(caml_rev_convert_signal_number(i));
         Field(newcons, 1) = res;
         res = newcons;
       }
   End_roots();
   return res;
+  //CAMLreturn(res);
 }
 
 static int sigmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };
 
-value caml_thread_sigmask(value cmd, value sigs) /* ML */
+value caml_thread_sigmask_r(CAML_R, value cmd, value sigs) /* ML */
 {
   int how;
   sigset_t set, oldset;
@@ -390,24 +383,24 @@ value caml_thread_sigmask(value cmd, value sigs) /* ML */
 
   how = sigmask_cmd[Int_val(cmd)];
   st_decode_sigset(sigs, &set);
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   retcode = pthread_sigmask(how, &set, &oldset);
-  leave_blocking_section();
-  st_check_error(retcode, "Thread.sigmask");
-  return st_encode_sigset(&oldset);
+  caml_leave_blocking_section_r(ctx);
+  st_check_error_r(ctx, retcode, "Thread.sigmask");
+  return st_encode_sigset_r(ctx, &oldset);
 }
 
-value caml_wait_signal(value sigs) /* ML */
+value caml_wait_signal_r(CAML_R, value sigs) /* ML */
 {
 #ifdef HAS_SIGWAIT
   sigset_t set;
   int retcode, signo;
 
   st_decode_sigset(sigs, &set);
-  enter_blocking_section();
+  caml_enter_blocking_section_r(ctx);
   retcode = sigwait(&set, &signo);
-  leave_blocking_section();
-  st_check_error(retcode, "Thread.wait_signal");
+  caml_leave_blocking_section_r(ctx);
+  st_check_error_r(ctx, retcode, "Thread.wait_signal");
   return Val_int(signo);
 #else
   invalid_argument("Thread.wait_signal not implemented");

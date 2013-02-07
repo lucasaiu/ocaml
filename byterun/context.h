@@ -197,9 +197,29 @@ struct caml_mailbox{
   int allocated_message_no;
   sem_t message_no_semaphore;   /* a semaphore counting messages */
   int message_no; /* same value as the semaphore; needed for synchronization reasons */
-  //sem_t free_slot_no_semaphore;   /* a semaphore counting messages */
+  //sem_t free_slot_no_semaphore;   /* a semaphore counting free slots */
   pthread_mutex_t mutex;
 }; // struct
+
+
+/* From st_posix.h: */
+/* The master lock.  This is a mutex that is held most of the time,
+   so we implement it in a slightly consoluted way to avoid
+   all risks of busy-waiting.  Also, we count the number of waiting
+   threads. */
+typedef struct {
+  pthread_mutex_t lock;         /* to protect contents  */
+  int busy;                     /* 0 = free, 1 = taken */
+  volatile int waiters;         /* number of threads waiting on master lock */
+  pthread_cond_t is_free;       /* signaled when free */
+} st_masterlock;
+
+
+// ??????
+typedef struct caml_thread_struct * caml_thread_t; /* from st_posix.h */
+typedef pthread_t st_thread_id; /* from st_posix.h */
+// ??????
+
 
 /* The field ordering should not be changing without also updating the
    macro definitions at the beginning of asmrun/ARCHITECTURE.s. */
@@ -254,7 +274,7 @@ struct caml_global_context {
 
 /* These are termination hooks used by the systhreads library */
   struct longjmp_buffer caml_termination_jmpbuf;
-  void (*caml_termination_hook)(void *);
+  void (*caml_termination_hook)(void);
 
 #endif
 
@@ -386,9 +406,9 @@ struct caml_global_context {
 #endif /* #ifndef NSIG */
   intnat caml_pending_signals[NSIG];
   intnat caml_async_signal_mode; /* = 0; */
-  void (*enter_blocking_section_hook)(void); /* =caml_enter_blocking_section_default; */
-  void (*leave_blocking_section_hook)(void); /* = caml_leave_blocking_section_default; */
-  int (*try_leave_blocking_section_hook)(void); /* = caml_try_leave_blocking_section_default; */
+  void (*caml_enter_blocking_section_hook)(void);
+  void (*caml_leave_blocking_section_hook)(void);
+  int (*caml_try_leave_blocking_section_hook)(void);
   int caml_force_major_slice; /* = 0; */
   value caml_signal_handlers; /* = 0; */
 
@@ -551,6 +571,25 @@ struct caml_global_context {
   char * caml_instr_base;
 #endif
 
+  /* From st_stubs.c */
+  /////////////// BEGIN: Luca Saiu REENTRANTRUNTIME
+  // ??????
+  /* The "head" of the circular list of thread descriptors */
+  caml_thread_t all_threads /* = NULL */;
+
+  /* The descriptor for the currently executing thread */
+  caml_thread_t curr_thread /* = NULL */;
+
+  /* The master lock protecting the OCaml runtime system */
+  st_masterlock caml_master_lock;
+
+  /* Whether the ``tick'' thread is already running */
+  int caml_tick_thread_running /* = 0 */;
+
+  /* The thread identifier of the ``tick'' thread */
+  st_thread_id caml_tick_thread_id;
+  /////////////// END: Luca Saiu REENTRANTRUNTIME
+
   /* Context-local "global" C variables: */
 #define INITIAL_C_GLOBALS_ALLOCATED_SIZE 16
   struct caml_extensible_buffer c_globals; /* = {INITIAL_C_GLOBALS_ALLOCATED_SIZE, 0, dynamic} */
@@ -568,6 +607,9 @@ struct caml_global_context {
 
   /* The (POSIX) thread associated to this context: */
   pthread_t thread;
+
+  /* Protect context fields from concurrent accesses: */
+  pthread_mutex_t mutex;
 }; /* struct caml_global_context */
 
 /* Context descriptors may be either local or remote: */
@@ -734,9 +776,9 @@ extern library_context *caml_get_library_context_r(
 #define caml_signals_are_pending ctx->caml_signals_are_pending
 #define caml_pending_signals     ctx->caml_pending_signals
 #define caml_async_signal_mode   ctx->caml_async_signal_mode
-#define caml_enter_blocking_section_hook ctx->enter_blocking_section_hook
-#define caml_leave_blocking_section_hook ctx->leave_blocking_section_hook
-#define caml_try_leave_blocking_section_hook ctx->try_leave_blocking_section_hook
+#define caml_enter_blocking_section_hook ctx->caml_enter_blocking_section_hook
+#define caml_leave_blocking_section_hook ctx->caml_leave_blocking_section_hook
+#define caml_try_leave_blocking_section_hook ctx->caml_try_leave_blocking_section_hook
 #define caml_force_major_slice   ctx->caml_force_major_slice
 #define caml_signal_handlers     ctx->caml_signal_handlers
 #endif
@@ -921,6 +963,14 @@ extern library_context *caml_get_library_context_r(
 #define caml_instr_base ctx->caml_instr_base
 #endif /* #ifdef THREADED_CODE */
 #endif /* #ifdef CAML_CONTEXT_FIX_CODE */
+
+#ifdef CAML_ST_POSIX_CODE
+#define all_threads ctx->all_threads
+#define curr_thread ctx->curr_thread
+#define caml_master_lock ctx->caml_master_lock
+#define caml_tick_thread_running ctx->caml_tick_thread_running
+#define caml_tick_thread_id ctx->caml_tick_thread_id
+#endif /* #ifdef CAML_ST_POSIX_CODE */
 
 /* OCaml context-local "globals" */
 

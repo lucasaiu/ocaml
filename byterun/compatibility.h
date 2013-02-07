@@ -53,8 +53,8 @@
 
 /* **** backtrace.c */
 #define backtrace_active caml_backtrace_active
-#define backtrace_pos caml_backtrace_pos
-#define backtrace_buffer caml_backtrace_buffer
+//#define backtrace_pos caml_backtrace_pos
+//#define backtrace_buffer caml_backtrace_buffer
 //#define backtrace_last_exn caml_backtrace_last_exn // Disabled by Luca Saiu because of conflicts with other identifiers in otherlibs/systhreads/st_stubs.c REENTRANTRUNTIME
 #define print_exception_backtrace caml_print_exception_backtrace
 
@@ -99,7 +99,7 @@
 #define serialize_block_float_8 caml_serialize_block_float_8
 
 /* **** fail.c */
-#define external_raise caml_external_raise
+//#define external_raise caml_external_raise
 #define mlraise caml_raise /*SP*/
 #define raise_constant caml_raise_constant
 #define raise_with_arg caml_raise_with_arg
@@ -259,12 +259,12 @@
 /* **** signals.c */
 #define pending_signals caml_pending_signals
 #define something_to_do caml_something_to_do
-#define enter_blocking_section_hook caml_enter_blocking_section_hook
-#define leave_blocking_section_hook caml_leave_blocking_section_hook
+//#define enter_blocking_section_hook caml_enter_blocking_section_hook
+//#define leave_blocking_section_hook caml_leave_blocking_section_hook
 #define try_leave_blocking_section_hook caml_try_leave_blocking_section_hook
 #define async_action_hook caml_async_action_hook
-#define enter_blocking_section caml_enter_blocking_section
-#define leave_blocking_section caml_leave_blocking_section
+//#define enter_blocking_section caml_enter_blocking_section
+//#define leave_blocking_section caml_leave_blocking_section
 #define convert_signal_number caml_convert_signal_number
 /* **** asmrun/signals.c */
 #define garbage_collection caml_garbage_collection
@@ -272,9 +272,9 @@
 /* **** stacks.c */
 //#define stack_low caml_stack_low // Disabled by Luca Saiu: same reason as above  REENTRANTRUNTIME
 //#define stack_high caml_stack_high // Disabled by Luca Saiu: same reason as above  REENTRANTRUNTIME
-#define stack_threshold caml_stack_threshold
+//#define stack_threshold caml_stack_threshold
 #define extern_sp caml_extern_sp
-#define trapsp caml_trapsp
+//#define trapsp caml_trapsp
 #define trap_barrier caml_trap_barrier
 
 /* **** startup.c */

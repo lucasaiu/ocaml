@@ -278,9 +278,9 @@ section.  */
   /* ctx->caml_pending_signals */
   ctx->caml_async_signal_mode = 0;
 
-  ctx->enter_blocking_section_hook = &caml_enter_blocking_section_default;
-  ctx->leave_blocking_section_hook = &caml_leave_blocking_section_default;
-  ctx->try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default;
+  ctx->caml_enter_blocking_section_hook = &caml_enter_blocking_section_default;
+  ctx->caml_leave_blocking_section_hook = &caml_leave_blocking_section_default;
+  ctx->caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default;
 
   ctx->caml_force_major_slice = 0;
   ctx->caml_signal_handlers = 0;
@@ -415,6 +415,13 @@ section.  */
 	  caml_leave_blocking_section_default);
   */
 
+  /* From st_stubs.c */
+  ctx->all_threads = NULL;
+  ctx->curr_thread = NULL;
+  /* ctx->caml_master_lock; */
+  ctx->caml_tick_thread_running = 0;
+  /* ctx->caml_tick_thread_id; */
+
   /* Global context-local OCaml variables */
 #ifdef NATIVE_CODE
   ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE;
@@ -437,6 +444,8 @@ section.  */
   ctx->descriptor->kind = caml_global_context_main;
   ctx->descriptor->content.local_context.context = ctx;
   //fprintf(stderr, "Initialized the context [%p] descriptor [%p]\n", ctx, ctx->descriptor); fflush(stderr);
+
+  caml_initialize_mutex(&ctx->mutex);
 
   return ctx;
 }

@@ -222,7 +222,7 @@ caml_global_context* caml_main_rr(char **argv)
 #endif
   caml_sys_init_r(ctx, exe_name, argv);
   if (sigsetjmp(caml_termination_jmpbuf.buf, 0)) {
-    if (caml_termination_hook != NULL) caml_termination_hook(NULL);
+    if (caml_termination_hook != NULL) caml_termination_hook();
     return ctx;
   }
 

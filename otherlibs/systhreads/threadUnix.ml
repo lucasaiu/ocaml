@@ -19,10 +19,10 @@ open Unix
 
 (*** Process handling *)
 
-external execv : string -> string array -> unit = "unix_execv"
+external execv : string -> string array -> unit = "unix_execv_r" "reentrant"
 external execve : string -> string array -> string array -> unit
-           = "unix_execve"
-external execvp : string -> string array -> unit = "unix_execvp"
+           = "unix_execve_r" "reentrant"
+external execvp : string -> string array -> unit = "unix_execvp_r" "reentrant"
 let wait = Unix.wait
 let waitpid = Unix.waitpid
 let system = Unix.system
@@ -46,11 +46,11 @@ let open_process_in = Unix.open_process_in
 let open_process_out = Unix.open_process_out
 let open_process = Unix.open_process
 
-external sleep : int -> unit = "unix_sleep"
+external sleep : int -> unit = "unix_sleep_r" "reentrant"
 
 let socket = Unix.socket
 let accept = Unix.accept
-external connect : file_descr -> sockaddr -> unit = "unix_connect"
+external connect : file_descr -> sockaddr -> unit = "unix_connect_r" "reentrant"
 let recv = Unix.recv
 let recvfrom = Unix.recvfrom
 let send = Unix.send

@@ -14,7 +14,7 @@
 (* $Id$ *)
 
 type t
-external create: unit -> t = "caml_condition_new"
-external wait: t -> Mutex.t -> unit = "caml_condition_wait"
-external signal: t -> unit = "caml_condition_signal"
-external broadcast: t -> unit = "caml_condition_broadcast"
+external create: unit -> t = "caml_condition_new_r" "reentrant"
+external wait: t -> Mutex.t -> unit = "caml_condition_wait_r" "reentrant"
+external signal: t -> unit = "caml_condition_signal_r" "reentrant"
+external broadcast: t -> unit = "caml_condition_broadcast_r" "reentrant"

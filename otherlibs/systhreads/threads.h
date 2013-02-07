@@ -16,10 +16,10 @@
 #ifndef CAML_THREADS_H
 #define CAML_THREADS_H
 
-CAMLextern void caml_enter_blocking_section (void);
-CAMLextern void caml_leave_blocking_section (void);
-#define caml_acquire_runtime_system caml_leave_blocking_section
-#define caml_release_runtime_system caml_enter_blocking_section
+CAMLextern void caml_enter_blocking_section_r (CAML_R);
+CAMLextern void caml_leave_blocking_section_r (CAML_R);
+#define caml_acquire_runtime_system_r caml_leave_blocking_section_r
+#define caml_release_runtime_system_r caml_enter_blocking_section_r
 
 /* Manage the master lock around the OCaml run-time system.
    Only one thread at a time can execute OCaml compiled code or

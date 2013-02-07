@@ -17,17 +17,17 @@
 
 type t
 
-external thread_initialize : unit -> unit = "caml_thread_initialize"
-external thread_cleanup : unit -> unit = "caml_thread_cleanup"
-external thread_new : (unit -> unit) -> t = "caml_thread_new"
+external thread_initialize : unit -> unit = "caml_thread_initialize_r" "reentrant"
+external thread_cleanup : unit -> unit = "caml_thread_cleanup_r" "reentrant"
+external thread_new : (unit -> unit) -> t = "caml_thread_new_r" "reentrant"
 external thread_uncaught_exception : exn -> unit =
-            "caml_thread_uncaught_exception"
+            "caml_thread_uncaught_exception_r" "reentrant"
 
-external yield : unit -> unit = "caml_thread_yield"
-external self : unit -> t = "caml_thread_self"
+external yield : unit -> unit = "caml_thread_yield_r" "reentrant"
+external self : unit -> t = "caml_thread_self_r" "reentrant"
 external id : t -> int = "caml_thread_id"
-external join : t -> unit = "caml_thread_join"
-external exit : unit -> unit = "caml_thread_exit"
+external join : t -> unit = "caml_thread_join_r" "reentrant"
+external exit : unit -> unit = "caml_thread_exit_r" "reentrant"
 
 (* For new, make sure the function passed to thread_new never
    raises an exception. *)
@@ -85,5 +85,5 @@ let select = Unix.select
 
 let wait_pid p = Unix.waitpid [] p
 
-external sigmask : Unix.sigprocmask_command -> int list -> int list = "caml_thread_sigmask"
-external wait_signal : int list -> int = "caml_wait_signal"
+external sigmask : Unix.sigprocmask_command -> int list -> int list = "caml_thread_sigmask_r" "reentrant"
+external wait_signal : int list -> int = "caml_wait_signal_r" "reentrant"
