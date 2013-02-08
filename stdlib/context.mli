@@ -23,7 +23,8 @@ val send : mailbox -> 'a -> unit
 val receive : mailbox -> 'a (* raises ForeignMailbox if the mailbox is foreign *)
 
 (* Wait until the context local to the given mailbox or mailboxes terminates: *)
-val join_context : t -> unit
+(* FIXME: fix the multi-thread case *)
+val join_context : t -> unit 
 val join_contexts : t list -> unit
 val join1 : mailbox -> unit
 val join : mailbox list -> unit

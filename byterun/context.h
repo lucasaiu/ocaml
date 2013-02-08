@@ -572,8 +572,6 @@ struct caml_global_context {
 #endif
 
   /* From st_stubs.c */
-  /////////////// BEGIN: Luca Saiu REENTRANTRUNTIME
-  // ??????
   /* The "head" of the circular list of thread descriptors */
   caml_thread_t all_threads /* = NULL */;
 
@@ -588,7 +586,6 @@ struct caml_global_context {
 
   /* The thread identifier of the ``tick'' thread */
   st_thread_id caml_tick_thread_id;
-  /////////////// END: Luca Saiu REENTRANTRUNTIME
 
   /* Context-local "global" C variables: */
 #define INITIAL_C_GLOBALS_ALLOCATED_SIZE 16

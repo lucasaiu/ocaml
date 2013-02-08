@@ -482,12 +482,27 @@ static void caml_thread_stop_r(CAML_R)
   st_masterlock_release(&caml_master_lock);
 }
 
+/* Return the number of threads associated to the given context: */
+static int caml_thread_no_r(CAML_R) __attribute__((noinline)); //FIXME: for debugging only
+static int caml_thread_no_r(CAML_R){
+  int result = 0;
+  caml_thread_t t = all_threads;
+  caml_thread_t first_thread = all_threads;
+  if(t == NULL)
+    return 0;
+  do{
+    result ++;
+    t = t->next;
+  } while(t != first_thread);
+  return result;
+}
 /* Create a thread */
 
 static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 {
   caml_thread_t th = (caml_thread_t) arg;
   CAML_R = th->ctx;
+  fprintf(stderr, "Context %p: caml_thread_start: starting thread %p; now threads are %i, including this one\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
   value clos;
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;

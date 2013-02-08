@@ -47,6 +47,7 @@ let rec global_index_from global globals from =
 let global_index global =
   global_index_from global (globals ()) 0;;
 
+ (* FIXME: fix the multi-thread case *)
 external join_context : t -> unit = "caml_context_join_r" "reentrant"
 
 let join_contexts contexts =

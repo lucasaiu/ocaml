@@ -116,6 +116,7 @@ static INLINE void st_tls_set(st_tlskey k, void * v)
 
 static void st_masterlock_init(st_masterlock * m)
 {
+  INIT_CAML_R; fprintf(stderr, "Context %p: st_masterlock_init: thread %p initialized the masterlock at %p\n", ctx, (void*)pthread_self(), m); fflush(stderr);
   pthread_mutex_init(&m->lock, NULL);
   pthread_cond_init(&m->is_free, NULL);
   m->busy = 1;
@@ -124,18 +125,23 @@ static void st_masterlock_init(st_masterlock * m)
 
 static void st_masterlock_acquire(st_masterlock * m)
 {
+INIT_CAML_R; fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p: beginning\n", ctx, (void*)pthread_self()); fflush(stderr);
   pthread_mutex_lock(&m->lock);
   while (m->busy) {
+fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p is waiting...\n", ctx, (void*)pthread_self()); fflush(stderr);
     m->waiters ++;
     pthread_cond_wait(&m->is_free, &m->lock);
     m->waiters --;
+fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p has waited...\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
   m->busy = 1;
   pthread_mutex_unlock(&m->lock);
+fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p: end\n", ctx, (void*)pthread_self()); fflush(stderr);
 }
 
 static void st_masterlock_release(st_masterlock * m)
 {
+INIT_CAML_R; fprintf(stderr, "Context %p: st_masterlock_release: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
   pthread_mutex_lock(&m->lock);
   m->busy = 0;
   pthread_mutex_unlock(&m->lock);
@@ -325,7 +331,9 @@ static void * caml_thread_tick(void * context_as_void_star)
     /* The preemption signal should never cause a callback, so don't
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
+fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
     caml_record_signal_r(ctx, SIGPREEMPTION);
+fprintf(stderr, "Context %p: st_thread_tick: thread %p ticked.\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
   return NULL;                  /* prevents compiler warning */
 }
