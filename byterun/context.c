@@ -605,11 +605,17 @@ library_context *caml_get_library_context_r(CAML_R,
 extern void caml_destroy_context(CAML_R){
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
+  //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
+  ///
+  fprintf(stderr, "Freeing %p\n", ctx->caml_young_base); fflush(stderr);
+  free(ctx->caml_young_base);
+  fprintf(stderr, "Freeing %p\n", ctx->caml_heap_start); fflush(stderr);
+  caml_free_for_heap(ctx->caml_heap_start);
+
   /* No global variables are live any more; destroy everything in the Caml heap: */
 #ifdef NATIVE_CODE
   caml_shrink_extensible_buffer(&ctx->caml_globals, ctx->caml_globals.used_size);
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
-  //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
   caml_stat_free(ctx->caml_globals.array);
 #endif /* #ifdef NATIVE_CODE */
 

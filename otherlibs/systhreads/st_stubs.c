@@ -12,6 +12,7 @@
 /***********************************************************************/
 
 /* $Id$ */
+#include <assert.h> // FIXME: remove after debugging
 
 #define CAML_CONTEXT_ROOTS /* GC-protection macros */
 #define CAML_CONTEXT_FAIL
@@ -319,7 +320,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->backtrace_pos = 0;
   th->backtrace_buffer = NULL;
   th->backtrace_last_exn = Val_unit;
-  th->ctx = (void*)(long)0xdead; // FIXME: remove after debugging
+  th->ctx = (void*)(long)0xdead; /* an intentionally invalid value, to aid debugging */
   return th;
 }
 
@@ -583,6 +584,8 @@ CAMLexport int caml_c_thread_register_r(CAML_R)
 #ifdef NATIVE_CODE
   th->top_of_stack = (char *) &err;
 #endif
+  assert(th->ctx == (void*)0xdead);
+  th->ctx = ctx;
   /* Take master lock to protect access to the chaining of threads */
   st_masterlock_acquire(&caml_master_lock);
   /* Add thread info block to the list of threads */
