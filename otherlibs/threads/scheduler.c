@@ -186,7 +186,7 @@ value thread_initialize(value unit)       /* ML */
   curr_thread->retval = Val_unit;
   /* Initialize GC */
   prev_scan_roots_hook = scan_roots_hook;
-  scan_roots_hook = thread_scan_roots;
+  caml_scan_roots_hook = thread_scan_roots;
   /* Set standard file descriptors to non-blocking mode */
   stdin_initial_status = fcntl(0, F_GETFL);
   stdout_initial_status = fcntl(1, F_GETFL);

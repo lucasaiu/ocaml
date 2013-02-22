@@ -167,6 +167,9 @@ struct global_root_list {
   int level;                    /* max used level */
 };
 
+CAMLextern void (*caml_scan_roots_hook) (scanning_action);
+
+
 struct compare_item { value * v1, * v2; mlsize_t count; };
 
 
@@ -344,7 +347,6 @@ struct caml_global_context {
 
   /* Roots registered from C functions */
   struct caml__roots_block *caml_local_roots;
-  void (*caml_scan_roots_hook) (scanning_action);
   /* Communication with [caml_start_program] and [caml_call_gc]. */
 
   /* FIXME: This is the version by Fabrice, which looks out-of-date
@@ -368,7 +370,6 @@ struct caml_global_context {
 #else
 
   struct caml__roots_block *caml_local_roots; /*  = NULL;  */
-  void (*caml_scan_roots_hook) (scanning_action); /* = NULL */
 
 #endif
 
@@ -726,7 +727,7 @@ extern library_context *caml_get_library_context_r(
 #ifdef NATIVE_CODE
 
 #define caml_local_roots          ctx->caml_local_roots
-#define caml_scan_roots_hook      ctx->caml_scan_roots_hook
+//#define caml_scan_roots_hook      ctx->caml_scan_roots_hook
 
 #define caml_top_of_stack         ctx->caml_top_of_stack
 #define caml_bottom_of_stack      ctx->caml_bottom_of_stack
@@ -740,7 +741,7 @@ extern library_context *caml_get_library_context_r(
 
 #else
 #define caml_local_roots     ctx->caml_local_roots
-#define caml_scan_roots_hook ctx->caml_scan_roots_hook
+//#define caml_scan_roots_hook ctx->caml_scan_roots_hook
 #endif
 #endif
 

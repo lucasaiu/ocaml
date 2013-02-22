@@ -24,6 +24,7 @@
 #define CAML_CONTEXT_MINOR_GC
 
 
+#include <stdio.h> // FIXME: remove after debugging
 #include <string.h>
 #include "alloc.h"
 #include "custom.h"
@@ -64,6 +65,7 @@ CAMLexport value caml_alloc_small_r (CAML_R, mlsize_t wosize, tag_t tag)
   Assert (wosize > 0);
   Assert (wosize <= Max_young_wosize);
   Assert (tag < 256);
+//result = NULL;fprintf(stderr, "caml_alloc_small_r: ctx %p, thread %p, wosize %i, tag %i\n", ctx, (void*)pthread_self(), (int)wosize, (int)tag); fflush(stderr);
   Alloc_small (result, wosize, tag);
   return result;
 }

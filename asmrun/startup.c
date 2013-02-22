@@ -243,10 +243,10 @@ caml_global_context* caml_main_rr(char **argv)
     fprintf(stderr, "caml_main_rr: back from a longjmp [%p]\n", *((void**)(ctx->where_to_longjmp)));
     //fprintf(stderr, "In the parent context caml_bottom_of_stack is %p\n", caml_bottom_of_stack);    ////
     //caml_init_gc_r (ctx->after_longjmp_context, minor_heap_init, heap_size_init, heap_chunk_init, percent_free_init, max_percent_free_init);
-    // Very experimental.  Begin.  What the fuck happens here?
+    // Very experimental.  Begin.  What is happening here?
     // caml_top_of_stack = &tos;
     //caml_init_gc_r (ctx, minor_heap_init, heap_size_init, heap_chunk_init, percent_free_init, max_percent_free_init);
-    // Very experimental.  End.  What the fuck happens here?
+    // Very experimental.  End.  What is happening here?
     ctx->after_longjmp_function(ctx->after_longjmp_context,
                                 ctx->after_longjmp_serialized_blob);
     return NULL; /* this should be unreachable */

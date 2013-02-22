@@ -1,5 +1,5 @@
 #define OCAML_OS_TYPE "Unix"
-#define OCAML_STDLIB_DIR "/home/luca/usr-patched-ocaml/lib/ocaml"
+#define OCAML_STDLIB_DIR "/home/luca/usr-patched-ocaml//lib/ocaml"
 #define POSIX_SIGNALS
 #define HAS_C99_FLOAT_OPS
 #define HAS_GETRUSAGE
@@ -41,7 +41,6 @@
 #define HAS_SETSID
 #define HAS_PUTENV
 #define HAS_LOCALE
-#define SUPPORT_DYNAMIC_LINKING
 #define HAS_MMAP
 #define HAS_PWRITE
 #define HAS_GETHOSTBYNAME_R 6

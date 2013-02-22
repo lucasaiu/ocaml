@@ -18,7 +18,7 @@ type ('a, 'b) skeleton
    objects rather than on streams.  A sink consumes an element; a
    source, when given (), produces an element.  Sinks and sources are
    named from the point of view of an observer *external* to the
-   skeleton. *)
+   instantiated skeleton. *)
 type 'a sink =   'a -> unit
 type 'a source = unit -> 'a
 
@@ -80,4 +80,4 @@ val task_farm : int -> (('a, 'b) skeleton) -> (('a, 'b) skeleton)
 (* Utilities for stream programming *)
 
 (* Given an instantiated skeleton, return a parallel version of List.map *)
-val list_map_of_instantiated_skeleton : ('a, 'b) instantiated_skeleton -> ('a list) -> ('b list)
+val list_map_of_instantiated_skeleton : ('a, 'b) instantiated_skeleton -> (('a list) -> ('b list))

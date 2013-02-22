@@ -448,7 +448,7 @@ static void extern_rec_r(CAML_R, value v)
       if (serialize == NULL){
         //////
         //struct custom_operations *o = Custom_ops_val(v);
-        printf("About the object at %p, which is a %s custom\n", (void*)v, Custom_ops_val(v)->identifier);
+        printf("About the object at %p, which is a %s custom\n", (void*)v, Custom_ops_val(v)->identifier); volatile int a = 1; a /= 0;
         ///////////
         extern_invalid_argument_r(ctx, "output_value: abstract value (Custom)");
       }

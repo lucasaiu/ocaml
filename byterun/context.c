@@ -210,7 +210,7 @@ section.  */
   /* from roots.c */
 #ifdef NATIVE_CODE
   ctx->caml_local_roots = NULL;
-  ctx->caml_scan_roots_hook = NULL;
+  //ctx->caml_scan_roots_hook = NULL;
   /* Fabrice's original version; see my comment in context.h --Luca Saiu REENTRANTRUNTIME */
   /*  ctx->caml_top_of_stack; */
   /* ctx->caml_bottom_of_stack = NULL; */
@@ -229,7 +229,7 @@ section.  */
   ctx->caml_stack_usage_hook = NULL;
 #else
   ctx->caml_local_roots = NULL;
-  ctx->caml_scan_roots_hook = NULL;
+  //ctx->caml_scan_roots_hook = NULL;
 #endif/* #else (#ifdef NATIVE_CODE) */
 
 
@@ -505,7 +505,7 @@ void caml_scan_caml_globals_r(CAML_R, scanning_action f){
     if(caml_global_no != 0)
       {/* fprintf(stderr, "Context %p: scanning the %i Caml globals\n", ctx, caml_global_no); fflush(stderr); */}
     else
-      {fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~ Context %p: there are no Caml globals to scan [!!!]\n", ctx); fflush(stderr);}
+      {fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~ Context %p [thread %p]: there are no Caml globals to scan [!!!]\n", ctx, (void*)pthread_self()); fflush(stderr);}
   }
 
   value *caml_globals = (value*)(ctx->caml_globals.array);
@@ -518,6 +518,9 @@ void caml_scan_caml_globals_r(CAML_R, scanning_action f){
   //printf("Scanning Caml globals: end\n");
 #endif /* #ifdef NATIVE_CODE */
 }
+
+void (*caml_scan_roots_hook) (scanning_action) = NULL;
+
 
 /* // FIXME: untyped globals.  Experimental --Luca Saiu REENTRANTRUNTIME */
 /* CA___MLprim value caml_make_caml_global_r(CAML_R, value initial_value){ */
@@ -607,10 +610,10 @@ extern void caml_destroy_context(CAML_R){
 
   //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
   ///
-  fprintf(stderr, "Freeing %p\n", ctx->caml_young_base); fflush(stderr);
-  free(ctx->caml_young_base);
-  fprintf(stderr, "Freeing %p\n", ctx->caml_heap_start); fflush(stderr);
-  caml_free_for_heap(ctx->caml_heap_start);
+  /* fprintf(stderr, "Freeing %p\n", ctx->caml_young_base); fflush(stderr); */
+  /* free(ctx->caml_young_base); */
+  /* fprintf(stderr, "Freeing %p\n", ctx->caml_heap_start); fflush(stderr); */
+  /* caml_free_for_heap(ctx->caml_heap_start); */
 
   /* No global variables are live any more; destroy everything in the Caml heap: */
 #ifdef NATIVE_CODE
@@ -631,7 +634,7 @@ extern void caml_destroy_context(CAML_R){
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
   /* Free the context data structure ifself: */
   caml_stat_free(ctx);
-  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
+  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
   // FIXME: really destroy stuff
 }
 

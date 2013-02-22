@@ -383,7 +383,7 @@ static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **spli
 #endif // #ifdef NATIVE_CODE
   fprintf(stderr, "CONTEXT %p: >>>> A nice collection before starting...\n", ctx);
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!
-  fprintf(stderr, "CONTEXT %p: >>>> Still alive.  Good.  Now creating threds.\n", ctx);
+  fprintf(stderr, "CONTEXT %p: >>>> Still alive.  Good.  Now creating threads.\n", ctx);
   int i;
   for(i = 0; i < how_many; i ++){
     //sleep(10); // FIXME: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -444,6 +444,7 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   /* Copy the contexts we got, and we're done with new_contexts as well: */
   fprintf(stderr, "Context %p: ]]]] Copying the new context (descriptors) into the Caml data structure result\n", ctx);
   result = caml_alloc_r(ctx, thread_no, 0);
+  caml_gc_compaction_r(ctx, Val_unit); //!!!!!
   for(i = 0; i < thread_no; i ++)
     caml_initialize_r(ctx, &Field(result, i), caml_value_of_context_descriptor(new_contexts[i]->descriptor));
   caml_stat_free(new_contexts);

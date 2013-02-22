@@ -72,6 +72,7 @@ struct caml_thread_descr {
 
 /* The infos on threads (allocated via malloc()) */
 
+// ?????????????
 struct caml_thread_struct {
   value descr;                  /* The heap-allocated descriptor (root) */
   struct caml_thread_struct * next;  /* Double linking of running threads */
@@ -129,10 +130,16 @@ static void (*prev_scan_roots_hook) (scanning_action);
 static void caml_thread_scan_roots(scanning_action action)
 {
   INIT_CAML_R;
+//#warning Is caml_thread_scan_roots ever called? I think not
+fprintf(stderr, "caml_thread_scan_roots: ctx %p, thread %p: BEGIN\n", ctx, (void*)pthread_self()); fflush(stderr);
   caml_thread_t th;
 
   th = curr_thread;
   do {
+fprintf(stderr, "caml_thread_scan_roots: ctx %p, thread %p: working on the thread with caml_thread_t descriptor %p\n", ctx, (void*)pthread_self(), th); fflush(stderr);
+#ifdef NATIVE_CODE
+fprintf(stderr, "caml_thread_scan_roots: ctx %p, thread %p: th->bottom_of_stack=%p, th->last_retaddr=%lx, th->gc_regs=%p, th->local_roots=%p\n", ctx, (void*)pthread_self(), th->bottom_of_stack, th->last_retaddr, th->gc_regs, th->local_roots); fflush(stderr);
+#endif // #ifdef NATIVE_CODE
     (*action)(ctx, th->descr, &th->descr);
     (*action)(ctx, th->backtrace_last_exn, &th->backtrace_last_exn);
     /* Don't rescan the stack of the current thread, it was done already */
@@ -147,6 +154,7 @@ static void caml_thread_scan_roots(scanning_action action)
     }
     th = th->next;
   } while (th != curr_thread);
+fprintf(stderr, "caml_thread_scan_roots: ctx %p, thread %p: END\n", ctx, (void*)pthread_self()); fflush(stderr);
   /* Hook */
   if (prev_scan_roots_hook != NULL) (*prev_scan_roots_hook)(action);
 }
@@ -161,6 +169,10 @@ static void caml_thread_enter_blocking_section_hook_default(void)
 #ifdef NATIVE_CODE
   curr_thread->bottom_of_stack = caml_bottom_of_stack;
   curr_thread->last_retaddr = caml_last_return_address;
+
+  fprintf(stderr, "caml_thread_enter_blocking_section_hook_default: ctx %p, thread %p: curr_thread->gc_regs, about to be overwritten, was %p\n", ctx, (void*)pthread_self(), curr_thread->gc_regs); fflush(stderr);
+  fprintf(stderr, "caml_thread_enter_blocking_section_hook_default: ctx %p, thread %p: caml_gc_regs is %p\n", ctx, (void*)pthread_self(), caml_gc_regs); fflush(stderr);
+
   curr_thread->gc_regs = caml_gc_regs;
   curr_thread->exception_pointer = caml_exception_pointer;
   curr_thread->local_roots = caml_local_roots;
@@ -192,6 +204,10 @@ static void caml_thread_leave_blocking_section_hook_default(void)
 #ifdef NATIVE_CODE
   caml_bottom_of_stack= curr_thread->bottom_of_stack;
   caml_last_return_address = curr_thread->last_retaddr;
+
+  fprintf(stderr, "caml_thread_leave_blocking_section_hook_default: ctx %p, thread %p: caml_gc_regs, about to be overwritten, was %p\n", ctx, (void*)pthread_self(), caml_gc_regs); fflush(stderr);
+  fprintf(stderr, "caml_thread_leave_blocking_section_hook_default: ctx %p, thread %p: curr_thread->gc_regs is %p\n", ctx, (void*)pthread_self(), curr_thread->gc_regs); fflush(stderr);
+
   caml_gc_regs = curr_thread->gc_regs;
   caml_exception_pointer = curr_thread->exception_pointer;
   caml_local_roots = curr_thread->local_roots;
@@ -299,6 +315,37 @@ static caml_thread_t caml_thread_new_info(void)
 
   th = (caml_thread_t) malloc(sizeof(struct caml_thread_struct));
   if (th == NULL) return NULL;
+  //memset(th, 42, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
+  memset(th, -1, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
+  {int i;
+    char *th_as_char_star = (char*)th;
+    for(i = 0; i < sizeof(struct caml_thread_struct); i ++)
+      if((i % 8) == 0){
+        int j;
+        for(j = 0; j < 8; j ++)
+          th_as_char_star[i + j] = 0xff;
+        th_as_char_star[i + 0] = 0xaa;
+        th_as_char_star[i + 1] = i/4;
+        th_as_char_star[i + 6] = i/4;
+        th_as_char_star[i + 7] = 0xee;
+        // !!!!!!!!!!!!!
+      }
+#ifdef NATIVE_CODE
+    //th->gc_regs = (void*)(long)0xffffffffffffffff;
+    //th->gc_regs = (void*)(long)0xaaaaaaaaaaaaaaaa;
+    //th->gc_regs = 0;
+    th->last_retaddr =      (long)0xaaaaaaaaaaaaaaaa;
+    th->gc_regs =           0;//(void*)(long)0xbbbbbbbbbbbbbbbb;//(void*)(long)0xaabbccddffffffff;
+    th->exception_pointer = (void*)(long)0xcccccccccccccccc;
+#endif // #ifdef NATIVE_CODE
+    //memset(th, 254, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
+    for(i = 0; i < sizeof(struct caml_thread_struct); i ++)
+      if((i % 8) == 0){
+        long *p = (long*)(th_as_char_star + i);
+        fprintf(stderr, "%4i. %4i. Q %20li 0x%-20lx\n", i, i/8, *p, *p); fflush(stderr);
+      }
+  }
+
   th->descr = Val_unit;         /* filled later */
 #ifdef NATIVE_CODE
   th->bottom_of_stack = NULL;
@@ -410,9 +457,12 @@ static void caml_thread_reinitialize(void)
 
 CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
 {
-  /* Protect against repeated initialization (PR#1325) */
-  if (curr_thread != NULL) return Val_unit;
-  //fprintf(stderr, "caml_thread_initialize_r: initializing the thread machinery\n"); fflush(stderr);
+  // /* Protect against repeated initialization (PR#1325) */
+  // if (curr_thread != NULL) return Val_unit;
+  static int already_initialized = 0;
+  if(already_initialized) return Val_unit; else already_initialized = 1;
+
+  fprintf(stderr, "caml_thread_initialize_r: initializing the thread machinery from ctx %p, thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
   /* OS-specific initialization */
   st_initialize();
   /* Initialize and acquire the master lock */
@@ -436,8 +486,8 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   /* Associate the thread descriptor with the thread */
   st_tls_set(thread_descriptor_key, (void *) curr_thread);
   /* Set up the hooks */
-  prev_scan_roots_hook = scan_roots_hook;
-  scan_roots_hook = caml_thread_scan_roots;
+  prev_scan_roots_hook = caml_scan_roots_hook;
+  caml_scan_roots_hook = caml_thread_scan_roots;
   caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook_default;
   caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
   caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
@@ -503,8 +553,9 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 {
   caml_thread_t th = (caml_thread_t) arg;
   CAML_R = th->ctx;
-  fprintf(stderr, "Context %p: caml_thread_start: starting thread %p; now threads are %i, including this one\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
-  value clos;
+  fprintf(stderr, "caml_c_thread_start: context %p, thread %p.  Now threads are %i, including this one\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
+  CAMLparam0();
+  CAMLlocal1(clos);
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;
   char tos;
@@ -532,14 +583,51 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   }
 #endif
   /* The thread now stops running */
-  return 0;
+  CAMLreturnT(void*, 0);
 }
+
+/* static ST_THREAD_FUNCTION caml_thread_start(void * arg) */
+/* { */
+/*   caml_thread_t th = (caml_thread_t) arg; */
+/*   CAML_R = th->ctx; */
+/*   fprintf(stderr, "caml_c_thread_start: context %p, thread %p.  Now threads are %i, including this one\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr); */
+/*   value clos; */
+/* #ifdef NATIVE_CODE */
+/*   struct longjmp_buffer termination_buf; */
+/*   char tos; */
+/* #endif */
+/*   /\* associate the context to this thread *\/ */
+/*   caml_set_thread_local_context(ctx); */
+
+/*   /\* Associate the thread descriptor with the thread *\/ */
+/*   st_tls_set(thread_descriptor_key, (void *) th); */
+/*   /\* Acquire the global mutex *\/ */
+/*   caml_leave_blocking_section_r(ctx); */
+/* #ifdef NATIVE_CODE */
+/*   /\* Record top of stack (approximative) *\/ */
+/*   th->top_of_stack = &tos; */
+/*   /\* Setup termination handler (for caml_thread_exit) *\/ */
+/*   if (sigsetjmp(termination_buf.buf, 0) == 0) { */
+/*     th->exit_buf = &termination_buf; */
+/* #endif */
+/*     /\* Callback the closure *\/ */
+/*     clos = Start_closure(th->descr); */
+/*     caml_modify_r(ctx, &(Start_closure(th->descr)), Val_unit); */
+/*     caml_callback_exn_r(ctx, clos, Val_unit); */
+/*     caml_thread_stop_r(ctx); */
+/* #ifdef NATIVE_CODE */
+/*   } */
+/* #endif */
+/*   /\* The thread now stops running *\/ */
+/*   return 0; */
+/* } */
 
 CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
 {
   caml_thread_t th;
   st_retcode err;
 
+  fprintf(stderr, "caml_thread_new_r: context %p, [parent] thread %p.  Before the creation threads are %i, including this one\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
   /* Create a thread info block */
   th = caml_thread_new_info();
   if (th == NULL) caml_raise_out_of_memory_r(ctx);
@@ -578,6 +666,7 @@ CAMLexport int caml_c_thread_register_r(CAML_R)
 
   /* Already registered? */
   if (st_tls_get(thread_descriptor_key) != NULL) return 0;
+  fprintf(stderr, "caml_c_thread_register_r: context %p, thread %p.  Now threads are %i, including this one\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
   /* Create a thread info block */
   th = caml_thread_new_info();
   if (th == NULL) return 0;
@@ -697,13 +786,37 @@ CAMLprim value caml_thread_exit_r(CAML_R, value unit)   /* ML */
 
 /* Allow re-scheduling */
 
+#warning caml_thread_yield_r: is the problem here?
 CAMLprim value caml_thread_yield_r(CAML_R, value unit)        /* ML */
 {
-  if (st_masterlock_waiters(&caml_master_lock) == 0) return Val_unit;
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: BEGIN\n", ctx, (void*)pthread_self()); fflush(stderr);
+  int st_masterlock_waiters_result = st_masterlock_waiters(&caml_master_lock);
+  if (st_masterlock_waiters_result == 0){
+    fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: st_masterlock_waiters_result is %i\n", ctx, (void*)pthread_self(), st_masterlock_waiters_result); fflush(stderr);
+    return Val_unit;
+  }
   caml_enter_blocking_section_r(ctx);
   st_thread_yield();
   caml_leave_blocking_section_r(ctx);
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: END\n", ctx, (void*)pthread_self()); fflush(stderr);
   return Val_unit;
+  /*
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: BEGIN\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
+
+  int waiter_no = st_masterlock_waiters(&caml_master_lock);
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: waiter_no is %i\n", ctx, (void*)pthread_self(), waiter_no); fflush(stderr);
+  if (waiter_no == 0){
+    fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: returning because waiter_no is zero\n", ctx, (void*)pthread_self()); fflush(stderr);
+    return Val_unit;
+  }
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: BEFORE CALLING caml_enter_blocking_section_r\n", ctx, (void*)pthread_self()); fflush(stderr);
+  caml_enter_blocking_section_r(ctx);
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: BEFORE CALLING st_thread_yield\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
+  st_thread_yield();
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: AFTER RETURNING FROM st_thread_yield\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);  caml_leave_blocking_section_r(ctx);
+  fprintf(stderr, "caml_thread_yield_r: context %p, thread %p: END\n", ctx, (void*)pthread_self(), caml_thread_no_r(ctx)); fflush(stderr);
+  return Val_unit;
+  */
 }
 
 /* Suspend the current thread until another thread terminates */

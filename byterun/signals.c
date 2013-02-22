@@ -46,9 +46,11 @@ void caml_process_pending_signals_r(CAML_R)
     for (i = 0; i < NSIG; i++) {
       if (caml_pending_signals[i]) {
         caml_pending_signals[i] = 0;
+fprintf(stderr, "caml_process_pending_signals_r: context %p, thread %p processing the signal %i\n", ctx, (void*)pthread_self(), (int)i); fflush(stderr);
         caml_execute_signal_r(ctx, i, 0);
       }
     }
+    fprintf(stderr, "caml_process_pending_signals_r: context %p, thread %p: done\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
 }
 
@@ -140,6 +142,7 @@ CAMLexport void caml_leave_blocking_section_r(CAML_R)
 
 void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
 {
+  fprintf(stderr, "caml_execute_signal_r: ctx %p, thread %p: signal_number %i, in_signal_handler %i (converted into %i): BEGIN\n", ctx, (void*)pthread_self(), signal_number, in_signal_handler, (int)caml_rev_convert_signal_number(signal_number)); fflush(stderr);
   value res;
 #ifdef POSIX_SIGNALS
   sigset_t sigs;
@@ -163,6 +166,7 @@ void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
   }
 #endif
   if (Is_exception_result(res)) caml_raise_r(ctx, Extract_exception(res));
+  fprintf(stderr, "caml_execute_signal_r: ctx %p, thread %p: END\n", ctx, (void*)pthread_self()); fflush(stderr);
 }
 
 /* Arrange for a garbage collection to be performed as soon as possible */
@@ -273,6 +277,7 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
 
 CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value action)
 {
+  fprintf(stderr, "caml_install_signal_handler_r: ctx %p, thread %p, signal_number %i\n", ctx, (void*)pthread_self(), (int)Int_val(signal_number)); fflush(stderr);
   CAMLparam2 (signal_number, action);
   CAMLlocal1 (res);
   int sig, act, oldact;
