@@ -1225,15 +1225,16 @@ echo "PTHREAD_LINK=$pthread_caml_link" >> Makefile
 
 # Determine if the bytecode thread library is supported
 
-if test "$has_select" = "yes" \
-&& test "$has_setitimer" = "yes" \
-&& test "$has_gettimeofday" = "yes" \
-&& test "$has_wait" = "yes"; then
-  echo "Bytecode threads library supported."
-  otherlibraries="$otherlibraries threads"
-else
+# FIXME: fix and re-enable --Luca Saiu REENTRANTRUNTIME
+# if test "$has_select" = "yes" \
+# && test "$has_setitimer" = "yes" \
+# && test "$has_gettimeofday" = "yes" \
+# && test "$has_wait" = "yes"; then
+#   echo "Bytecode threads library supported."
+#   otherlibraries="$otherlibraries threads"
+# else
   echo "Bytecode threads library not supported (missing system calls)"
-fi
+# fi
 
 # Determine the location of X include files and libraries
 
@@ -1393,20 +1394,21 @@ if test "x11_include" != "not found"; then
 fi
 
 has_graph=false
-if test "$x11_include" = "not found" || test "$x11_link" = "not found"
-then
+# FIXME: Fix the library, and re-enable --Luca Saiu REENTRANTRUNTIME
+# if test "$x11_include" = "not found" || test "$x11_link" = "not found"
+# then
   echo "X11 not found, the \"graph\" library will not be supported."
   x11_include="not found"
   x11_link="not found"
-else
-  echo "Options for compiling for X11: $x11_include"
-  echo "Options for linking with X11: $x11_link"
-  if test "$graph_wanted" = yes
-  then
-    has_graph=true
-    otherlibraries="$otherlibraries graph"
-  fi
-fi
+# else
+#   echo "Options for compiling for X11: $x11_include"
+#   echo "Options for linking with X11: $x11_link"
+#   if test "$graph_wanted" = yes
+#   then
+#     has_graph=true
+#     otherlibraries="$otherlibraries graph"
+#   fi
+# fi
 echo "X11_INCLUDES=$x11_include" >> Makefile
 echo "X11_LINK=$x11_link" >> Makefile
 
@@ -1606,7 +1608,7 @@ echo "NATIVECCCOMPOPTS=$nativecccompopts" >> Makefile
 echo "NATIVECCPROFOPTS=$nativeccprofopts" >> Makefile
 echo "NATIVECCLINKOPTS=$nativecclinkopts" >> Makefile
 echo "NATIVECCRPATH=$nativeccrpath" >> Makefile
-echo "NATIVECCLIBS=$cclibs $dllib" >> Makefile
+echo "NATIVECCLIBS=$cclibs $dllib $pthread_link" >> Makefile
 echo "ASM=$as" >> Makefile
 echo "ASPP=$aspp" >> Makefile
 echo "ASPPPROFFLAGS=$asppprofflags" >> Makefile
