@@ -16,6 +16,7 @@
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
+#include "context.h"
 
 #define Nothing ((value) 0)
 

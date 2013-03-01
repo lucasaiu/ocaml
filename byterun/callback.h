@@ -22,6 +22,7 @@
 #include "compatibility.h"
 #endif
 #include "mlvalues.h"
+#include "context.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -21,6 +21,7 @@
 #endif
 #include "config.h"
 #include "mlvalues.h"
+#include "context.h"
 
 typedef signed char caml_ba_int8;
 typedef unsigned char caml_ba_uint8;

@@ -369,4 +369,9 @@
 #define bigarray_init caml_ba_init
 
 #endif /* CAML_NAME_SPACE */
+
+/// FIXME: horrible compatibility macros (to compile coq).  This has to be generalized
+#define raise_out_of_memory() AAAAcaml_raise_out_of_memory()
+//#define caml_raise_out_of_memory() caml_raise_out_of_memory_r(caml_get_thread_local_context())
+
 #endif /* CAML_COMPATIBILITY_H */

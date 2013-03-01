@@ -18,6 +18,8 @@
 #ifndef CAML_MISC_H
 #define CAML_MISC_H
 
+//#include "context.h"
+
 #ifndef CAML_NAME_SPACE
 #include "compatibility.h"
 #endif

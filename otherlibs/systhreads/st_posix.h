@@ -322,7 +322,7 @@ static void * caml_thread_tick(void * context_as_void_star)
   CAML_R = context_as_void_star;
   struct timeval timeout;
   sigset_t mask;
-  fprintf(stderr, "caml_thread_tick: started ticker for context %p.  The thread is %p\n", ctx, (void*)pthread_self()); fflush(stderr);
+DUMP("start");
 
   /* Block all signals so that we don't try to execute an OCaml signal handler*/
   sigfillset(&mask);
@@ -332,15 +332,16 @@ static void * caml_thread_tick(void * context_as_void_star)
   while(1) {
     /* select() seems to be the most efficient way to suspend the
        thread for sub-second intervals */
-    timeout.tv_sec = 2;//timeout.tv_sec = 0; // FIXME: this of course should be 0
+    timeout.tv_sec = 2;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
     timeout.tv_usec = Thread_timeout * 1000;
     select(0, NULL, NULL, NULL, &timeout);
+DUMP("ticking (SIGPREEMPTION is %i)", (int)SIGPREEMPTION);
     /* The preemption signal should never cause a callback, so don't
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
-fprintf(stderr, "TICK: Context %p, thread %p (SIGPREEMPTION is %i)\n", ctx, (void*)pthread_self(), (int)SIGPREEMPTION); fflush(stderr);
-    caml_record_signal_r(ctx, SIGPREEMPTION);
+   //caml_record_signal_r(ctx, SIGPREEMPTION);
+   caml_record_signal_r(ctx, SIGCHLD);
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticked.\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
   return NULL;                  /* prevents compiler warning */

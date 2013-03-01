@@ -21,6 +21,7 @@
 
 #include "misc.h"
 #include "mlvalues.h"
+#include "context.h"
 
 char *caml_fl_allocate_r (CAML_R, mlsize_t);
 void caml_fl_init_merge_r (CAML_R);

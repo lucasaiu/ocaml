@@ -17,6 +17,7 @@
 #define CAML_SYS_H
 
 #include "misc.h"
+#include "context.h"
 
 #define NO_ARG Val_int(0)
 

@@ -33,6 +33,7 @@
 #include <semaphore.h>
 
 #include "config.h"
+#include "mlvalues.h"
 #include "misc.h"
 #include "extensible_buffer.h"
 
@@ -145,7 +146,7 @@ struct longjmp_buffer {
 #endif
 
 
-typedef struct caml_global_context caml_global_context;
+typedef struct caml_global_context volatile caml_global_context;
 
 typedef void (*scanning_action) (caml_global_context *, value, value *);
 
@@ -223,8 +224,7 @@ typedef struct caml_thread_struct * caml_thread_t; /* from st_posix.h */
 typedef pthread_t st_thread_id; /* from st_posix.h */
 // ??????
 
-
-/* The field ordering should not be changing without also updating the
+/* The field ordering should not be changed without also updating the
    macro definitions at the beginning of asmrun/ARCHITECTURE.s. */
 struct caml_global_context {
 
@@ -608,6 +608,12 @@ struct caml_global_context {
 
   /* Protect context fields from concurrent accesses: */
   pthread_mutex_t mutex;
+
+  /* The "kludigsh self-pointer"; this is handy for compatibility
+     macros translating X to ctx->X.  This field points to the
+     structure itself, so that the expressions ctx->X and
+     ctx->ctx->X refer the same value -- also as l-values. */
+  struct caml_global_context *ctx;
 }; /* struct caml_global_context */
 
 /* Context descriptors may be either local or remote: */
@@ -648,7 +654,7 @@ struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(v
 value caml_value_of_mailbox(struct caml_mailbox *m);
 struct caml_mailbox* caml_mailbox_of_value(value v);
 
-#define CAML_R caml_global_context *ctx
+#define CAML_R caml_global_context * volatile ctx
 #define INIT_CAML_R CAML_R = caml_get_thread_local_context()
 
 extern caml_global_context *caml_initialize_first_global_context(void);
@@ -1014,5 +1020,18 @@ void caml_initialize_mutex(pthread_mutex_t *mutex);
 void caml_finalize_mutex(pthread_mutex_t *mutex);
 void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
 void caml_finalize_semaphore(sem_t *semaphore);
+
+#define DUMP(FORMAT, ...) \
+  do{ \
+    fprintf(stderr, \
+            "\033[0m\033[31m%s\033[0m(\033[0m\033[36m%s:%i\033[0m) C%p T%p AP%p/%p", \
+            __FUNCTION__, __FILE__, __LINE__, ctx, \
+            (void*)pthread_self(), \
+            ctx->caml_young_ptr, ctx->caml_young_limit); \
+    fflush(stderr); \
+    fprintf(stderr, " \033[0m\033[32m" FORMAT, ##__VA_ARGS__); \
+    fprintf(stderr, "\033[0m\n"); \
+    fflush(stderr); \
+  } while(0)
 
 #endif

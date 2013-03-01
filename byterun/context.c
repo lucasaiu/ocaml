@@ -447,6 +447,9 @@ section.  */
 
   caml_initialize_mutex(&ctx->mutex);
 
+  /* The kludgish self-pointer: */
+  ctx->ctx = ctx;
+
   return ctx;
 }
 

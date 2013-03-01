@@ -25,6 +25,7 @@
 #endif
 #include "misc.h"
 #include "mlvalues.h"
+#include "context.h"
 
 /* <private> */
 /* Some exception objects are pre-allocated and held as globals.  The

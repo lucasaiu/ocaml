@@ -58,7 +58,8 @@ let preempt_signal =
   | _       -> Sys.sigvtalrm
 
 let _ =
-  Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
+  (* Sys.set_signal preempt_signal (Sys.Signal_handle preempt); *)
+  Sys.set_signal preempt_signal (Sys.Signal_handle (fun s -> Printf.fprintf stderr "**************{got signal %i [FIXME: call preempt instead]}\n%!" s));
   thread_initialize();
   at_exit
     (fun () ->
@@ -67,6 +68,7 @@ let _ =
            will point to nowhere after DLL unloading and an accidental
            preempt_signal will crash the main program. So restore the
            default handler. *)
+Printf.fprintf stderr "thread.ml: ABOUT TO EXIT\n%!";
         Sys.set_signal preempt_signal Sys.Signal_default
     )
 

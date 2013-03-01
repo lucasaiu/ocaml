@@ -296,7 +296,7 @@ CAMLextern int64 caml_Int64_val(value v);
 #define Val_emptylist Val_int(0)
 #define Tag_cons 0
 
-#include "context.h"
+//#include "context.h"
 
 /* The table of global identifiers */
 

@@ -17,6 +17,7 @@
 #define CAML_STARTUP_H
 
 #include "mlvalues.h"
+#include "context.h"
 #include "exec.h"
 
 /* Return a new empty context, and make it "the" thread-local current context.

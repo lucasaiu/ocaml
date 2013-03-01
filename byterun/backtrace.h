@@ -17,6 +17,7 @@
 #define CAML_BACKTRACE_H
 
 #include "mlvalues.h"
+#include "context.h"
 
 /* CAMLextern int caml_backtrace_active; */
 /* CAMLextern int caml_backtrace_pos; */
