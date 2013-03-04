@@ -70,7 +70,7 @@ static value fdset_to_fdlist_r(CAML_R, value fdlist, fd_set *fdset)
 CAMLprim value unix_select_r(CAML_R, value readfds, value writefds, value exceptfds,
                              value timeout)
 {
-DUMP("");
+  //DUMP("");
   CAMLparam4(readfds, writefds, exceptfds, timeout);
   CAMLlocal1(res);
   fd_set read, write, except;
@@ -96,25 +96,25 @@ DUMP("");
       tv.tv_usec = (int) (1e6 * (tm - tv.tv_sec));
       tvp = &tv;
     }
-DUMP("");
+    //DUMP("");
     caml_enter_blocking_section_r(ctx);
     retcode = select(maxfd + 1, &read, &write, &except, tvp);
     caml_leave_blocking_section_r(ctx);
-DUMP("");
+    //DUMP("");
     if (retcode == -1) uerror_r(ctx,"select", Nothing);
     readfds = fdset_to_fdlist_r(ctx, readfds, &read);
     writefds = fdset_to_fdlist_r(ctx, writefds, &write);
     exceptfds = fdset_to_fdlist_r(ctx, exceptfds, &except);
-DUMP("before caml_alloc");
+    //DUMP("before caml_alloc");
 //fprintf(stderr, "unix_select_r: context %p, thread %p OK-400: the allocation pointer is %p (limit %p)\n", ctx, (void*)pthread_self(), ctx->caml_young_ptr, ctx->caml_young_limit); fflush(stderr);
     res = caml_alloc_small_r(ctx, 3, 0);
-DUMP("after caml_alloc");
+    //DUMP("after caml_alloc");
 //fprintf(stderr, "unix_select_r: context %p, thread %p OK-500: the allocation pointer is %p (limit %p)\n", ctx, (void*)pthread_self(), ctx->caml_young_ptr, ctx->caml_young_limit); fflush(stderr);
     Field(res, 0) = readfds;
     Field(res, 1) = writefds;
     Field(res, 2) = exceptfds;
     //End_roots();
-DUMP("end");
+    //DUMP("end");
   CAMLreturn(res);
 }
 

@@ -146,7 +146,7 @@ struct longjmp_buffer {
 #endif
 
 
-typedef struct caml_global_context volatile caml_global_context;
+typedef struct caml_global_context /* volatile */ caml_global_context;
 
 typedef void (*scanning_action) (caml_global_context *, value, value *);
 
@@ -654,7 +654,7 @@ struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(v
 value caml_value_of_mailbox(struct caml_mailbox *m);
 struct caml_mailbox* caml_mailbox_of_value(value v);
 
-#define CAML_R caml_global_context * volatile ctx
+#define CAML_R caml_global_context * /* volatile */ ctx
 #define INIT_CAML_R CAML_R = caml_get_thread_local_context()
 
 extern caml_global_context *caml_initialize_first_global_context(void);
@@ -1020,18 +1020,26 @@ void caml_initialize_mutex(pthread_mutex_t *mutex);
 void caml_finalize_mutex(pthread_mutex_t *mutex);
 void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
 void caml_finalize_semaphore(sem_t *semaphore);
+#define NOATTR "\033[0m"
+#define RED    NOATTR "\033[31m"
+#define GREEN  NOATTR "\033[32m"
+#define CYAN   NOATTR "\033[36m"
+#define PURPLE NOATTR "\033[35m"
 
 #define DUMP(FORMAT, ...) \
   do{ \
     fprintf(stderr, \
-            "\033[0m\033[31m%s\033[0m(\033[0m\033[36m%s:%i\033[0m) C%p T%p AP%p/%p", \
-            __FUNCTION__, __FILE__, __LINE__, ctx, \
+            "%s:%i" NOATTR "(" RED  "%s" NOATTR ") C%p T%p AP"PURPLE"%p"NOATTR"/"PURPLE"%p"NOATTR, \
+            __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self(), \
             ctx->caml_young_ptr, ctx->caml_young_limit); \
     fflush(stderr); \
-    fprintf(stderr, " \033[0m\033[32m" FORMAT, ##__VA_ARGS__); \
-    fprintf(stderr, "\033[0m\n"); \
+    fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
+    fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
   } while(0)
+
+#undef DUMP
+#define DUMP(FORMAT, ...) /* nothing */
 
 #endif

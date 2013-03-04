@@ -577,7 +577,7 @@ DUMP("Now threads are %i, including this one", caml_thread_no_r(ctx));
     clos = Start_closure(th->descr);
     caml_modify_r(ctx, &(Start_closure(th->descr)), Val_unit);
     // FIXME: RE-ENABLE: BEGIN
-    //    caml_callback_exn_r(ctx, clos, Val_unit); !!!!!!!!!!!!!!
+    caml_callback_exn_r(ctx, clos, Val_unit); //!!!!!!!!!!!!!!
     // FIXME: RE-ENABLE: END
     caml_thread_stop_r(ctx);
 #ifdef NATIVE_CODE

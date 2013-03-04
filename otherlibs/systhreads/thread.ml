@@ -58,8 +58,8 @@ let preempt_signal =
   | _       -> Sys.sigvtalrm
 
 let _ =
-  (* Sys.set_signal preempt_signal (Sys.Signal_handle preempt); *)
-  Sys.set_signal preempt_signal (Sys.Signal_handle (fun s -> Printf.fprintf stderr "**************{got signal %i [FIXME: call preempt instead]}\n%!" s));
+  Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
+  (* Sys.set_signal preempt_signal (Sys.Signal_handle (fun s -> prerr_string "**************{got signal "; prerr_int s; prerr_string " [FIXME: call preempt instead]}\n"; flush stderr)); *)
   thread_initialize();
   at_exit
     (fun () ->

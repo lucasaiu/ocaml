@@ -332,12 +332,12 @@ DUMP("start");
   while(1) {
     /* select() seems to be the most efficient way to suspend the
        thread for sub-second intervals */
-    timeout.tv_sec = 2;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
+    timeout.tv_sec = 0;//2;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
     timeout.tv_usec = Thread_timeout * 1000;
-DUMP("calling select");
+//DUMP("calling select");
     select(0, NULL, NULL, NULL, &timeout);
-DUMP("about to allocate something, just to stress the system");
-    caml_alloc_tuple_r(ctx, 16); // FIXME: remove: this is gratuitous, just to stress the system
+//DUMP("about to allocate something, just to stress the system");
+//    caml_alloc_tuple_r(ctx, 16); // FIXME: remove: this is gratuitous, just to stress the system
 DUMP("ticking (SIGPREEMPTION is %i)", (int)SIGPREEMPTION);
   /* The preemption signal should never cause a callback, so don't
      go through caml_handle_signal(), just record signal delivery via

@@ -184,7 +184,7 @@
 
 /* Pop global [label] off stack. */
 #define POP_VAR(dstlabel) \
-        popq	dstlabel(%r13)
+        popq	dstlabel*8(%r13)  # FIXED!!!
 
 /* Record lowest stack address and return address. */
 #define RECORD_STACK_FRAME(OFFSET) \
@@ -300,7 +300,7 @@ LBL(caml_call_gc):
         pushq   %r11; CFI_ADJUST (8);
         pushq   %r10; CFI_ADJUST (8);
         pushq   %rbp; CFI_ADJUST (8);
-#        pushq   %r13; CFI_ADJUST (8); # REENTRANTRUNTIME [FIXME: Should I really not save %r13?]
+#        pushq   %r13; CFI_ADJUST (8); # REENTRANTRUNTIME [FIXME: Should I really save/restore %r13?] &&&&&&&&&&&&&&&&&&&&&
         pushq   %r12; CFI_ADJUST (8);
         pushq   %r9; CFI_ADJUST (8);
         pushq   %r8; CFI_ADJUST (8);
@@ -367,7 +367,7 @@ LBL(caml_call_gc):
         popq    %r8; CFI_ADJUST(-8)
         popq    %r9; CFI_ADJUST(-8)
         popq    %r12; CFI_ADJUST(-8)
-#        popq    %r13; CFI_ADJUST(-8) # REENTRANTRUNTIME
+#        popq    %r13; CFI_ADJUST(-8) # REENTRANTRUNTIME [FIXME: Should I really save/restore %r13?] &&&&&&&&&&&&&&&&&&
         popq    %rbp; CFI_ADJUST(-8)
         popq    %r10; CFI_ADJUST(-8)
         popq    %r11; CFI_ADJUST(-8)
@@ -495,6 +495,7 @@ LBL(caml_start_program):
         pushq   %r15; CFI_ADJUST(8) # Here we use %r15 as an ordinary temporary
         pushq   %r14; CFI_ADJUST(8)
     /* Setup alloc ptr */
+#check0: ############################
         LOAD_VAR(caml_young_ptr, %r15)
 # Tentative change: end [so we don't clobber %r13]
         CFI_ADJUST(16)
