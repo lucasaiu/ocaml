@@ -334,14 +334,16 @@ DUMP("start");
        thread for sub-second intervals */
     timeout.tv_sec = 2;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
     timeout.tv_usec = Thread_timeout * 1000;
+DUMP("calling select");
     select(0, NULL, NULL, NULL, &timeout);
+DUMP("about to allocate something, just to stress the system");
+    caml_alloc_tuple_r(ctx, 16); // FIXME: remove: this is gratuitous, just to stress the system
 DUMP("ticking (SIGPREEMPTION is %i)", (int)SIGPREEMPTION);
-    /* The preemption signal should never cause a callback, so don't
+  /* The preemption signal should never cause a callback, so don't
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
-   //caml_record_signal_r(ctx, SIGPREEMPTION);
-   caml_record_signal_r(ctx, SIGCHLD);
+    caml_record_signal_r(ctx, SIGPREEMPTION);
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticked.\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
   return NULL;                  /* prevents compiler warning */
