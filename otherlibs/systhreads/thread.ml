@@ -58,6 +58,7 @@ let preempt_signal =
   | _       -> Sys.sigvtalrm
 
 let _ =
+Printf.fprintf stderr "* INITIALIZING systhreads\n%!";
   Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
   (* Sys.set_signal preempt_signal (Sys.Signal_handle (fun s -> prerr_string "**************{got signal "; prerr_int s; prerr_string " [FIXME: call preempt instead]}\n"; flush stderr)); *)
   thread_initialize();
@@ -70,7 +71,9 @@ let _ =
            default handler. *)
 Printf.fprintf stderr "thread.ml: ABOUT TO EXIT\n%!";
         Sys.set_signal preempt_signal Sys.Signal_default
-    )
+    );
+Printf.fprintf stderr "* INITIALIZED systhreads\n%!"
+
 
 (* Wait functions *)
 

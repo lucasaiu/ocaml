@@ -652,7 +652,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   int size_in_words = size_in_bytes / sizeof(void*);
   /* We keep the module name right after the offset pointer, as a read-only string: */
   char *module_name = (char*)offset_pointer + sizeof(long);
-
+  //DUMP("module_name is %s", module_name);
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
   //fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n", ctx, module_name, offset_pointer, (unsigned long)size_in_bytes, offset_pointer); fflush(stderr);
 
@@ -810,3 +810,31 @@ void caml_release_global_lock(void){
 void caml_dump_global_mutex(void){
   fprintf(stderr, "{%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
 }
+
+//#ifndef NATIVE_CODE //FIXME: remove later.  This is for debugging only
+//#endif // #ifndef NATIVE_CODE
+
+/* Return the number of threads associated to the given context: */
+static int (*the_caml_get_thread_no_r)(CAML_R) = NULL;
+void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R)){
+  the_caml_get_thread_no_r = f;
+}
+
+int caml_get_thread_no_r(CAML_R){
+  if(the_caml_get_thread_no_r != NULL)
+    return the_caml_get_thread_no_r(ctx);
+  else
+    return -1;
+}
+
+
+static void (*the_caml_initialize_context_thread_support)(CAML_R) = NULL;
+void caml_set_caml_initialize_context_thread_support(CAML_R, void (*f)(CAML_R)){
+  the_caml_initialize_context_thread_support = f;
+}
+
+void caml_initialize_context_thread_support(CAML_R){
+  if(the_caml_initialize_context_thread_support != NULL)
+    the_caml_initialize_context_thread_support(ctx);
+}
+

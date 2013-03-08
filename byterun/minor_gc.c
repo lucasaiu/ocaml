@@ -19,6 +19,7 @@
 #define CAML_CONTEXT_SIGNALS
 #define CAML_CONTEXT_GC_CTRL
 
+#include <stdio.h> // FIXME: remove after debugging
 #include <string.h>
 #include "config.h"
 #include "fail.h"
@@ -266,6 +267,9 @@ void caml_empty_minor_heap_r (CAML_R)
 */
 CAMLexport void caml_minor_collection_r (CAML_R)
 {
+#ifdef NATIVE_CODE
+  //DUMP();
+#endif // #ifdef NATIVE_CODE
   intnat prev_alloc_words = caml_allocated_words;
 
   caml_empty_minor_heap_r (ctx);

@@ -1,4 +1,4 @@
-#warning Do "git diff 7d4891a0395abdac8e60f3cc788b71908c73a88d" on this file, and read it top-to-bottom
+//#warning Do "git diff 7d4891a0395abdac8e60f3cc788b71908c73a88d" on this file, and read it top-to-bottom
 /***********************************************************************/
 /*                                                                     */
 /*                                OCaml                                */
@@ -55,7 +55,7 @@ static int st_initialize(void)
 static int st_thread_create_r(CAML_R, st_thread_id * res,
                               void * (*fn)(void *), void * arg)
 {
-fprintf(stderr, "st_thread_create_r: context %p, [parent] thread %p: about to create a new thread\n", ctx, (void*)pthread_self()); fflush(stderr);
+DUMP("about to create a new thread");
   pthread_t thr;
   pthread_attr_t attr;
   int rc;
@@ -119,7 +119,9 @@ static INLINE void st_tls_set(st_tlskey k, void * v)
 
 static void st_masterlock_init(st_masterlock * m)
 {
-  INIT_CAML_R; fprintf(stderr, "st_masterlock_init: ctx %p, thread %p initialized the masterlock at %p (which should be %p)\n", ctx, (void*)pthread_self(), m, &caml_master_lock); fflush(stderr);
+  INIT_CAML_R;
+  assert(m == &caml_master_lock);
+  DUMP("st_masterlock_init: initialized the masterlock at %p", m);
   assert(m == &caml_master_lock);
   pthread_mutex_init(&m->lock, NULL);
   pthread_cond_init(&m->is_free, NULL);
