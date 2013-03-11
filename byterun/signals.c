@@ -287,7 +287,7 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
 
 CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value action)
 {
-  DUMP("signal_number %i", (int)Int_val(signal_number));
+  //DUMP("signal_number %i", (int)Int_val(signal_number));
   CAMLparam2 (signal_number, action);
   CAMLlocal1 (res);
   int sig, act, oldact;

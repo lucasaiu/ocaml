@@ -39,6 +39,7 @@ let create fn arg =
         fn arg; ()
       with exn ->
              flush stdout; flush stderr;
+Printf.fprintf stderr "* EXITING thread created by Thread.create\n%!";
              thread_uncaught_exception exn)
 
 (* Thread.kill is currently not implemented due to problems with
@@ -58,21 +59,23 @@ let preempt_signal =
   | _       -> Sys.sigvtalrm
 
 let _ =
-Printf.fprintf stderr "* INITIALIZING systhreads\n%!";
+Context.dump "* INITIALIZING systhreads\n%!";
   Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
   (* Sys.set_signal preempt_signal (Sys.Signal_handle (fun s -> prerr_string "**************{got signal "; prerr_int s; prerr_string " [FIXME: call preempt instead]}\n"; flush stderr)); *)
   thread_initialize();
   at_exit
     (fun () ->
+Context.dump "* BEFORE thread_cleanup\n%!";
         thread_cleanup();
+Context.dump "* AFTER thread_cleanup\n%!";
         (* In case of DLL-embedded OCaml the preempt_signal handler
            will point to nowhere after DLL unloading and an accidental
            preempt_signal will crash the main program. So restore the
            default handler. *)
-Printf.fprintf stderr "thread.ml: ABOUT TO EXIT\n%!";
+Context.dump "thread.ml: ABOUT TO EXIT\n%!";
         Sys.set_signal preempt_signal Sys.Signal_default
     );
-Printf.fprintf stderr "* INITIALIZED systhreads\n%!"
+Context.dump "* INITIALIZED systhreads\n%!"
 
 
 (* Wait functions *)

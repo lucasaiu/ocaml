@@ -7,6 +7,10 @@ val self : unit -> t
 val is_main : t -> bool
 (* val is_alive : t -> bool *)
 
+(* Splitting is not possible in the current state.  This is currently
+   raised if there is more than one active thread in the splitting
+   context. *)
+exception CannotSplit
 
 (* Mailboxes *)
 type mailbox
@@ -16,6 +20,7 @@ val make_mailbox : unit -> mailbox
 val context_of_mailbox : mailbox -> t
 val is_mailbox_local : mailbox -> bool
 
+(* These may raise CannotSplit *)
 val split1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
 val split : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
 
@@ -61,4 +66,5 @@ val globals : unit -> 'a
    horribly if the given value does not correspond to any global. *)
 val global_index : 'a -> int
 
-(* val dump : unit -> int *)
+(* FIXME: remove after debugging *)
+val dump : string -> unit

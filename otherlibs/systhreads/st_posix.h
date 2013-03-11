@@ -324,7 +324,7 @@ static void * caml_thread_tick(void * context_as_void_star)
   CAML_R = context_as_void_star;
   struct timeval timeout;
   sigset_t mask;
-DUMP("start");
+//DUMP("start");
 
   /* Block all signals so that we don't try to execute an OCaml signal handler*/
   sigfillset(&mask);
@@ -340,7 +340,7 @@ DUMP("start");
     select(0, NULL, NULL, NULL, &timeout);
 //DUMP("about to allocate something, just to stress the system");
 //    caml_alloc_tuple_r(ctx, 16); // FIXME: remove: this is gratuitous, just to stress the system
-DUMP("ticking (SIGPREEMPTION is %i)", (int)SIGPREEMPTION);
+//DUMP("ticking (SIGPREEMPTION is %i)", (int)SIGPREEMPTION);
   /* The preemption signal should never cause a callback, so don't
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */

@@ -419,6 +419,12 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
 {
   CAMLparam1(function);
   CAMLlocal2(result, open_channels);
+  value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
+  int can_split = caml_can_split_r(ctx);
+  DUMP("************************** can_split is %i", can_split);
+  if (! can_split)
+    caml_raise_constant_r(ctx, *exception_closure);
+
   int thread_no = Int_val(thread_no_as_value);
   caml_global_context **new_contexts = caml_stat_alloc(sizeof(caml_global_context*) * thread_no);
   char *blob;
@@ -584,4 +590,9 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
 
   CAMLreturn(message);
+}
+
+CAMLprim value caml_dump_r(CAML_R, value string){
+  DUMP("%s", String_val(string));
+  return Val_unit;
 }

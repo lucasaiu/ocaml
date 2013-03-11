@@ -12,6 +12,9 @@ let range a b =
 let iota n =
   range 0 (n - 1);;
 
+exception CannotSplit
+let _ = Callback.register_exception "CannotSplit" CannotSplit
+
 (* FIXME: use a custom type instead *)
 type t =
   int (*whatever*)
@@ -96,3 +99,6 @@ let split context_no f =
 
 let split1 f =
   List.hd (split 1 (fun _ mailbox -> f mailbox))
+
+(* FIXME: remove after debugging *)
+external dump : string -> unit = "caml_dump_r" "reentrant"

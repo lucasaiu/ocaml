@@ -838,3 +838,13 @@ void caml_initialize_context_thread_support(CAML_R){
     the_caml_initialize_context_thread_support(ctx);
 }
 
+static int (*the_caml_can_split_r)(CAML_R) = NULL;
+int caml_can_split_r(CAML_R){
+  if(the_caml_can_split_r == NULL)
+    return 1;
+  else
+    return the_caml_can_split_r(ctx);
+}
+void caml_set_caml_can_split_r(CAML_R, int (*f)(CAML_R)){
+  the_caml_can_split_r = f;
+}

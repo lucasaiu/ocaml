@@ -1052,4 +1052,8 @@ void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R));
 void caml_initialize_context_thread_support(CAML_R);
 void caml_set_caml_initialize_context_thread_support(CAML_R, void (*caml_initialize_context_thread_support)(CAML_R));
 
+/* Return non-zero iff the given context can be split: */
+int caml_can_split_r(CAML_R);
+void caml_set_caml_can_split_r(CAML_R, int (*caml_can_split_r)(CAML_R));
+
 #endif
