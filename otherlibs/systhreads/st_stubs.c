@@ -484,15 +484,6 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
   st_tls_set(thread_descriptor_key, (void *) curr_thread);
 }
 
-
-static int caml_thread_can_split_r(CAML_R){
-  DUMP("!!!!!!!!!!!");
-  /* We can split iff there is exactly one active thread in the
-     current context; if alive threads are more than one, then we
-     don't even try to split. */
-  return caml_get_thread_no_r(ctx) == 1;
-}
-
 static int caml_posix_get_thread_no_r(CAML_R);
 
 /* Initialize the global thread machinery */
@@ -510,7 +501,7 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   DUMP("");
   caml_set_caml_initialize_context_thread_support(ctx, caml_thread_initialize_for_current_context_r);
   DUMP("");
-  caml_set_caml_can_split_r(ctx, caml_thread_can_split_r);
+  ctx->can_split = 0;
   DUMP("");
 
   /* OS-specific initialization */

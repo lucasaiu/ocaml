@@ -609,6 +609,9 @@ struct caml_global_context {
   /* Protect context fields from concurrent accesses: */
   pthread_mutex_t mutex;
 
+  /* Can we still split?  If threads have already been created, it's to late. */
+  int can_split;
+
   /* The "kludigsh self-pointer"; this is handy for compatibility
      macros translating X to ctx->X.  This field points to the
      structure itself, so that the expressions ctx->X and
@@ -630,19 +633,19 @@ struct caml_local_context_descriptor{
   struct caml_global_context *context;
 }; /* struct caml_local_context */
 
-/* A stub identifying a context in an address space different from ours. */
-struct caml_remote_context_descriptor{
-  /* Address space reference: */
-  // FIXME: remote address space reference, for example IP address, port and pid
-  // FIXME: unique arbitrary identifier, to recognize the specific context within its remote address space
-}; /* struct caml_remote_context */
+/* /\* A stub identifying a context in an address space different from ours. *\/ */
+/* struct caml_remote_context_descriptor{ */
+/*   /\* Address space reference: *\/ */
+/*   // FIXME: remote address space reference, for example IP address, port and pid */
+/*   // FIXME: unique arbitrary identifier, to recognize the specific context within its remote address space */
+/* }; /\* struct caml_remote_context *\/ */
 
 /* Each context has exactly one local context descriptor, created at
    the same time as its context. */
 struct caml_global_context_descriptor{
   enum caml_global_context_descriptor_kind kind;
   union{
-    struct caml_remote_context_descriptor remote_context;
+    //struct caml_remote_context_descriptor remote_context;
     struct caml_local_context_descriptor local_context;
   } content; /* FIXME: Can I use an anonymous union, instead of this, pretty-please?  --Luca Saiu REENTRANTRUNTIME */
 }; /* struct caml_global_context_descriptor */
