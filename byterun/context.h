@@ -609,7 +609,7 @@ struct caml_global_context {
   /* Protect context fields from concurrent accesses: */
   pthread_mutex_t mutex;
 
-  /* Can we still split?  If threads have already been created, it's to late. */
+  /* Can we still split?  If threads have already been created, it's too late. */
   int can_split;
 
   /* The "kludigsh self-pointer"; this is handy for compatibility

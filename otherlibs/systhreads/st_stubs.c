@@ -501,8 +501,6 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   DUMP("");
   caml_set_caml_initialize_context_thread_support(ctx, caml_thread_initialize_for_current_context_r);
   DUMP("");
-  ctx->can_split = 0;
-  DUMP("");
 
   /* OS-specific initialization */
   st_initialize();
@@ -713,6 +711,11 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
 {
   caml_thread_t th;
   st_retcode err;
+
+  DUMP("");
+  ctx->can_split = 0;
+  DUMP("");
+
 
 DUMP("Before the creation threads are %i, including this one", caml_get_thread_no_r(ctx));
   /* Create a thread info block */
