@@ -131,7 +131,6 @@ void caml_register_dyn_global_r(CAML_R, void *v) {
    heap. */
 void caml_oldify_local_roots_r (CAML_R)
 {
-  //fprintf(stderr, "$$$$$ Context %p [thread %p]: caml_oldify_local_roots_r\n", ctx, (void*)(pthread_self()));caml_dump_global_mutex();
 caml_acquire_global_lock();
   char * sp;
   uintnat retaddr;
@@ -220,6 +219,8 @@ caml_acquire_global_lock();
   }
   /* Local C roots */
   for (lr = caml_local_roots; lr != NULL; lr = lr->next) {
+DUMP("lr is %p", lr);
+DUMP("lr->ntables is %i", lr->ntables);
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);
@@ -344,6 +345,8 @@ caml_acquire_global_lock();
   }
   /* Local C roots */
   for (lr = local_roots; lr != NULL; lr = lr->next) {
+DUMP("lr is %p", lr);
+DUMP("lr->ntables is %i", lr->ntables);
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);

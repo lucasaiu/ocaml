@@ -42,21 +42,21 @@ void caml_process_pending_signals_r(CAML_R)
   int i;
 
   if (caml_signals_are_pending) {
-#ifdef NATIVE_CODE
-    DUMP("something to do");
-#endif // #ifdef NATIVE_CODE
+/* #ifdef NATIVE_CODE */
+/*     DUMP("something to do"); */
+/* #endif // #ifdef NATIVE_CODE */
     caml_signals_are_pending = 0;
     for (i = 0; i < NSIG; i++) {
       if (caml_pending_signals[i]) {
         caml_pending_signals[i] = 0;
-        DUMP("ABOUT TO process signal %i", i);
+        /* DUMP("ABOUT TO process signal %i", i); */
         caml_execute_signal_r(ctx, i, 0);
-        DUMP("processED signal %i", i);
+        /* DUMP("processED signal %i", i); */
       }
     }
-#ifdef NATIVE_CODE
-    DUMP("done");
-#endif // #ifdef NATIVE_CODE
+/* #ifdef NATIVE_CODE */
+/*     DUMP("done"); */
+/* #endif // #ifdef NATIVE_CODE */
   }
 }
 
@@ -148,7 +148,7 @@ CAMLexport void caml_leave_blocking_section_r(CAML_R)
 
 void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
 {
-  DUMP("signal_number %i (converted into %i), in_signal_handler=%i", signal_number, (int)caml_rev_convert_signal_number(signal_number), in_signal_handler);
+  //DUMP("signal_number %i (converted into %i), in_signal_handler=%i", signal_number, (int)caml_rev_convert_signal_number(signal_number), in_signal_handler);
   value res;
 #ifdef POSIX_SIGNALS
   sigset_t sigs;
@@ -158,13 +158,13 @@ void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
   sigaddset(&sigs, signal_number);
   sigprocmask(SIG_BLOCK, &sigs, &sigs);
 #endif
-  DUMP();
+  //DUMP();
 //caml_gc_compaction_r(ctx, Val_unit); //!!!!
-  DUMP("right before calling caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
+  //DUMP("right before calling caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
   res = caml_callback_exn_r(ctx,
            Field(caml_signal_handlers, signal_number),
            Val_int(caml_rev_convert_signal_number(signal_number)));
-  DUMP("back from caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
+  //DUMP("back from caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
 #ifdef POSIX_SIGNALS
   if (! in_signal_handler) {
     /* Restore the original signal mask */
@@ -176,7 +176,7 @@ void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
   }
 #endif
   if (Is_exception_result(res)) caml_raise_r(ctx, Extract_exception(res));
-  DUMP("end");
+  //DUMP("end");
 }
 
 /* Arrange for a garbage collection to be performed as soon as possible */

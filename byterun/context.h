@@ -1023,16 +1023,18 @@ void caml_initialize_mutex(pthread_mutex_t *mutex);
 void caml_finalize_mutex(pthread_mutex_t *mutex);
 void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
 void caml_finalize_semaphore(sem_t *semaphore);
+
 #define NOATTR "\033[0m"
 #define RED    NOATTR "\033[31m"
 #define GREEN  NOATTR "\033[32m"
 #define CYAN   NOATTR "\033[36m"
 #define PURPLE NOATTR "\033[35m"
+#define BLUE   NOATTR "\033[34m"
 
 #define DUMP(FORMAT, ...) \
   do{ \
     fprintf(stderr, \
-            "%s:%i" NOATTR "(" RED  "%s" NOATTR ") C%p T%p AP"PURPLE"%p"NOATTR"/"PURPLE"%p"NOATTR" "CYAN"[%i threads]: %p"NOATTR, \
+            "%s:%i" NOATTR "(" RED  "%s" NOATTR ") C%p T%p AP"PURPLE"%p"NOATTR"/"PURPLE"%p"NOATTR" "CYAN"[%i threads]: %p"NOATTR" "NOATTR, \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self(), \
             ctx->caml_young_ptr, ctx->caml_young_limit, \

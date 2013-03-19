@@ -41,6 +41,7 @@
 #define HAS_SETSID
 #define HAS_PUTENV
 #define HAS_LOCALE
+#define SUPPORT_DYNAMIC_LINKING
 #define HAS_MMAP
 #define HAS_PWRITE
 #define HAS_GETHOSTBYNAME_R 6

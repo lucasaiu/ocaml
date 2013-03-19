@@ -408,8 +408,10 @@ CAMLexport value caml_alloc_shr_r (CAML_R, mlsize_t wosize, tag_t tag)
   if (hp == NULL){
     new_block = expand_heap_r (ctx, wosize);
     if (new_block == NULL) {
-      if (caml_in_minor_collection)
+      if (caml_in_minor_collection){
+        volatile int a = 1; a /= 0; // FIXME: remove this kludge
         caml_fatal_error ("Fatal error: out of memory.\n");
+      }
       else
         caml_raise_out_of_memory_r(ctx);
     }
