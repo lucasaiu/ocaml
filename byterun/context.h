@@ -1024,24 +1024,102 @@ void caml_finalize_mutex(pthread_mutex_t *mutex);
 void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
 void caml_finalize_semaphore(sem_t *semaphore);
 
-#define NOATTR "\033[0m"
-#define RED    NOATTR "\033[31m"
-#define GREEN  NOATTR "\033[32m"
-#define CYAN   NOATTR "\033[36m"
-#define PURPLE NOATTR "\033[35m"
-#define BLUE   NOATTR "\033[34m"
+struct caml_thread_struct {
+  value descr;                  /* The heap-allocated descriptor (root) */
+  struct caml_thread_struct * next;  /* Double linking of running threads */
+  struct caml_thread_struct * prev;
+#ifdef NATIVE_CODE
+  char * top_of_stack;          /* Top of stack for this thread (approx.) */
+  char * bottom_of_stack;       /* Saved value of caml_bottom_of_stack */
+  uintnat last_retaddr;         /* Saved value of caml_last_return_address */
+  value * gc_regs;              /* Saved value of caml_gc_regs */
+  char * exception_pointer;     /* Saved value of caml_exception_pointer */
+  struct caml__roots_block * local_roots; /* Saved value of local_roots */
+  struct longjmp_buffer * exit_buf; /* For thread exit */
+#else
+  value * stack_low;            /* The execution stack for this thread */
+  value * stack_high;
+  value * stack_threshold;
+  value * sp;                   /* Saved value of extern_sp for this thread */
+  value * trapsp;               /* Saved value of trapsp for this thread */
+  struct caml__roots_block * local_roots; /* Saved value of local_roots */
+  struct longjmp_buffer * external_raise; /* Saved external_raise */
+#endif
+  int backtrace_pos;            /* Saved backtrace_pos */
+  code_t * backtrace_buffer;    /* Saved backtrace_buffer */
+  value backtrace_last_exn;     /* Saved backtrace_last_exn (root) */
+  CAML_R;                       /* the context to which this thread belongs */
+  void* posix_thread; // FIXME: for debugging.  REMOVE
+  int id; // FIXME: for debugging only
+};
+
+#define NOATTR        "\033[0m"
+#define RED           NOATTR "\033[31m"
+#define GREEN         NOATTR "\033[32m"
+#define CYAN          NOATTR "\033[36m"
+#define PURPLE        NOATTR "\033[35m"
+#define BLUE          NOATTR "\033[34m"
+#define LIGHTPURPLE   NOATTR "\033[1m\033[35m"
 
 #define DUMP(FORMAT, ...) \
   do{ \
     fprintf(stderr, \
-            "%s:%i" NOATTR "(" RED  "%s" NOATTR ") C%p T%p AP"PURPLE"%p"NOATTR"/"PURPLE"%p"NOATTR" "CYAN"[%i threads]: %p"NOATTR" "NOATTR, \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T%p "/* "AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" "CYAN"[%i threads]: %i"NOATTR" "NOATTR, \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self(), \
-            ctx->caml_young_ptr, ctx->caml_young_limit, \
+            /* ctx->caml_young_ptr, ctx->caml_young_limit, \ */ \
             caml_get_thread_no_r(ctx), \
-            ctx->curr_thread); \
+            ctx->curr_thread ? (int)ctx->curr_thread->id : -1); \
     fflush(stderr); \
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
+    fprintf(stderr, NOATTR "\n"); \
+    fflush(stderr); \
+  } while(0)
+
+#define QDUMP(FORMAT, ...) \
+  do{ \
+    fprintf(stderr, \
+            "%s:%i(" RED "%s" NOATTR ") T%p: ", \
+            __FILE__, __LINE__, __FUNCTION__, (void*)pthread_self()); \
+    fprintf(stderr, GREEN FORMAT, ##__VA_ARGS__); \
+    fprintf(stderr, NOATTR "\n"); \
+    fflush(stderr); \
+  } while(0)
+
+extern __thread int caml_indentation_level;
+
+#define INDENT \
+  {int dfdsfd; for(dfdsfd = 0; dfdsfd < caml_indentation_level; dfdsfd ++) putc('=', stderr);}
+
+#define QB(FORMAT, ...) \
+  do{ \
+    caml_indentation_level ++; \
+    INDENT; \
+    fprintf(stderr, \
+            PURPLE "%s:%i(" LIGHTPURPLE "%s" NOATTR ") T%p: ", \
+            __FILE__, __LINE__, __FUNCTION__, (void*)pthread_self()); \
+    fprintf(stderr, PURPLE "BEGIN " FORMAT, ##__VA_ARGS__); \
+    fprintf(stderr, NOATTR "\n"); \
+    fflush(stderr); \
+  } while(0)
+#define QR(FORMAT, ...) \
+  do{ \
+    INDENT; \
+    fprintf(stderr, \
+            PURPLE "%s:%i(" LIGHTPURPLE "%s" NOATTR ") T%p: ", \
+            __FILE__, __LINE__, __FUNCTION__, (void*)pthread_self()); \
+    fprintf(stderr, PURPLE "END   " FORMAT, ##__VA_ARGS__); \
+    fprintf(stderr, NOATTR "\n"); \
+    fflush(stderr); \
+    caml_indentation_level --; \
+  } while(0)
+#define QBR(FORMAT, ...) \
+  do{ \
+    INDENT; \
+    fprintf(stderr, \
+            PURPLE "%s:%i(" LIGHTPURPLE "%s" NOATTR ") T%p: ", \
+            __FILE__, __LINE__, __FUNCTION__, (void*)pthread_self()); \
+    fprintf(stderr, PURPLE "BEGIN-AND-RETURN " FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
   } while(0)

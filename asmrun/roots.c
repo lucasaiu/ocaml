@@ -219,8 +219,10 @@ caml_acquire_global_lock();
   }
   /* Local C roots */
   for (lr = caml_local_roots; lr != NULL; lr = lr->next) {
-DUMP("lr is %p", lr);
-DUMP("lr->ntables is %i", lr->ntables);
+volatile auto long onstack;
+DUMP("[a] &onstack is %p", &onstack);
+DUMP("[b] lr is %p", lr);
+DUMP("[b] lr->ntables is %i, or in hex 0x%x", (int)lr->ntables, (int)lr->ntables);
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);
@@ -345,8 +347,10 @@ caml_acquire_global_lock();
   }
   /* Local C roots */
   for (lr = local_roots; lr != NULL; lr = lr->next) {
-DUMP("lr is %p", lr);
-DUMP("lr->ntables is %i", lr->ntables);
+volatile auto long onstack;
+DUMP("[a] &onstack is %p", &onstack);
+DUMP("[a] lr is %p", lr);
+DUMP("[a] lr->ntables is %i, or in hex 0x%x", (int)lr->ntables, (int)lr->ntables);
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);

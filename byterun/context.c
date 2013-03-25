@@ -844,3 +844,5 @@ void caml_initialize_context_thread_support(CAML_R){
 int caml_can_split_r(CAML_R){
   return ctx->can_split;
 }
+
+__thread int caml_indentation_level = 0;

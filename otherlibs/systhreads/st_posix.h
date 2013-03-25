@@ -55,6 +55,7 @@ static int st_initialize(void)
 static int st_thread_create_r(CAML_R, st_thread_id * res,
                               void * (*fn)(void *), void * arg)
 {
+  QB();
 DUMP("about to create a new thread");
   pthread_t thr;
   pthread_attr_t attr;
@@ -64,6 +65,7 @@ DUMP("about to create a new thread");
   if (res == NULL) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   rc = pthread_create(&thr, &attr, fn, arg);
   if (res != NULL) *res = thr;
+  QR();
   return rc;
 }
 
@@ -73,6 +75,7 @@ DUMP("about to create a new thread");
 
 static INLINE void st_thread_cleanup(void)
 {
+  QBR("this does nothing");
   return;
 }
 
@@ -80,11 +83,13 @@ static INLINE void st_thread_cleanup(void)
 
 static void st_thread_exit(void)
 {
+  QBR();
   pthread_exit(NULL);
 }
 
 static void st_thread_kill(st_thread_id thr)
 {
+  QBR();
   pthread_cancel(thr);
 }
 
@@ -92,10 +97,12 @@ static void st_thread_kill(st_thread_id thr)
 
 static void INLINE st_thread_yield(void)
 {
+  QB();
 #ifndef __linux__
   /* sched_yield() doesn't do what we want in Linux 2.6 and up (PR#2663) */
   sched_yield();
 #endif
+  QR();
 }
 
 /* Thread-specific state */
@@ -104,21 +111,26 @@ typedef pthread_key_t st_tlskey;
 
 static int st_tls_newkey(st_tlskey * res)
 {
+  QBR();
   return pthread_key_create(res, NULL);
 }
 
 static INLINE void * st_tls_get(st_tlskey k)
 {
+  QBR();
   return pthread_getspecific(k);
 }
 
 static INLINE void st_tls_set(st_tlskey k, void * v)
 {
+  QB();
   pthread_setspecific(k, v);
+  QR();
 }
 
 static void st_masterlock_init(st_masterlock * m)
 {
+  QB();
   INIT_CAML_R;
   assert(m == &caml_master_lock);
   DUMP("st_masterlock_init: initialized the masterlock at %p", m);
@@ -127,10 +139,12 @@ static void st_masterlock_init(st_masterlock * m)
   pthread_cond_init(&m->is_free, NULL);
   m->busy = 1;
   m->waiters = 0;
+  QR();
 }
 
 static void st_masterlock_acquire(st_masterlock * m)
 {
+  QB();
   INIT_CAML_R; //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
   assert(m == &caml_master_lock);
 //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p: beginning\n", ctx, (void*)pthread_self()); fflush(stderr);
@@ -145,20 +159,24 @@ static void st_masterlock_acquire(st_masterlock * m)
   m->busy = 1;
   pthread_mutex_unlock(&m->lock);
 //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p: end\n", ctx, (void*)pthread_self()); fflush(stderr);
+  QR();
 }
 
 static void st_masterlock_release(st_masterlock * m)
 {
+  QB();
   INIT_CAML_R; //fprintf(stderr, "Context %p: st_masterlock_release: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
   assert(m == &caml_master_lock);
   pthread_mutex_lock(&m->lock);
   m->busy = 0;
   pthread_mutex_unlock(&m->lock);
   pthread_cond_signal(&m->is_free);
+  QR();
 }
 
 static INLINE int st_masterlock_waiters(st_masterlock * m)
 {
+  QBR();
   return m->waiters;
 }
 
@@ -168,25 +186,30 @@ typedef pthread_mutex_t * st_mutex;
 
 static int st_mutex_create(st_mutex * res)
 {
+  QB();
   int rc;
   st_mutex m = malloc(sizeof(pthread_mutex_t));
-  if (m == NULL) return ENOMEM;
+  if (m == NULL){ QR(); return ENOMEM;}
   rc = pthread_mutex_init(m, NULL);
-  if (rc != 0) { free(m); return rc; }
+  if (rc != 0) { free(m); QR(); return rc; }
   *res = m;
+  QR();
   return 0;
 }
 
 static int st_mutex_destroy(st_mutex m)
 {
-  int rc;
+  QB();
+   int rc;
   rc = pthread_mutex_destroy(m);
   free(m);
+  QR();
   return rc;
 }
 
 static INLINE int st_mutex_lock(st_mutex m)
 {
+  QBR();
   return pthread_mutex_lock(m);
 }
 
@@ -195,11 +218,13 @@ static INLINE int st_mutex_lock(st_mutex m)
 
 static INLINE int st_mutex_trylock(st_mutex m)
 {
+  QBR();
   return pthread_mutex_trylock(m);
 }
 
 static INLINE int st_mutex_unlock(st_mutex m)
 {
+  QBR();
   return pthread_mutex_unlock(m);
 }
 
@@ -209,35 +234,42 @@ typedef pthread_cond_t * st_condvar;
 
 static int st_condvar_create(st_condvar * res)
 {
+  QB();
   int rc;
   st_condvar c = malloc(sizeof(pthread_cond_t));
-  if (c == NULL) return ENOMEM;
+  if (c == NULL) {QR(); return ENOMEM;}
   rc = pthread_cond_init(c, NULL);
-  if (rc != 0) { free(c); return rc; }
+  if (rc != 0) { free(c); QR(); return rc; }
   *res = c;
+  QR();
   return 0;
 }
 
 static int st_condvar_destroy(st_condvar c)
 {
+  QB();
   int rc;
   rc = pthread_cond_destroy(c);
   free(c);
+  QR();
   return rc;
 }
 
 static INLINE int st_condvar_signal(st_condvar c)
 {
+  QBR();
   return pthread_cond_signal(c);
 }
 
 static INLINE int st_condvar_broadcast(st_condvar c)
 {
+  QBR();
   return pthread_cond_broadcast(c);
 }
 
 static INLINE int st_condvar_wait(st_condvar c, st_mutex m)
 {
+  QBR();
   return pthread_cond_wait(c, m);
 }
 
@@ -251,49 +283,57 @@ typedef struct st_event_struct {
 
 static int st_event_create(st_event * res)
 {
+  QB();
   int rc;
   st_event e = malloc(sizeof(struct st_event_struct));
-  if (e == NULL) return ENOMEM;
+  if (e == NULL) {QR();return ENOMEM;}
   rc = pthread_mutex_init(&e->lock, NULL);
-  if (rc != 0) { free(e); return rc; }
+  if (rc != 0) { free(e); QR();return rc; }
   rc = pthread_cond_init(&e->triggered, NULL);
-  if (rc != 0) { pthread_mutex_destroy(&e->lock); free(e); return rc; }
+  if (rc != 0) { pthread_mutex_destroy(&e->lock); free(e); QR();return rc; }
   e->status = 0;
   *res = e;
+  QR();
   return 0;
 }
 
 static int st_event_destroy(st_event e)
 {
+  QB();
   int rc1, rc2;
   rc1 = pthread_mutex_destroy(&e->lock);
   rc2 = pthread_cond_destroy(&e->triggered);
   free(e);
+  QR();
   return rc1 != 0 ? rc1 : rc2;
 }
 
 static int st_event_trigger(st_event e)
 {
+  QB();
   int rc;
   rc = pthread_mutex_lock(&e->lock);
-  if (rc != 0) return rc;
+  if (rc != 0) {QR();return rc;}
   e->status = 1;
   rc = pthread_mutex_unlock(&e->lock);
-  if (rc != 0) return rc;
+  if (rc != 0) {QR();return rc;}
   rc = pthread_cond_broadcast(&e->triggered);
+  QR();
   return rc;
 }
 
 static int st_event_wait(st_event e)
 {
+  QB();
   int rc;
   rc = pthread_mutex_lock(&e->lock);
-  if (rc != 0) return rc;
+  if (rc != 0) {QR();return rc;}
   while(e->status == 0) {
     rc = pthread_cond_wait(&e->triggered, &e->lock);
-    if (rc != 0) return rc;
+    if (rc != 0) {QR();return rc;}
   }
   rc = pthread_mutex_unlock(&e->lock);
+  QR();
   return rc;
 }
 
@@ -301,12 +341,13 @@ static int st_event_wait(st_event e)
 
 static void st_check_error_r(CAML_R, int retcode, char * msg)
 {
+  QB();
   char * err;
   int errlen, msglen;
   value str;
 
-  if (retcode == 0) return;
-  if (retcode == ENOMEM) caml_raise_out_of_memory_r(ctx);
+  if (retcode == 0) {QR();return;}
+  if (retcode == ENOMEM) {QR();caml_raise_out_of_memory_r(ctx);}
   err = strerror(retcode);
   msglen = strlen(msg);
   errlen = strlen(err);
@@ -314,6 +355,7 @@ static void st_check_error_r(CAML_R, int retcode, char * msg)
   memmove (&Byte(str, 0), msg, msglen);
   memmove (&Byte(str, msglen), ": ", 2);
   memmove (&Byte(str, msglen + 2), err, errlen);
+  QR();
   caml_raise_sys_error_r(ctx, str);
 }
 
@@ -321,6 +363,7 @@ static void st_check_error_r(CAML_R, int retcode, char * msg)
 
 static void * caml_thread_tick(void * context_as_void_star)
 {
+  QB();
   CAML_R = context_as_void_star;
   struct timeval timeout;
   sigset_t mask;
@@ -348,6 +391,7 @@ static void * caml_thread_tick(void * context_as_void_star)
     caml_record_signal_r(ctx, SIGPREEMPTION);
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticked.\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
+  QR();
   return NULL;                  /* prevents compiler warning */
 }
 
@@ -355,6 +399,7 @@ static void * caml_thread_tick(void * context_as_void_star)
 
 static int st_atfork(void (*fn)(void))
 {
+  QBR();
   return pthread_atfork(NULL, NULL, fn);
 }
 
@@ -362,12 +407,14 @@ static int st_atfork(void (*fn)(void))
 
 static void st_decode_sigset(value vset, sigset_t * set)
 {
+  QB();
   sigemptyset(set);
   while (vset != Val_int(0)) {
     int sig = caml_convert_signal_number(Int_val(Field(vset, 0)));
     sigaddset(set, sig);
     vset = Field(vset, 1);
   }
+  QR();
 }
 
 #ifndef NSIG
@@ -376,6 +423,7 @@ static void st_decode_sigset(value vset, sigset_t * set)
 
 static value st_encode_sigset_r(CAML_R, sigset_t * set)
 {
+  QB();
   value res = Val_int(0);
   //CAMLparam0();
   //CAMLlocal1(res);
@@ -390,6 +438,7 @@ static value st_encode_sigset_r(CAML_R, sigset_t * set)
         res = newcons;
       }
   End_roots();
+  QR();
   return res;
   //CAMLreturn(res);
 }
@@ -398,6 +447,7 @@ static int sigmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };
 
 value caml_thread_sigmask_r(CAML_R, value cmd, value sigs) /* ML */
 {
+  QB();
   int how;
   sigset_t set, oldset;
   int retcode;
@@ -408,11 +458,13 @@ value caml_thread_sigmask_r(CAML_R, value cmd, value sigs) /* ML */
   retcode = pthread_sigmask(how, &set, &oldset);
   caml_leave_blocking_section_r(ctx);
   st_check_error_r(ctx, retcode, "Thread.sigmask");
+  QR();
   return st_encode_sigset_r(ctx, &oldset);
 }
 
 value caml_wait_signal_r(CAML_R, value sigs) /* ML */
 {
+QB();
 #ifdef HAS_SIGWAIT
   sigset_t set;
   int retcode, signo;
@@ -422,9 +474,12 @@ value caml_wait_signal_r(CAML_R, value sigs) /* ML */
   retcode = sigwait(&set, &signo);
   caml_leave_blocking_section_r(ctx);
   st_check_error_r(ctx, retcode, "Thread.wait_signal");
+  QR();
   return Val_int(signo);
 #else
+  QR();
   invalid_argument("Thread.wait_signal not implemented");
+  QR();
   return Val_int(0);            /* not reached */
 #endif
 }
