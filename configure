@@ -1179,7 +1179,7 @@ esac
 echo "BNG_ARCH=$bng_arch" >> Makefile
 echo "BNG_ASM_LEVEL=$bng_asm_level" >> Makefile
 
-# Determine if multi-context is support
+# Determine if multi-context is supported
 
 case "$arch,$system" in
   amd64,linux)

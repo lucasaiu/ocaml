@@ -179,7 +179,7 @@ static value caml_globals_and_data_r(CAML_R, value *data, size_t element_no)
 }
 
 /* Return a pointer to a malloc'ed buffer: */
-static char* caml_serialize_into_blob_r(CAML_R, value caml_value){
+char* caml_serialize_into_blob_r(CAML_R, value caml_value){
   CAMLparam1(caml_value);
   CAMLlocal1(flags);
   char *blob;
@@ -204,7 +204,7 @@ static char* caml_serialize_into_blob_r(CAML_R, value caml_value){
   CAMLreturnT(char*, blob);
 }
 
-static value caml_deserialize_blob_r(CAML_R, char *blob){
+value caml_deserialize_blob_r(CAML_R, char *blob){
   CAMLparam0();
   CAMLlocal1(result);
 caml_acquire_global_lock(); // FIXME: remove after de-staticizing deserialization
@@ -280,12 +280,12 @@ static int caml_run_function_this_thread_r(CAML_R, value function, int index)
   int did_we_fail;
 
 /* fprintf(stderr, "======Forcing a GC\n"); fflush(stderr); */
-caml_gc_compaction_r(ctx, Val_unit); //!!!!!
+//caml_gc_compaction_r(ctx, Val_unit); //!!!!!
 /* fprintf(stderr, "======It's ok to have warnings about the lack of globals up to this point\n"); fflush(stderr); */
 
 //fprintf(stderr, "W0[context %p] [thread %p] (index %i) BBBBBBBBBBBBBBBBBBBBBBBBBB\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_acquire_global_lock(); // FIXME: a test. this is obviously unusable in production
 //fprintf(stderr, "W1 [context %p] ctx->caml_local_roots is %p\n", ctx, caml_local_roots); fflush(stderr);
- DUMP();
+//DUMP();
   /* Make a new context, and deserialize the blob into it: */
   /* fprintf(stderr, "W3 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr); */
 
@@ -295,8 +295,8 @@ caml_gc_compaction_r(ctx, Val_unit); //!!!!!
   /*             caml_pair_r(ctx, Val_int(3), Val_int(4))); */
 
  //fprintf(stderr, "W4 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
-  caml_gc_compaction_r(ctx, Val_unit); //!!!!!
- DUMP();
+//caml_gc_compaction_r(ctx, Val_unit); //!!!!!
+  //DUMP();
 
 /* caml_empty_minor_heap_r(ctx); */
 /* caml_finish_major_cycle_r (ctx); */
@@ -305,8 +305,8 @@ caml_gc_compaction_r(ctx, Val_unit); //!!!!!
 
   /* Run the Caml function: */
  //fprintf(stderr, "W5 [context %p] [thread %p] (index %i) (function %p)\n", ctx, (void*)(pthread_self()), index, (void*)function); fflush(stderr);
-  caml_gc_compaction_r(ctx, Val_unit); //!!!!!
-  DUMP();
+  //caml_gc_compaction_r(ctx, Val_unit); //!!!!!
+  //DUMP();
   //fprintf(stderr, "W7 [context %p] [thread %p] (index %i) (%i globals) ctx->caml_local_roots is %p\n", ctx, (void*)(pthread_self()), index, (int)(ctx->caml_globals.used_size / sizeof(value)), caml_local_roots); fflush(stderr);
   //caml_dump_global_mutex();
 
@@ -383,13 +383,13 @@ static void* caml_deserialize_and_run_in_this_thread_as_thread_function(void *ar
 /* Create threads, and wait until all of them have signaled that they're done with the blob: */
 static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **split_contexts, size_t how_many, sem_t *semaphore)
 {
-  DUMP();
+  //DUMP();
   //#ifdef NATIVE_CODE
   //  fprintf(stderr, "@@@@@ In the parent context caml_bottom_of_stack is %p\n", caml_bottom_of_stack);
   //#endif // #ifdef NATIVE_CODE
-  DUMP();
+  //DUMP();
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!
-  DUMP();
+  //DUMP();
   int i;
   for(i = 0; i < how_many; i ++){
     //sleep(10); // FIXME: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -406,13 +406,13 @@ static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **spli
       caml_failwith_r(ctx, "pthread_create failed"); // FIXME: blob is leaked is this case
   } /* for */
   /* Wait for the last thread to use the blob, then destroy it: */
-  DUMP("waiting for every thread to deserialize");
+  //DUMP("waiting for every thread to deserialize");
   for(i = 0; i < how_many; i ++){
-    DUMP("about to P");
+    //DUMP("about to P");
     sem_wait(semaphore);
-    DUMP("one child finished; waiting for %i more", (int)(how_many - i - 1));
+    //DUMP("one child finished; waiting for %i more", (int)(how_many - i - 1));
   }
-  DUMP("every thread has deserialized");
+  //DUMP("every thread has deserialized");
 }
 
 CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
@@ -421,7 +421,7 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   CAMLlocal2(result, open_channels);
   value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
   int can_split = caml_can_split_r(ctx);
-  DUMP("************************** can_split is %i", can_split);
+  //DUMP("************************** can_split is %i", can_split);
   if (! can_split)
     caml_raise_constant_r(ctx, *exception_closure);
 
@@ -443,24 +443,24 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   caml_split_and_wait_r(ctx, blob, new_contexts, thread_no, &semaphore);
 
   /* Now we're done with the blob: */
-  DUMP("child threads have finished with the blob: destroying it");
+//  DUMP("child threads have finished with the blob: destroying it");
   caml_stat_free(blob);
-  DUMP();
+//  DUMP();
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!
-  DUMP();
+//  DUMP();
 
   caml_finalize_semaphore(&semaphore);
-  DUMP();
+//  DUMP();
   /////
 
   /* Copy the contexts we got, and we're done with new_contexts as well: */
-  DUMP("copying the new context (descriptors) into the Caml data structure result");
+//  DUMP("copying the new context (descriptors) into the Caml data structure result");
   result = caml_alloc_r(ctx, thread_no, 0);
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!
   for(i = 0; i < thread_no; i ++)
     caml_initialize_r(ctx, &Field(result, i), caml_value_of_context_descriptor(new_contexts[i]->descriptor));
   caml_stat_free(new_contexts);
-  DUMP("destroyed the malloced buffer of pointers new_contexts");
+//  DUMP("destroyed the malloced buffer of pointers new_contexts");
   CAMLreturn(result);
 }
 
@@ -502,7 +502,7 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
 }
 
 CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, value message){
-  fprintf(stderr, "SEND: OK-1\n"); fflush(stderr);
+  //fprintf(stderr, "SEND: OK-1\n"); fflush(stderr);
   CAMLparam2(receiver_mailbox_as_value, message);
   struct caml_mailbox *receiver_mailbox;
   char *message_blob;
@@ -514,7 +514,7 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
      it out of the critical section: */
   message_blob = caml_serialize_into_blob_r(ctx, message);
 
-  fprintf(stderr, "SEND: OK-2\n"); fflush(stderr);
+  //fprintf(stderr, "SEND: OK-2\n"); fflush(stderr);
   /* /\* Wait until there is a free slot: *\/ */
   /* caml_enter_blocking_section_r(ctx); */
   /* sem_wait(&receiver_mailbox->free_slot_no_semaphore); */
@@ -526,7 +526,7 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-30 AFTER LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   int message_no = receiver_mailbox->message_no;
 
-  fprintf(stderr, "SEND: OK-3\n"); fflush(stderr);
+  //fprintf(stderr, "SEND: OK-3\n"); fflush(stderr);
   /* Make sure there is enough space, enlarging the queue if needed: */
   if(message_no == receiver_mailbox->allocated_message_no){
     receiver_mailbox->allocated_message_no *= 2;
@@ -543,13 +543,13 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-60 AFTER V\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r    [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
-  fprintf(stderr, "SEND: OK-4\n"); fflush(stderr);
+  //fprintf(stderr, "SEND: OK-4\n"); fflush(stderr);
 
   CAMLreturn(Val_unit);
 }
 
 CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
-  fprintf(stderr, "RECEIVE: OK-1\n"); fflush(stderr);
+  //fprintf(stderr, "RECEIVE: OK-1\n"); fflush(stderr);
   CAMLparam1(receiver_mailbox_as_value);
   CAMLlocal1(message);
   struct caml_mailbox *receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
@@ -567,7 +567,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   sem_wait(&receiver_mailbox->message_no_semaphore);
   caml_leave_blocking_section_r(ctx);
 
-  fprintf(stderr, "RECEIVE: OK-2\n"); fflush(stderr);
+  //fprintf(stderr, "RECEIVE: OK-2\n"); fflush(stderr);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-20 AFTER P, BEFORE LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   /* Get what we need, and immediately unblock the next sender; we can
      process our message after V'ing. */
@@ -586,7 +586,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   pthread_mutex_unlock(&receiver_mailbox->mutex);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-50 AFTER UNLOCK\n", ctx, receiver_mailbox); fflush(stderr);
-  fprintf(stderr, "RECEIVE: OK-3\n"); fflush(stderr);
+  //fprintf(stderr, "RECEIVE: OK-3\n"); fflush(stderr);
 
   /* /\* Signal the fact that there one slot has been freed: *\/ */
   /* sem_post(&receiver_mailbox->free_slot_no_semaphore); */
@@ -595,7 +595,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   free(message_blob);
 
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
-  fprintf(stderr, "RECEIVE: OK-4\n"); fflush(stderr);
+  //fprintf(stderr, "RECEIVE: OK-4\n"); fflush(stderr);
 
   CAMLreturn(message);
 }

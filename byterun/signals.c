@@ -148,7 +148,8 @@ CAMLexport void caml_leave_blocking_section_r(CAML_R)
 
 void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
 {
-  //DUMP("signal_number %i (converted into %i), in_signal_handler=%i", signal_number, (int)caml_rev_convert_signal_number(signal_number), in_signal_handler);
+  DUMP("SIGPREEMPTION is %i", SIGVTALRM);
+  DUMP("signal_number %i (converted into %i), in_signal_handler=%i", signal_number, (int)caml_rev_convert_signal_number(signal_number), in_signal_handler);
   value res;
 #ifdef POSIX_SIGNALS
   sigset_t sigs;
@@ -160,7 +161,7 @@ void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
 #endif
   //DUMP();
 //caml_gc_compaction_r(ctx, Val_unit); //!!!!
-  //DUMP("right before calling caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
+  DUMP("right before calling caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
   res = caml_callback_exn_r(ctx,
            Field(caml_signal_handlers, signal_number),
            Val_int(caml_rev_convert_signal_number(signal_number)));
@@ -287,7 +288,7 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
 
 CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value action)
 {
-  //DUMP("signal_number %i", (int)Int_val(signal_number));
+  DUMP("signal_number %i", (int)Int_val(signal_number));
   CAMLparam2 (signal_number, action);
   CAMLlocal1 (res);
   int sig, act, oldact;

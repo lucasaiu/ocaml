@@ -1,4 +1,3 @@
-//#warning Do "git diff 7d4891a0395abdac8e60f3cc788b71908c73a88d" on this file, and read it top-to-bottom
 /***********************************************************************/
 /*                                                                     */
 /*                                OCaml                                */

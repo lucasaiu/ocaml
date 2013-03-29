@@ -7,6 +7,15 @@
 // // FIXME: remove from the header.  This should not be public
 // typedef struct caml_context_blob* caml_context_blob_t;
 
+/* Serialize the given Caml object, which must belong to the given
+   context, into a malloc'ed buffer. */
+char* caml_serialize_into_blob_r(CAML_R, value object);
+
+/* Deserialize a buffer as returned by caml_serialize_r into a Caml
+   object for the given context (usually different from the
+   serialization context).  This does *not* free the buffer. */
+value caml_deserialize_blob_r(CAML_R, char *blob);
+
 /* Split the given context into how_many copies.  Each one is
    associated to a different new thread.  For each thread the given
    int -> unit function with an index from 0 to how_many - 1.  Store
