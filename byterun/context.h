@@ -1024,34 +1024,6 @@ void caml_finalize_mutex(pthread_mutex_t *mutex);
 void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
 void caml_finalize_semaphore(sem_t *semaphore);
 
-struct caml_thread_struct {
-  value descr;                  /* The heap-allocated descriptor (root) */
-  struct caml_thread_struct * next;  /* Double linking of running threads */
-  struct caml_thread_struct * prev;
-#ifdef NATIVE_CODE
-  char * top_of_stack;          /* Top of stack for this thread (approx.) */
-  char * bottom_of_stack;       /* Saved value of caml_bottom_of_stack */
-  uintnat last_retaddr;         /* Saved value of caml_last_return_address */
-  value * gc_regs;              /* Saved value of caml_gc_regs */
-  char * exception_pointer;     /* Saved value of caml_exception_pointer */
-  struct caml__roots_block * local_roots; /* Saved value of local_roots */
-  struct longjmp_buffer * exit_buf; /* For thread exit */
-#else
-  value * stack_low;            /* The execution stack for this thread */
-  value * stack_high;
-  value * stack_threshold;
-  value * sp;                   /* Saved value of extern_sp for this thread */
-  value * trapsp;               /* Saved value of trapsp for this thread */
-  struct caml__roots_block * local_roots; /* Saved value of local_roots */
-  struct longjmp_buffer * external_raise; /* Saved external_raise */
-#endif
-  int backtrace_pos;            /* Saved backtrace_pos */
-  code_t * backtrace_buffer;    /* Saved backtrace_buffer */
-  value backtrace_last_exn;     /* Saved backtrace_last_exn (root) */
-  CAML_R;                       /* the context to which this thread belongs */
-  void* posix_thread; // FIXME: for debugging.  REMOVE
-  int id; // FIXME: for debugging only
-};
 
 #define NOATTR        "\033[0m"
 #define RED           NOATTR "\033[31m"
@@ -1064,12 +1036,11 @@ struct caml_thread_struct {
 #define DUMP(FORMAT, ...) \
   do{ \
     fprintf(stderr, \
-            "%s:%i(" RED  "%s" NOATTR ") C%p T%p "/* "AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" "CYAN"[%i threads]: %i"NOATTR" "NOATTR, \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T%p "/* "AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" "CYAN"[%i threads] "NOATTR" "NOATTR, \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self(), \
             /* ctx->caml_young_ptr, ctx->caml_young_limit, \ */ \
-            caml_get_thread_no_r(ctx), \
-            ctx->curr_thread ? (int)ctx->curr_thread->id : -1); \
+            caml_get_thread_no_r(ctx)); \
     fflush(stderr); \
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
@@ -1124,8 +1095,16 @@ extern __thread int caml_indentation_level;
     fflush(stderr); \
   } while(0)
 
-/* #undef DUMP */
-/* #define DUMP(FORMAT, ...) /\* nothing *\/ */
+#undef DUMP
+#undef QDUMP
+#undef QB
+#undef QR
+#undef QBR
+#define DUMP(FORMAT, ...) /* nothing */
+#define QDUMP(FORMAT, ...) /* nothing */
+#define QB(FORMAT, ...) /* nothing */
+#define QR(FORMAT, ...) /* nothing */
+#define QBR(FORMAT, ...) /* nothing */
 
 int caml_get_thread_no_r(CAML_R);
 void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R));

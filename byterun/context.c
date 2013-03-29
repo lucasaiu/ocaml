@@ -845,4 +845,12 @@ int caml_can_split_r(CAML_R){
   return ctx->can_split;
 }
 
-__thread int caml_indentation_level = 0;
+/* CAMLprim int caml_multi_context_implemented(value unit){ */
+/* #if HAS_MULTI_CONTEXT */
+/*   return Bool_val(1); */
+/* #else */
+/*   return Bool_val(0); */
+/* #endif /\* #if HAS_MULTI_CONTEXT *\/ */
+/* } */
+
+__thread int caml_indentation_level = 0; // FIXME: remove this crap after debugging !!!!!!!!!!!!!!!!

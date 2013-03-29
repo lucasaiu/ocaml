@@ -1,5 +1,13 @@
 (* Luca Saiu, REENTRANTRUNTIME *)
 
+(* Return true iff multi-context support is implemented: *)
+(* external implemented : unit -> bool = "caml_multi_context_implemented" *)
+let implemented () = true
+
+let implemented_bool = implemented ()
+
+exception Unimplemented
+
 (* Utility.  These should be moved to List, in an ideal world. *)
 let range a b =
   let rec range_acc a b acc =
@@ -25,7 +33,13 @@ external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"
 (* external is_alive : t -> bool = "caml_context_is_alive_r" "reentrant" *)
 
-external split_into_array : int -> (int -> unit) -> (t array) = "caml_context_split_r" "reentrant"
+external actually_split_into_array : int -> (int -> unit) -> (t array) = "caml_context_split_r" "reentrant"
+
+let split_into_array =
+  if implemented_bool then
+    actually_split_into_array
+  else
+    raise Unimplemented
 
 let split_into_contexts how_many f =
   Array.to_list (split_into_array how_many f)
@@ -50,24 +64,51 @@ let rec global_index_from global globals from =
 let global_index global =
   global_index_from global (globals ()) 0;;
 
- (* FIXME: fix the multi-thread case *)
-external join_context : t -> unit = "caml_context_join_r" "reentrant"
+external actually_join_context : t -> unit = "caml_context_join_r" "reentrant"
+let join_context =
+  if implemented_bool then
+    actually_join_context
+  else
+    raise Unimplemented
 
 let join_contexts contexts =
-  List.iter join_context contexts
+  if implemented_bool then
+    List.iter join_context contexts
+  else
+    raise Unimplemented
 
 
 (* FIXME: use a custom type instead *)
 type mailbox = int (*whatever*)
 (* exception ForeignMailbox of mailbox *)
 
-external make_mailbox : unit -> mailbox = "caml_camlprim_make_mailbox_r" "reentrant"
+external actually_make_mailbox : unit -> mailbox = "caml_camlprim_make_mailbox_r" "reentrant"
+let make_mailbox =
+  if implemented_bool then
+    actually_make_mailbox
+  else
+    raise Unimplemented
 
-external send : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
+external actually_send : mailbox -> 'a -> unit = "caml_context_send_r" "reentrant"
+let send mailbox message =
+  if implemented_bool then
+    actually_send mailbox message
+  else
+    raise Unimplemented
 
-external receive : mailbox -> 'a = "caml_context_receive_r" "reentrant"
+external actually_receive : mailbox -> 'a = "caml_context_receive_r" "reentrant"
+let receive =
+  if implemented_bool then
+    actually_receive
+  else
+    raise Unimplemented
 
-external context_of_mailbox : mailbox -> 'a = "caml_camlprim_context_of_mailbox_r" "reentrant"
+external actual_context_of_mailbox : mailbox -> 'a = "caml_camlprim_context_of_mailbox_r" "reentrant"
+let context_of_mailbox =
+  if implemented_bool then
+    actual_context_of_mailbox
+  else
+    raise Unimplemented
 
 let is_mailbox_local mailbox =
   (context_of_mailbox mailbox) = (self ())
@@ -76,7 +117,10 @@ let join1 mailbox =
   join_context (context_of_mailbox mailbox)
 
 let join mailboxes =
-  List.iter join1 mailboxes
+  if implemented_bool then
+    List.iter join1 mailboxes
+  else
+    raise Unimplemented
 
 let split context_no f =
   let split_mailbox_receiving_mailbox =

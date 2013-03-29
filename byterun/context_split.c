@@ -502,6 +502,7 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
 }
 
 CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, value message){
+  fprintf(stderr, "SEND: OK-1\n"); fflush(stderr);
   CAMLparam2(receiver_mailbox_as_value, message);
   struct caml_mailbox *receiver_mailbox;
   char *message_blob;
@@ -513,6 +514,7 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
      it out of the critical section: */
   message_blob = caml_serialize_into_blob_r(ctx, message);
 
+  fprintf(stderr, "SEND: OK-2\n"); fflush(stderr);
   /* /\* Wait until there is a free slot: *\/ */
   /* caml_enter_blocking_section_r(ctx); */
   /* sem_wait(&receiver_mailbox->free_slot_no_semaphore); */
@@ -524,6 +526,7 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-30 AFTER LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   int message_no = receiver_mailbox->message_no;
 
+  fprintf(stderr, "SEND: OK-3\n"); fflush(stderr);
   /* Make sure there is enough space, enlarging the queue if needed: */
   if(message_no == receiver_mailbox->allocated_message_no){
     receiver_mailbox->allocated_message_no *= 2;
@@ -540,11 +543,13 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-60 AFTER V\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r    [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+  fprintf(stderr, "SEND: OK-4\n"); fflush(stderr);
 
   CAMLreturn(Val_unit);
 }
 
 CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
+  fprintf(stderr, "RECEIVE: OK-1\n"); fflush(stderr);
   CAMLparam1(receiver_mailbox_as_value);
   CAMLlocal1(message);
   struct caml_mailbox *receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
@@ -562,6 +567,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   sem_wait(&receiver_mailbox->message_no_semaphore);
   caml_leave_blocking_section_r(ctx);
 
+  fprintf(stderr, "RECEIVE: OK-2\n"); fflush(stderr);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-20 AFTER P, BEFORE LOCK\n", ctx, receiver_mailbox); fflush(stderr);
   /* Get what we need, and immediately unblock the next sender; we can
      process our message after V'ing. */
@@ -580,6 +586,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   pthread_mutex_unlock(&receiver_mailbox->mutex);
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-50 AFTER UNLOCK\n", ctx, receiver_mailbox); fflush(stderr);
+  fprintf(stderr, "RECEIVE: OK-3\n"); fflush(stderr);
 
   /* /\* Signal the fact that there one slot has been freed: *\/ */
   /* sem_post(&receiver_mailbox->free_slot_no_semaphore); */
@@ -588,6 +595,7 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   free(message_blob);
 
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
+  fprintf(stderr, "RECEIVE: OK-4\n"); fflush(stderr);
 
   CAMLreturn(message);
 }

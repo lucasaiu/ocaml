@@ -1,5 +1,11 @@
 (* Luca Saiu, REENTRANTRUNTIME *)
 
+(* The context support unimplemented on this architecture: *)
+exception Unimplemented
+
+(* Return true iff multi-context support is implemented: *)
+val implemented : unit -> bool
+
 (* Basic context operations*)
 type t
 

@@ -1179,6 +1179,16 @@ esac
 echo "BNG_ARCH=$bng_arch" >> Makefile
 echo "BNG_ASM_LEVEL=$bng_asm_level" >> Makefile
 
+# Determine if multi-context is support
+
+case "$arch,$system" in
+  amd64,linux)
+    echo "Multi-context is supported."
+    echo "#define HAS_MULTI_CONTEXT" >> s.h;;
+  *)
+    echo "Multi-context is not supported";;
+esac
+
 # Determine if the POSIX threads library is supported
 
 systhread_support=false
@@ -1200,6 +1210,7 @@ if test "$pthread_wanted" = "yes"; then
     otherlibraries="$otherlibraries systhreads"
     bytecccompopts="$bytecccompopts -D_REENTRANT"
     nativecccompopts="$nativecccompopts -D_REENTRANT"
+    echo "#define HAS_PTHREAD" >> s.h
     case "$host" in
       *-*-freebsd*)
           bytecccompopts="$bytecccompopts -D_THREAD_SAFE"

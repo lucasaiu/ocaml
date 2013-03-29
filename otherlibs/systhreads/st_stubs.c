@@ -73,34 +73,34 @@ struct caml_thread_descr {
 
 /* The infos on threads (allocated via malloc()) */
 
-/* struct caml_thread_struct { */
-/*   value descr;                  /\* The heap-allocated descriptor (root) *\/ */
-/*   struct caml_thread_struct * next;  /\* Double linking of running threads *\/ */
-/*   struct caml_thread_struct * prev; */
-/* #ifdef NATIVE_CODE */
-/*   char * top_of_stack;          /\* Top of stack for this thread (approx.) *\/ */
-/*   char * bottom_of_stack;       /\* Saved value of caml_bottom_of_stack *\/ */
-/*   uintnat last_retaddr;         /\* Saved value of caml_last_return_address *\/ */
-/*   value * gc_regs;              /\* Saved value of caml_gc_regs *\/ */
-/*   char * exception_pointer;     /\* Saved value of caml_exception_pointer *\/ */
-/*   struct caml__roots_block * local_roots; /\* Saved value of local_roots *\/ */
-/*   struct longjmp_buffer * exit_buf; /\* For thread exit *\/ */
-/* #else */
-/*   value * stack_low;            /\* The execution stack for this thread *\/ */
-/*   value * stack_high; */
-/*   value * stack_threshold; */
-/*   value * sp;                   /\* Saved value of extern_sp for this thread *\/ */
-/*   value * trapsp;               /\* Saved value of trapsp for this thread *\/ */
-/*   struct caml__roots_block * local_roots; /\* Saved value of local_roots *\/ */
-/*   struct longjmp_buffer * external_raise; /\* Saved external_raise *\/ */
-/* #endif */
-/*   int backtrace_pos;            /\* Saved backtrace_pos *\/ */
-/*   code_t * backtrace_buffer;    /\* Saved backtrace_buffer *\/ */
-/*   value backtrace_last_exn;     /\* Saved backtrace_last_exn (root) *\/ */
-/*   CAML_R;                       /\* the context to which this thread belongs *\/ */
-/*   void* posix_thread; // FIXME: for debugging.  REMOVE */
-/*   int id; // FIXME: for debugging only */
-/* }; */
+struct caml_thread_struct {
+  value descr;                  /* The heap-allocated descriptor (root) */
+  struct caml_thread_struct * next;  /* Double linking of running threads */
+  struct caml_thread_struct * prev;
+#ifdef NATIVE_CODE
+  char * top_of_stack;          /* Top of stack for this thread (approx.) */
+  char * bottom_of_stack;       /* Saved value of caml_bottom_of_stack */
+  uintnat last_retaddr;         /* Saved value of caml_last_return_address */
+  value * gc_regs;              /* Saved value of caml_gc_regs */
+  char * exception_pointer;     /* Saved value of caml_exception_pointer */
+  struct caml__roots_block * local_roots; /* Saved value of local_roots */
+  struct longjmp_buffer * exit_buf; /* For thread exit */
+#else
+  value * stack_low;            /* The execution stack for this thread */
+  value * stack_high;
+  value * stack_threshold;
+  value * sp;                   /* Saved value of extern_sp for this thread */
+  value * trapsp;               /* Saved value of trapsp for this thread */
+  struct caml__roots_block * local_roots; /* Saved value of local_roots */
+  struct longjmp_buffer * external_raise; /* Saved external_raise */
+#endif
+  int backtrace_pos;            /* Saved backtrace_pos */
+  code_t * backtrace_buffer;    /* Saved backtrace_buffer */
+  value backtrace_last_exn;     /* Saved backtrace_last_exn (root) */
+  CAML_R;                       /* the context to which this thread belongs */
+  //void* posix_thread; // FIXME: for debugging.  REMOVE
+  //int id; // FIXME: for debugging only
+};
 
 /* The key used for storing the thread descriptor in the specific data
    of the corresponding system thread. */
@@ -138,7 +138,7 @@ static void caml_thread_scan_roots(scanning_action action)
   th = curr_thread;
   //DUMP("FIXME: ENSURE THAT ALL THREADS ARE REACHABLE FROM %p", th);
   do {
-    DUMP("caml_thread_t descriptor %p (pthread %p): begin", th, th->posix_thread);
+    //DUMP("caml_thread_t descriptor %p (pthread %p): begin", th, th->posix_thread);
     //if(th->posix_thread == (void*)(pthread_t)(void*)(long)0){DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@ SKIPPING");th = th->next; break;}; // !!!!!!!!!!!!!!!!!!
 #ifdef NATIVE_CODE
     //DUMP("th->bottom_of_stack=%p, th->last_retaddr=%lx, th->gc_regs=%p, th->local_roots=%p", th->bottom_of_stack, th->last_retaddr, th->gc_regs, th->local_roots);
@@ -394,8 +394,8 @@ static caml_thread_t caml_thread_new_info(void)
   th->backtrace_buffer = NULL;
   th->backtrace_last_exn = Val_unit;
   th->ctx = (void*)(long)0xdead; /* an intentionally invalid value, to aid debugging */
-  th->posix_thread = (pthread_t)(void*)0xbadbadbad; /* an intentionally invalid value, to aid debugging */
-  th->id = (int)-2;
+  //th->posix_thread = (pthread_t)(void*)0xbadbadbad; /* an intentionally invalid value, to aid debugging */
+  //th->id = (int)-2;
   QR();
   return th;
 }
@@ -531,8 +531,8 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
 #endif
   //// @@@@@@@@@
   curr_thread->ctx = ctx;
-  curr_thread->posix_thread = 0;
-  curr_thread->id = (int)thread_next_ident;
+  //curr_thread->posix_thread = 0;
+  //curr_thread->id = (int)thread_next_ident;
   //// @@@@@@@@@
   /* The stack-related fields will be filled in at the next
      enter_blocking_section */
@@ -544,7 +544,7 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
   QR();
 }
 
-static int caml_posix_get_thread_no_r(CAML_R);
+static int caml_systhreads_get_thread_no_r(CAML_R);
 
 /* Initialize the global thread machinery */
 
@@ -558,7 +558,7 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   if(already_initialized) {QR(); return Val_unit;} else already_initialized = 1;
 
   DUMP("");
-  caml_set_caml_get_thread_no_r(ctx, caml_posix_get_thread_no_r);
+  caml_set_caml_get_thread_no_r(ctx, caml_systhreads_get_thread_no_r);
   DUMP("");
   caml_set_caml_initialize_context_thread_support(ctx, caml_thread_initialize_for_current_context_r);
   DUMP("");
@@ -684,7 +684,7 @@ static void caml_thread_stop_r(CAML_R)
 }
 
 /* Return the number of threads associated to the given context: */
-static int caml_posix_get_thread_no_r(CAML_R){
+static int caml_systhreads_get_thread_no_r(CAML_R){
   QB();
   //QDUMP("!!!!!!!!!!![%p %p]", curr_thread, all_threads);
   int result = 0;
@@ -735,7 +735,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   caml_thread_t th = (caml_thread_t) arg;
 //??? does th point to something which is destroyed by the GC ??? !!!!!!!!!!!!!!!!!!!!
   CAML_R = th->ctx;
-  th->posix_thread = (void*)pthread_self();
+  //th->posix_thread = (void*)pthread_self();
 DUMP("Now threads are %i, including this one", caml_get_thread_no_r(ctx));
   value clos;
 #ifdef NATIVE_CODE
