@@ -1036,11 +1036,9 @@ void caml_finalize_semaphore(sem_t *semaphore);
 #define DUMP(FORMAT, ...) \
   do{ \
     fprintf(stderr, \
-            "%s:%i(" RED  "%s" NOATTR ") C%p T%p "/* "AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" "CYAN"[%i threads] "NOATTR" "NOATTR, \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T%p "/* "AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
-            (void*)pthread_self(), \
-            /* ctx->caml_young_ptr, ctx->caml_young_limit, \ */ \
-            caml_get_thread_no_r(ctx)); \
+            (void*)pthread_self()); \
     fflush(stderr); \
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
@@ -1095,19 +1093,19 @@ extern __thread int caml_indentation_level;
     fflush(stderr); \
   } while(0)
 
-#undef DUMP
-#undef QDUMP
-#undef QB
-#undef QR
-#undef QBR
-#define DUMP(FORMAT, ...) /* nothing */
-#define QDUMP(FORMAT, ...) /* nothing */
-#define QB(FORMAT, ...) /* nothing */
-#define QR(FORMAT, ...) /* nothing */
-#define QBR(FORMAT, ...) /* nothing */
+/* #undef DUMP */
+/* #undef QDUMP */
+/* #undef QB */
+/* #undef QR */
+/* #undef QBR */
+/* #define DUMP(FORMAT, ...) /\* nothing *\/ */
+/* #define QDUMP(FORMAT, ...) /\* nothing *\/ */
+/* #define QB(FORMAT, ...) /\* nothing *\/ */
+/* #define QR(FORMAT, ...) /\* nothing *\/ */
+/* #define QBR(FORMAT, ...) /\* nothing *\/ */
 
-int caml_get_thread_no_r(CAML_R);
-void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R));
+/* int caml_get_thread_no_r(CAML_R); */
+/* void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R)); */
 
 /* Initialize thread support for the current context.  This must be
    called once at context creation time. */

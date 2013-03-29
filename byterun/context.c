@@ -817,18 +817,18 @@ void caml_dump_global_mutex(void){
 //#ifndef NATIVE_CODE //FIXME: remove later.  This is for debugging only
 //#endif // #ifndef NATIVE_CODE
 
-/* Return the number of threads associated to the given context: */
-static int (*the_caml_get_thread_no_r)(CAML_R) = NULL;
-void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R)){
-  the_caml_get_thread_no_r = f;
-}
+/* /\* Return the number of threads associated to the given context: *\/ */
+/* static int (*the_caml_get_thread_no_r)(CAML_R) = NULL; */
+/* void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R)){ */
+/*   the_caml_get_thread_no_r = f; */
+/* } */
 
-int caml_get_thread_no_r(CAML_R){
-  if(the_caml_get_thread_no_r != NULL)
-    return the_caml_get_thread_no_r(ctx);
-  else
-    return -1;
-}
+/* int caml_get_thread_no_r(CAML_R){ */
+/*   if(the_caml_get_thread_no_r != NULL) */
+/*     return the_caml_get_thread_no_r(ctx); */
+/*   else */
+/*     return -1; */
+/* } */
 
 
 static void (*the_caml_initialize_context_thread_support)(CAML_R) = NULL;

@@ -1,4 +1,4 @@
-static int already_fully_initialized = 0; // FIXME: remove this horrible kludge
+//static int already_fully_initialized = 0; // FIXME: remove this horrible kludge
 
 /*                                                                     */
 /*                                OCaml                                */
@@ -540,11 +540,11 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
   st_tls_set(thread_descriptor_key, (void *) curr_thread);
   //DUMP("curr_thread->ctx is %p", curr_thread->ctx);
   //DUMP("curr_thread->posix_thread is %p", curr_thread->posix_thread);
-  already_fully_initialized = 1;
+  //already_fully_initialized = 1;
   QR();
 }
 
-static int caml_systhreads_get_thread_no_r(CAML_R);
+/* static int caml_systhreads_get_thread_no_r(CAML_R); */
 
 /* Initialize the global thread machinery */
 
@@ -557,8 +557,8 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   static int already_initialized = 0;
   if(already_initialized) {QR(); return Val_unit;} else already_initialized = 1;
 
-  DUMP("");
-  caml_set_caml_get_thread_no_r(ctx, caml_systhreads_get_thread_no_r);
+  //  DUMP("");
+  /* caml_set_caml_get_thread_no_r(ctx, caml_systhreads_get_thread_no_r); */
   DUMP("");
   caml_set_caml_initialize_context_thread_support(ctx, caml_thread_initialize_for_current_context_r);
   DUMP("");
@@ -702,26 +702,26 @@ static int caml_systhreads_get_thread_no_r(CAML_R){
     } while(t != first_thread);
   //QDUMP("!!!!!!!!!!!!!!!!! [1: %i]\n", result);
 
-  if(1 && already_fully_initialized){
-    ////
-    int result2 = 0;
-    caml_thread_t t2 = curr_thread;//all_threads;
-    //QDUMP("!!!!!!!!!!!!!!!!! t2 is %p\n", t2);
-    caml_thread_t first_thread2 = t2;
-    if(t2 == NULL)
-      result2 = 0;//return 0;
-    else do{
-        //QDUMP("!!!!!!!!!!!!!!!!! t2 is %p, first_thread2 is %p, result2 is %i\n", t2, first_thread2, result2);
-        result2 ++;
-        t2 = t2->next;
-        if(result2 > 1000)
-          QDUMP("EEEEEEEEEEEEEEEEEEEEEE probably looping (2) looking for %p", first_thread2);
-      } while(t2 != first_thread2);
-    //QDUMP("!!!!!!!!!!!!!!!!! [2: %i]\n", result2);
-    if(result != result2)
-      QDUMP("EEEEEEEEEEEEEEEEEEEEEE result is %i, result2 is %i [only ok if we're destroying the current thread]\n", result, result2);
-    ////
-  }
+  /* if(already_fully_initialized){ */
+  /*   //// */
+  /*   int result2 = 0; */
+  /*   caml_thread_t t2 = curr_thread;//all_threads; */
+  /*   //QDUMP("!!!!!!!!!!!!!!!!! t2 is %p\n", t2); */
+  /*   caml_thread_t first_thread2 = t2; */
+  /*   if(t2 == NULL) */
+  /*     result2 = 0;//return 0; */
+  /*   else do{ */
+  /*       //QDUMP("!!!!!!!!!!!!!!!!! t2 is %p, first_thread2 is %p, result2 is %i\n", t2, first_thread2, result2); */
+  /*       result2 ++; */
+  /*       t2 = t2->next; */
+  /*       if(result2 > 1000) */
+  /*         QDUMP("EEEEEEEEEEEEEEEEEEEEEE probably looping (2) looking for %p", first_thread2); */
+  /*     } while(t2 != first_thread2); */
+  /*   //QDUMP("!!!!!!!!!!!!!!!!! [2: %i]\n", result2); */
+  /*   if(result != result2) */
+  /*     QDUMP("EEEEEEEEEEEEEEEEEEEEEE result is %i, result2 is %i [only ok if we're destroying the current thread]\n", result, result2); */
+  /*   //// */
+  /* } */
   
   QR();
   return result;
@@ -736,7 +736,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 //??? does th point to something which is destroyed by the GC ??? !!!!!!!!!!!!!!!!!!!!
   CAML_R = th->ctx;
   //th->posix_thread = (void*)pthread_self();
-DUMP("Now threads are %i, including this one", caml_get_thread_no_r(ctx));
+//DUMP("Now threads are %i, including this one", caml_get_thread_no_r(ctx));
   value clos;
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;
@@ -875,7 +875,7 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
   ctx->can_split = 0;
   DUMP("");
 
-DUMP("Before the creation threads are %i, including this one", caml_get_thread_no_r(ctx));
+//DUMP("Before the creation threads are %i, including this one", caml_get_thread_no_r(ctx));
   /* Create a thread info block */
   th = caml_thread_new_info();
   if (th == NULL) caml_raise_out_of_memory_r(ctx);
@@ -955,7 +955,7 @@ CAMLexport int caml_c_thread_register_r(CAML_R)
 
   /* Already registered? */
   if (st_tls_get(thread_descriptor_key) != NULL) {QR(); return 0;}
-DUMP("Now threads are %i, including this one", caml_get_thread_no_r(ctx));
+//DUMP("Now threads are %i, including this one", caml_get_thread_no_r(ctx));
   /* Create a thread info block */
   th = caml_thread_new_info();
   if (th == NULL) {QR(); return 0;}
