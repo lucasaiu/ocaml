@@ -390,6 +390,7 @@ CAMLexport caml_global_context* caml_main_rr(char **argv)
 
   caml_context_initialize_global_stuff();
   CAML_R = caml_initialize_first_global_context();
+  the_main_context = ctx;
 
   /* Machine-dependent initialization of the floating-point hardware
      so that it behaves as much as possible as specified in IEEE */
@@ -505,6 +506,7 @@ CAMLexport void caml_startup_code(
 
   caml_context_initialize_global_stuff();
   CAML_R = caml_initialize_first_global_context();
+  the_main_context = ctx;
 
   caml_init_ieee_floats();
   caml_init_custom_operations();

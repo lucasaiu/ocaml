@@ -48,7 +48,7 @@ CAMLexport value caml_alloc_r (CAML_R, mlsize_t wosize, tag_t tag)
   }else if (wosize <= Max_young_wosize){
     Alloc_small (result, wosize, tag);
     if (tag < No_scan_tag){
-      for (i = 0; i < wosize; i++) Field (result, i) = 0;
+      for (i = 0; i < wosize; i++) Field (result, i) = Val_int(0);//0;
     }
   }else{
     result = caml_alloc_shr_r (ctx, wosize, tag);

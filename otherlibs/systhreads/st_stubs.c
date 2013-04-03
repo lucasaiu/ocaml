@@ -24,6 +24,7 @@
 #define CAML_ST_POSIX_CODE
 #include "mlvalues.h" // FIXME: remove after debugging unless needed
 #include "context.h" // FIXME: remove after debugging unless needed
+#include "context_split.h" // FIXME: remove after debugging unless needed
 #include "memory.h" // FIXME: remove after debugging unless needed
 
 #include "alloc.h"
@@ -509,8 +510,10 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
   /* If this is not the main context, then we have to copy its signal
      handlers (a Caml array, which can be cloned via a blob): */
   if(ctx->descriptor->kind != caml_global_context_main){
-    fprintf(stderr, "UNIMPLEMENTED -- I'm fixing this on Monday :-) --Luca Saiu\n"); fflush(stderr);
-    exit(EXIT_FAILURE);
+    char *blob = caml_serialize_into_blob_r(the_main_context, the_main_context->caml_signal_handlers);
+    ctx->caml_signal_handlers = caml_deserialize_blob_r(ctx, blob);
+    free(blob);
+    caml_register_global_root_r(ctx, &ctx->caml_signal_handlers);
   }
 
   /* The stack-related fields will be filled in at the next

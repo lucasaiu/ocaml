@@ -1116,4 +1116,7 @@ void caml_set_caml_initialize_context_thread_support(CAML_R, void (*caml_initial
 int caml_can_split_r(CAML_R);
 void caml_set_caml_can_split_r(CAML_R, int (*caml_can_split_r)(CAML_R));
 
+/* The one and only main context: */
+CAMLextern caml_global_context *the_main_context;
+
 #endif

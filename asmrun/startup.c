@@ -191,6 +191,7 @@ caml_global_context* caml_main_rr(char **argv)
   char tos;
   caml_context_initialize_global_stuff();
   CAML_R = caml_initialize_first_global_context();
+  the_main_context = ctx;
 
   caml_init_ieee_floats();
   caml_init_custom_operations();

@@ -38,6 +38,9 @@
 
 static __thread caml_global_context *the_thread_local_caml_context = NULL;
 
+/* The one and only main context: */
+caml_global_context *the_main_context = NULL;
+
 caml_global_context *caml_get_thread_local_context(void)
 {
   return the_thread_local_caml_context;
