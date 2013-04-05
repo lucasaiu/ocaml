@@ -312,6 +312,7 @@ struct caml_global_context {
                                     jointly with [sweep_slice]. */
   asize_t caml_fl_cur_size; /* = 0; */    /* Number of words in the free list,
                                     including headers but not fragments. */
+  char *last_fragment;
 #define FLP_MAX 1000
   char *flp [FLP_MAX];
   int flp_size; /* = 0; */
@@ -708,6 +709,7 @@ extern library_context *caml_get_library_context_r(
 #define fl_last  ctx->fl_last
 #define caml_fl_merge     ctx->caml_fl_merge
 #define caml_fl_cur_size  ctx->caml_fl_cur_size
+#define last_fragment     ctx->last_fragment
 #define flp       ctx->flp
 #define flp_size  ctx->flp_size
 #define beyond    ctx->beyond

@@ -313,14 +313,14 @@ CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value 
     if (caml_signal_handlers == 0) {
       caml_signal_handlers = caml_alloc_r(ctx, NSIG, 0);
       ////
-      /* int i, length = NSIG; */
-      /* for(i = 0; i < NSIG; i ++) */
-      /*   caml_initialize_r(ctx, &Field(caml_signal_handlers, i), Val_int(0)); */
+      int i, length = NSIG;
+      for(i = 0; i < NSIG; i ++)
+        caml_initialize_r(ctx, &Field(caml_signal_handlers, i), Val_int(0));
       ////
-      caml_register_global_root_r(ctx, &caml_signal_handlers);
+      //caml_register_global_root_r(ctx, &caml_signal_handlers); // Moved to context.c, at context creation time
     }
     caml_modify_r(ctx, &Field(caml_signal_handlers, sig), Field(action, 0));
-    DUMP("Registering the handler %p (%p) for the signal %i", (void*)action, (void*)Field(action, 0), sig);
+    //DUMP("Registering the handler %p (%p) for the signal %i", (void*)action, (void*)Field(action, 0), sig);
   }
   caml_process_pending_signals_r(ctx);
   CAMLreturn (res);

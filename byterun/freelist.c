@@ -313,7 +313,7 @@ char *caml_fl_allocate_r (CAML_R, mlsize_t wo_sz)
   return NULL;  /* NOT REACHED */
 }
 
-static char *last_fragment;
+//static char *last_fragment;
 
 void caml_fl_init_merge_r (CAML_R)
 {

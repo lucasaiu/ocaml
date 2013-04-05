@@ -52,18 +52,22 @@ static int st_initialize(void)
 //typedef pthread_t st_thread_id;
 
 static int st_thread_create_r(CAML_R, st_thread_id * res,
-                              void * (*fn)(void *), void * arg)
+                              void * (*fn)(void *), void * arg, char *name/*FIXME: remove this last parameter I added for debugging --Luca Saiu REENTRANTRUNTIME */)
 {
   QB();
-DUMP("about to create a new thread");
+  DUMP("about to create a new thread [%s]", name);
   pthread_t thr;
   pthread_attr_t attr;
   int rc;
 
+DUMP("a");
   pthread_attr_init(&attr);
   if (res == NULL) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+DUMP("b");
   rc = pthread_create(&thr, &attr, fn, arg);
+DUMP("c");
   if (res != NULL) *res = thr;
+DUMP("d");
   QR();
   return rc;
 }
@@ -366,7 +370,7 @@ static void * caml_thread_tick(void * context_as_void_star)
   CAML_R = context_as_void_star;
   struct timeval timeout;
   sigset_t mask;
-//DUMP("start");
+DUMP("this is the tick thread");
 
   /* Block all signals so that we don't try to execute an OCaml signal handler*/
   sigfillset(&mask);

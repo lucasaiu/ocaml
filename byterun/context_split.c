@@ -198,7 +198,9 @@ char* caml_serialize_into_blob_r(CAML_R, value caml_value){
     ;
 
   /* Marshal the big data structure into a byte array: */
+caml_acquire_global_lock(); // FIXME: remove after de-staticizing deserialization
   caml_output_value_to_malloc_r(ctx, caml_value, flags, &blob, &blob_length);
+caml_release_global_lock(); // FIXME: remove after de-staticizing deserialization
   //fprintf(stderr, "Ok-Q 100: ...serialized a structure into the blob at %p (length %.2fMB).\n", blob, blob_length / 1024. / 1024.); fflush(stderr);
 
   CAMLreturnT(char*, blob);

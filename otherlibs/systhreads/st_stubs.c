@@ -492,6 +492,11 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
     return;
   }
 
+  /* Set up the hooks */
+  caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook_default;
+  caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
+  caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
+
   /* Set up a thread info block for the current thread */
   curr_thread =
     (caml_thread_t) stat_alloc(sizeof(struct caml_thread_struct));
@@ -507,15 +512,17 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
 #endif
   curr_thread->ctx = ctx;
 
+  DUMP("*********************************************** caml_thread_initialize_for_current_context_r");
   /* If this is not the main context, then we have to copy its signal
      handlers (a Caml array, which can be cloned via a blob): */
   if(ctx->descriptor->kind != caml_global_context_main){
+    DUMP("ctx->caml_signal_handlers is %p", (void*)ctx->caml_signal_handlers);
+    assert(ctx->caml_signal_handlers == 0);
     char *blob = caml_serialize_into_blob_r(the_main_context, the_main_context->caml_signal_handlers);
     ctx->caml_signal_handlers = caml_deserialize_blob_r(ctx, blob);
     free(blob);
-    caml_register_global_root_r(ctx, &ctx->caml_signal_handlers);
+    //caml_register_global_root_r(ctx, &ctx->caml_signal_handlers); // moved to context.h, at context creation time
   }
-
   /* The stack-related fields will be filled in at the next
      enter_blocking_section */
   /* Associate the thread descriptor with the thread */
@@ -548,9 +555,10 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   /* Set up the hooks */
   prev_scan_roots_hook = caml_scan_roots_hook;
   caml_scan_roots_hook = caml_thread_scan_roots;
-  caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook_default;
-  caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
-  caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
+  // ???? MOVED, TENTATIVELY
+  //caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook_default;
+  //caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
+  //caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
 #ifdef NATIVE_CODE
   caml_termination_hook = st_thread_exit;
 #endif
@@ -567,7 +575,6 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   /* We've set up the whole machinery which will be used from now on
      at context split; good, but we also have to initialize the
      *current* context: */
-  //caml_thread_initialize_for_current_context_r(ctx);???
   caml_initialize_context_thread_support(ctx);
 
   QR();
@@ -632,6 +639,8 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   QB();
   caml_thread_t th = (caml_thread_t) arg;
   CAML_R = th->ctx;
+  //CAMLparam();
+  //CAMLlocal1(clos);
   value clos;
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;
@@ -653,9 +662,13 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 #endif
     /* Callback the closure */
     clos = Start_closure(th->descr);
+  Begin_root (clos);
     caml_modify_r(ctx, &(Start_closure(th->descr)), Val_unit);
-    caml_callback_exn_r(ctx, clos, Val_unit);
+    DUMP("calling the caml code");
+    //caml_callback_exn_r(ctx, clos, Val_unit); // !!!!!!!!!!!!!!!!!!!!!!!!!!!! This is the right version
+    caml_callback_r(ctx, clos, Val_unit); // Just for testing: I want to see the exception !!!!!!!!!!!!!!!!!!!!!!!!
     QR("exiting the native-code thread");
+  End_roots();
     caml_thread_stop_r(ctx);
 #ifdef NATIVE_CODE
   }
@@ -665,6 +678,46 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   return 0;
   //CAMLreturnT(void*, 0);
 }
+
+/* static ST_THREAD_FUNCTION caml_thread_start(void * arg) */
+/* { */
+/*   QB(); */
+/*   caml_thread_t th = (caml_thread_t) arg; */
+/*   CAML_R = th->ctx; */
+/*   value clos; */
+/* #ifdef NATIVE_CODE */
+/*   struct longjmp_buffer termination_buf; */
+/*   char tos; */
+/* #endif */
+/*   /\* associate the context to this thread *\/ */
+/*   caml_set_thread_local_context(ctx); */
+
+/*   /\* Associate the thread descriptor with the thread *\/ */
+/*   st_tls_set(thread_descriptor_key, (void *) th); */
+/*   /\* Acquire the global mutex *\/ */
+/*   caml_leave_blocking_section_r(ctx); */
+/* #ifdef NATIVE_CODE */
+/*   /\* Record top of stack (approximative) *\/ */
+/*   th->top_of_stack = &tos; */
+/*   /\* Setup termination handler (for caml_thread_exit) *\/ */
+/*   if (sigsetjmp(termination_buf.buf, 0) == 0) { */
+/*     th->exit_buf = &termination_buf; */
+/* #endif */
+/*     /\* Callback the closure *\/ */
+/*     clos = Start_closure(th->descr); */
+/*     caml_modify_r(ctx, &(Start_closure(th->descr)), Val_unit); */
+/*     //caml_callback_exn_r(ctx, clos, Val_unit); // !!!!!!!!!!!!!!!!!!!!!!!!!!!! This is the right version */
+/*     caml_callback_r(ctx, clos, Val_unit); // Just for testing: I want to see the exception !!!!!!!!!!!!!!!!!!!!!!!! */
+/*     QR("exiting the native-code thread"); */
+/*     caml_thread_stop_r(ctx); */
+/* #ifdef NATIVE_CODE */
+/*   } */
+/* #endif */
+/*   /\* The thread now stops running *\/ */
+/*   QR(); */
+/*   return 0; */
+/*   //CAMLreturnT(void*, 0); */
+/* } */
 
 CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
 {
@@ -687,7 +740,7 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
   curr_thread->next->prev = th;
   curr_thread->next = th;
   /* Create the new thread */
-  err = st_thread_create_r(ctx, NULL, caml_thread_start, (void *) th);
+  err = st_thread_create_r(ctx, NULL, caml_thread_start, (void *) th, "ordinary");
   if (err != 0) {
     /* Creation failed, remove thread info block from list of threads */
     caml_thread_remove_info(th);
@@ -697,7 +750,7 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
      Because of PR#4666, we start the tick thread late, only when we create
      the first additional thread in the current process*/
   if (! caml_tick_thread_running) {
-    err = st_thread_create_r(ctx, &caml_tick_thread_id, caml_thread_tick, ctx);
+    err = st_thread_create_r(ctx, &caml_tick_thread_id, caml_thread_tick, ctx, "tick");
     st_check_error_r(ctx, err, "Thread.create");
     caml_tick_thread_running = 1;
   }
@@ -747,7 +800,7 @@ CAMLexport int caml_c_thread_register_r(CAML_R)
   th->descr = caml_thread_new_descriptor_r(ctx, Val_unit);  /* no closure */
   /* Create the tick thread if not already done.  */
   if (! caml_tick_thread_running) {
-    err = st_thread_create_r(ctx, &caml_tick_thread_id, caml_thread_tick, ctx);
+    err = st_thread_create_r(ctx, &caml_tick_thread_id, caml_thread_tick, ctx, "tick");
     if (err == 0) caml_tick_thread_running = 1;
   }
   /* Exit the run-time system */

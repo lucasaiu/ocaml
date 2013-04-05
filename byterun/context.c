@@ -169,6 +169,7 @@ section.  */
   ctx->fl_last = NULL;
   ctx->caml_fl_merge = Fl_head;
   ctx->caml_fl_cur_size = 0;
+  /*  ctx->last_fragment; */
   /*  ctx->flp [FLP_MAX]; */
   ctx->flp_size = 0;
   ctx->beyond = NULL;
@@ -287,6 +288,7 @@ section.  */
 
   ctx->caml_force_major_slice = 0;
   ctx->caml_signal_handlers = 0;
+  caml_register_global_root_r(ctx, &ctx->caml_signal_handlers);
 
   /* from backtrace.c */
 
@@ -617,6 +619,8 @@ library_context *caml_get_library_context_r(CAML_R,
 extern void caml_destroy_context(CAML_R){
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
+  caml_remove_global_root_r(ctx, ctx->caml_signal_handlers);
+
   //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
   ///
   /* fprintf(stderr, "Freeing %p\n", ctx->caml_young_base); fflush(stderr); */
@@ -688,7 +692,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
 
 void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* We keep the module name right after the offset pointer, as a read-only string: */
-  char *module_name = (char*)offset_pointer + sizeof(long);
+  char *module_name __attribute__ (( unused )) = (char*)offset_pointer + sizeof(long);
   //fprintf(stderr, "caml_after_module_initialization_r [context %p]: %s@%p: still alive.\n", ctx, module_name, offset_pointer); fflush(stderr);
   /*
   fprintf(stderr, "caml_after_module_initialization_r: BEGIN [%lu bytes at %p]\n",
@@ -777,10 +781,11 @@ void caml_context_initialize_global_stuff(void){
   caml_initialize_mutex(&caml_global_mutex);
 }
 
+
 void caml_acquire_global_lock(void){
   /* FIXME: is this needed?  I wanna play it safe --Luca Saiu REENTRANTRUNTIME */
-  int old_value = caml_global_mutex.__data.__count;
-  int old_owner = caml_global_mutex.__data.__owner;
+  //int old_value = caml_global_mutex.__data.__count;
+  //int old_owner = caml_global_mutex.__data.__owner;
   int result __attribute__((unused));
   INIT_CAML_R;
   //caml_enter_blocking_section_r(ctx);
@@ -788,7 +793,7 @@ void caml_acquire_global_lock(void){
   //caml_leave_blocking_section_r(ctx);
   /////BEGIN
   if(result){
-    fprintf(stderr, "++++++++ [context %p] [thread %p] pthread_mutex_lock failed\n", ctx, (void*)(pthread_self())); fflush(stderr);
+    DUMP("thread_mutex_lock failed");
     exit(EXIT_FAILURE);
   }
   //fprintf(stderr, "+[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
@@ -796,8 +801,8 @@ void caml_acquire_global_lock(void){
   Assert(result == 0);
 }
 void caml_release_global_lock(void){
-  int old_value = caml_global_mutex.__data.__count;
-  int old_owner = caml_global_mutex.__data.__owner;
+  //int old_value = caml_global_mutex.__data.__count;
+  //int old_owner = caml_global_mutex.__data.__owner;
   INIT_CAML_R;
   //caml_enter_blocking_section_r(ctx);
   int result __attribute__((unused)) = pthread_mutex_unlock(&caml_global_mutex);
@@ -805,8 +810,8 @@ void caml_release_global_lock(void){
   Assert(result == 0);
   /////BEGIN
   if(result){
-    fprintf(stderr, "++++++++ [context %p] [thread %p] pthread_mutex_unlock failed\n", ctx, (void*)(pthread_self())); fflush(stderr);
-    volatile int a = 1; a /= 0;
+    DUMP("pthread_mutex_unlock failed");
+    //volatile int a = 1; a /= 0;
     exit(EXIT_FAILURE);
   }
   //fprintf(stderr, "-[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
