@@ -282,9 +282,9 @@ section.  */
   /* ctx->caml_pending_signals */
   ctx->caml_async_signal_mode = 0;
 
-  ctx->caml_enter_blocking_section_hook = &caml_enter_blocking_section_default;
-  ctx->caml_leave_blocking_section_hook = &caml_leave_blocking_section_default;
-  ctx->caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default;
+  /* ctx->caml_enter_blocking_section_hook = &caml_enter_blocking_section_default; */
+  /* ctx->caml_leave_blocking_section_hook = &caml_leave_blocking_section_default; */
+  /* ctx->caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default; */
 
   ctx->caml_force_major_slice = 0;
   ctx->caml_signal_handlers = 0;
@@ -575,6 +575,10 @@ void caml_leave_lock_section_r(CAML_R)
   caml_leave_blocking_section_r(ctx);
 }
 
+void (*caml_enter_blocking_section_hook)(void);
+void (*caml_leave_blocking_section_hook)(void);
+int (*caml_try_leave_blocking_section_hook)(void);
+
 /* the first other context (at pos 0) is always NULL, so that we are sure the first
    line of caml_get_library_context_r is ok to execute. */
 static int nbr_other_contexts = 0; // FIXME: I've never touched this, nor library contexts.  Ask Fabrice
@@ -776,6 +780,10 @@ void caml_context_initialize_global_stuff(void){
     exit(EXIT_FAILURE);
   }
   already_initialized = 1;
+
+  caml_enter_blocking_section_hook = &caml_enter_blocking_section_default;
+  caml_leave_blocking_section_hook = &caml_leave_blocking_section_default;
+  caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default;
 
   /* Create the global lock: */
   caml_initialize_mutex(&caml_global_mutex);

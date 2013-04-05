@@ -118,7 +118,7 @@ static value heap_stats_r (CAML_R, int returnstats)
   header_t cur_hd;
 
 #ifdef DEBUG
-  caml_gc_message (-1, "### OCaml runtime: heap check ###\n", 0);
+  //caml_gc_message (-1, "### OCaml runtime: heap check ###\n", 0);// !!!!!!!!!!!!!! FIXME: REENABLE --Luca Saiu REENTRANTRUNTIME
 #endif
 
   while (chunk != NULL){

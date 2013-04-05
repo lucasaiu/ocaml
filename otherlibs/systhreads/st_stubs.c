@@ -158,7 +158,7 @@ static void caml_thread_scan_roots(scanning_action action)
 
 /* Hooks for enter_blocking_section and leave_blocking_section */
 
-static void caml_thread_enter_blocking_section_hook_default(void)
+static void caml_thread_enter_blocking_section_hook(void)
 {
   QB();
   INIT_CAML_R;
@@ -168,8 +168,8 @@ static void caml_thread_enter_blocking_section_hook_default(void)
   curr_thread->bottom_of_stack = caml_bottom_of_stack;
   curr_thread->last_retaddr = caml_last_return_address;
 
-  //fprintf(stderr, "caml_thread_enter_blocking_section_hook_default: ctx %p, thread %p: curr_thread->gc_regs, about to be overwritten, was %p\n", ctx, (void*)pthread_self(), curr_thread->gc_regs); fflush(stderr);
-  //fprintf(stderr, "caml_thread_enter_blocking_section_hook_default: ctx %p, thread %p: caml_gc_regs is %p\n", ctx, (void*)pthread_self(), caml_gc_regs); fflush(stderr);
+  //fprintf(stderr, "caml_thread_enter_blocking_section_hook: ctx %p, thread %p: curr_thread->gc_regs, about to be overwritten, was %p\n", ctx, (void*)pthread_self(), curr_thread->gc_regs); fflush(stderr);
+  //fprintf(stderr, "caml_thread_enter_blocking_section_hook: ctx %p, thread %p: caml_gc_regs is %p\n", ctx, (void*)pthread_self(), caml_gc_regs); fflush(stderr);
 
   curr_thread->gc_regs = caml_gc_regs;
   curr_thread->exception_pointer = caml_exception_pointer;
@@ -492,15 +492,10 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
     return;
   }
 
-  /* Set up the hooks */
-  caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook_default;
-  caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
-  caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
-
   /* Set up a thread info block for the current thread */
   curr_thread =
     (caml_thread_t) stat_alloc(sizeof(struct caml_thread_struct));
-  memset(curr_thread, 0xaa, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only
+  memset(curr_thread, 0xbb, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only
   //memset(curr_thread, 0x00, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only
   curr_thread->descr = caml_thread_new_descriptor_r(ctx, Val_unit);
   curr_thread->next = curr_thread;
@@ -512,7 +507,6 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
 #endif
   curr_thread->ctx = ctx;
 
-  DUMP("*********************************************** caml_thread_initialize_for_current_context_r");
   /* If this is not the main context, then we have to copy its signal
      handlers (a Caml array, which can be cloned via a blob): */
   if(ctx->descriptor->kind != caml_global_context_main){
@@ -555,10 +549,9 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   /* Set up the hooks */
   prev_scan_roots_hook = caml_scan_roots_hook;
   caml_scan_roots_hook = caml_thread_scan_roots;
-  // ???? MOVED, TENTATIVELY
-  //caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook_default;
-  //caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
-  //caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
+  caml_enter_blocking_section_hook = caml_thread_enter_blocking_section_hook;
+  caml_leave_blocking_section_hook = caml_thread_leave_blocking_section_hook_default;
+  caml_try_leave_blocking_section_hook = caml_thread_try_leave_blocking_section;
 #ifdef NATIVE_CODE
   caml_termination_hook = st_thread_exit;
 #endif

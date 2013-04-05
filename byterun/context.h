@@ -408,9 +408,6 @@ struct caml_global_context {
 #endif /* #ifndef NSIG */
   intnat caml_pending_signals[NSIG];
   intnat caml_async_signal_mode; /* = 0; */
-  void (*caml_enter_blocking_section_hook)(void);
-  void (*caml_leave_blocking_section_hook)(void);
-  int (*caml_try_leave_blocking_section_hook)(void);
   int caml_force_major_slice; /* = 0; */
   value caml_signal_handlers; /* = 0; */
 
@@ -669,6 +666,10 @@ extern void caml_destroy_context(caml_global_context *c);
 extern caml_global_context *caml_get_thread_local_context(void);
 extern void caml_set_thread_local_context(caml_global_context *new_global_context);
 
+extern void (*caml_enter_blocking_section_hook)(void);
+extern void (*caml_leave_blocking_section_hook)(void);
+extern int (*caml_try_leave_blocking_section_hook)(void);
+
 extern void (*caml_enter_lock_section_hook)(void);
 extern void (*caml_leave_lock_section_hook)(void);
 extern void caml_enter_lock_section_r(CAML_R);
@@ -785,9 +786,9 @@ extern library_context *caml_get_library_context_r(
 #define caml_signals_are_pending ctx->caml_signals_are_pending
 #define caml_pending_signals     ctx->caml_pending_signals
 #define caml_async_signal_mode   ctx->caml_async_signal_mode
-#define caml_enter_blocking_section_hook ctx->caml_enter_blocking_section_hook
-#define caml_leave_blocking_section_hook ctx->caml_leave_blocking_section_hook
-#define caml_try_leave_blocking_section_hook ctx->caml_try_leave_blocking_section_hook
+/* #define caml_enter_blocking_section_hook ctx->caml_enter_blocking_section_hook */
+/* #define caml_leave_blocking_section_hook ctx->caml_leave_blocking_section_hook */
+/* #define caml_try_leave_blocking_section_hook ctx->caml_try_leave_blocking_section_hook */
 #define caml_force_major_slice   ctx->caml_force_major_slice
 #define caml_signal_handlers     ctx->caml_signal_handlers
 #endif
