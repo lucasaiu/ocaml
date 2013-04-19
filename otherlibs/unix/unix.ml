@@ -993,3 +993,5 @@ let establish_server server_fun sockaddr =
             exit 0
     | id -> close s; ignore(waitpid_non_intr id) (* Reclaim the son *)
   done
+
+let _ = Printf.eprintf "unix.ml: initialized.\n%!" (* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *)

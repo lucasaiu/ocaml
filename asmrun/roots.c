@@ -18,6 +18,7 @@
 #define CAML_CONTEXT_ROOTS
 #define CAML_CONTEXT_MINOR_GC
 
+#include <assert.h> // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
 #include "finalise.h"
 #include "globroots.h"
 #include "memory.h"
@@ -172,6 +173,8 @@ caml_acquire_global_lock();
   sp = caml_bottom_of_stack;
   retaddr = caml_last_return_address;
   regs = caml_gc_regs;
+  assert(caml_gc_regs != (typeof(caml_gc_regs))0xaaaaaaaaaaaaaaaa); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
+  assert(caml_gc_regs != (typeof(caml_gc_regs))0xbbbbbbbbbbbbbbbb); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
   if (sp != NULL) {
     while (1) {
       /* Find the descriptor corresponding to the return address */
@@ -266,6 +269,8 @@ caml_acquire_global_lock();
 
   /* The stack and local roots */
   if (caml_frame_descriptors == NULL) caml_init_frame_descriptors_r(ctx);
+  assert(caml_gc_regs != (typeof(caml_gc_regs))0xaaaaaaaaaaaaaaaa); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
+  assert(caml_gc_regs != (typeof(caml_gc_regs))0xbbbbbbbbbbbbbbbb); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
   caml_do_local_roots_r(ctx, f, caml_bottom_of_stack, caml_last_return_address,
                       caml_gc_regs, caml_local_roots);
   /* Global C roots */

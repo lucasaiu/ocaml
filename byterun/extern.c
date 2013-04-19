@@ -496,7 +496,8 @@ static void extern_rec_r(CAML_R, value v)
   }
   else if ((cf = extern_find_code_r(ctx, (char *) v)) != NULL) {
     if (!extern_closures)
-      extern_invalid_argument_r(ctx, "output_value: functional value");
+      //extern_invalid_argument_r(ctx, "output_value: functional value"); // FIXME: this is the correct version. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      {DUMP("output_value: functional value"); {volatile int a = 1; a /= 0;}}
     //fprintf(stderr, "ZZZZ dumping a code pointer: BEGIN\n");
     writecode32_r(ctx, CODE_CODEPOINTER, (char *) v - cf->code_start);
     writeblock_r(ctx, (char *) cf->digest, 16);

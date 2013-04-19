@@ -186,7 +186,7 @@ char* caml_serialize_into_blob_r(CAML_R, value caml_value){
   intnat blob_length;
 
   flags = /* Marshal.Closures :: Marshal.Cross_context :: [] */
-//caml_pair_r(ctx, Val_int(0), /* Marshal.Closures, 1st constructor */
+//caml_pair_r(ctx, Val_int(0), /* Marshal.No_sharing, 1st constructor */
     caml_pair_r(ctx,
                 ///////// FIXME: replace with Val_int(2) for testing (only)
                 Val_int(1), /* Marshal.Closures, 2nd constructor */
@@ -198,9 +198,9 @@ char* caml_serialize_into_blob_r(CAML_R, value caml_value){
     ;
 
   /* Marshal the big data structure into a byte array: */
-caml_acquire_global_lock(); // FIXME: remove after de-staticizing deserialization
+caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
   caml_output_value_to_malloc_r(ctx, caml_value, flags, &blob, &blob_length);
-caml_release_global_lock(); // FIXME: remove after de-staticizing deserialization
+caml_release_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
   //fprintf(stderr, "Ok-Q 100: ...serialized a structure into the blob at %p (length %.2fMB).\n", blob, blob_length / 1024. / 1024.); fflush(stderr);
 
   CAMLreturnT(char*, blob);
@@ -209,7 +209,7 @@ caml_release_global_lock(); // FIXME: remove after de-staticizing deserializatio
 value caml_deserialize_blob_r(CAML_R, char *blob){
   CAMLparam0();
   CAMLlocal1(result);
-caml_acquire_global_lock(); // FIXME: remove after de-staticizing deserialization
+caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
   result = caml_input_value_from_block_r(ctx,
                                          blob,
                                          /* FIXME: this third parameter is useless in practice: ask the OCaml people to
@@ -217,7 +217,7 @@ caml_acquire_global_lock(); // FIXME: remove after de-staticizing deserializatio
                                             I don't want to mess up the interface myself, since I'm doing a lot of other
                                             invasive changes --Luca Saiu REENTRANTRUNTIME */
                                          LONG_MAX);
-caml_release_global_lock(); // FIXME: remove after de-staticizing deserialization
+caml_release_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
   CAMLreturn(result);
 }
 
@@ -448,8 +448,8 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
 //  DUMP("child threads have finished with the blob: destroying it");
   caml_stat_free(blob);
 //  DUMP();
-  caml_gc_compaction_r(ctx, Val_unit); //!!!!!
-//  DUMP();
+  caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@
+  //  DUMP();
 
   caml_finalize_semaphore(&semaphore);
 //  DUMP();
@@ -458,7 +458,7 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   /* Copy the contexts we got, and we're done with new_contexts as well: */
 //  DUMP("copying the new context (descriptors) into the Caml data structure result");
   result = caml_alloc_r(ctx, thread_no, 0);
-  caml_gc_compaction_r(ctx, Val_unit); //!!!!!
+  caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@
   for(i = 0; i < thread_no; i ++)
     caml_initialize_r(ctx, &Field(result, i), caml_value_of_context_descriptor(new_contexts[i]->descriptor));
   caml_stat_free(new_contexts);

@@ -150,30 +150,30 @@ static void readfloats_r(CAML_R, double * dest, mlsize_t len, unsigned int code)
 #endif
 }
 
-/* Item on the stack with defined operation */
-struct intern_item {
-  value * dest;
-  intnat arg;
-  enum {
-    OReadItems, /* read arg items and store them in dest[0], dest[1], ... */
-    OFreshOID,  /* generate a fresh OID and store it in *dest */
-    OShift      /* offset *dest by arg */
-  } op;
-};
+/* /\* Item on the stack with defined operation *\/ */
+/* struct intern_item { */
+/*   value * dest; */
+/*   intnat arg; */
+/*   enum { */
+/*     OReadItems, /\* read arg items and store them in dest[0], dest[1], ... *\/ */
+/*     OFreshOID,  /\* generate a fresh OID and store it in *dest *\/ */
+/*     OShift      /\* offset *dest by arg *\/ */
+/*   } op; */
+/* }; */
 
 /* FIXME: This is duplicated in two other places, with the only difference of
    the type of elements stored in the stack. Possible solution in C would
    be to instantiate stack these function via. C preprocessor macro.
  */
 
-#define INTERN_STACK_INIT_SIZE 256
+//#define INTERN_STACK_INIT_SIZE 256
 #define INTERN_STACK_MAX_SIZE (1024*1024*100)
 
-static struct intern_item intern_stack_init[INTERN_STACK_INIT_SIZE];
+/* static struct intern_item intern_stack_init[INTERN_STACK_INIT_SIZE]; */
 
-static struct intern_item * intern_stack = intern_stack_init;
-static struct intern_item * intern_stack_limit = intern_stack_init
-                                                   + INTERN_STACK_INIT_SIZE;
+/* static struct intern_item * intern_stack = intern_stack_init; */
+/* static struct intern_item * intern_stack_limit = intern_stack_init */
+/*                                                    + INTERN_STACK_INIT_SIZE; */
 
 /* Free the recursion stack if needed */
 static void intern_free_stack_r(CAML_R)

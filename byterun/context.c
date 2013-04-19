@@ -354,6 +354,9 @@ section.  */
   ctx->intern_block;
   */
   ctx->camlinternaloo_last_id = NULL;
+  /* intern_stack_init[INTERN_STACK_INIT_SIZE]; */
+  ctx->intern_stack = ctx->intern_stack_init;
+  ctx->intern_stack_limit = ctx->intern_stack_init + INTERN_STACK_INIT_SIZE;
 
   /* from gc_ctrl.c */
   ctx->caml_stat_minor_words = 0.0;
@@ -666,7 +669,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   int size_in_words = size_in_bytes / sizeof(void*);
   /* We keep the module name right after the offset pointer, as a read-only string: */
   char *module_name = (char*)offset_pointer + sizeof(long);
-  //DUMP("module_name is %s", module_name);
+  DUMP("module_name is %s", module_name);
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
   //fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n", ctx, module_name, offset_pointer, (unsigned long)size_in_bytes, offset_pointer); fflush(stderr);
 

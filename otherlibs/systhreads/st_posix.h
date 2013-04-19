@@ -380,7 +380,7 @@ DUMP("this is the tick thread");
   while(1) {
     /* select() seems to be the most efficient way to suspend the
        thread for sub-second intervals */
-    timeout.tv_sec = 0;//2;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
+    timeout.tv_sec = 1;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
     timeout.tv_usec = Thread_timeout * 1000;
 //DUMP("calling select");
     select(0, NULL, NULL, NULL, &timeout);
@@ -391,7 +391,10 @@ DUMP("this is the tick thread");
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
+    DUMP("-- tick --");
+    /* DUMP("before caml_record_signal_r"); */
     caml_record_signal_r(ctx, SIGPREEMPTION);
+    /* DUMP("after caml_record_signal_r"); */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticked.\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
   QR();

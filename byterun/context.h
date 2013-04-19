@@ -224,6 +224,18 @@ typedef struct caml_thread_struct * caml_thread_t; /* from st_posix.h */
 typedef pthread_t st_thread_id; /* from st_posix.h */
 // ??????
 
+/* From intern.c: */
+/* Item on the stack with defined operation */
+struct intern_item {
+  value * dest;
+  intnat arg;
+  enum {
+    OReadItems, /* read arg items and store them in dest[0], dest[1], ... */
+    OFreshOID,  /* generate a fresh OID and store it in *dest */
+    OShift      /* offset *dest by arg */
+  } op;
+};
+
 /* The field ordering should not be changed without also updating the
    macro definitions at the beginning of asmrun/ARCHITECTURE.s. */
 struct caml_global_context {
@@ -493,7 +505,10 @@ struct caml_global_context {
   /* Point to the heap block allocated as destination block.
      Meaningful only if intern_extra_block is NULL. */
   value * camlinternaloo_last_id /* = NULL */;
-
+#define INTERN_STACK_INIT_SIZE 256
+  struct intern_item intern_stack_init[INTERN_STACK_INIT_SIZE];
+  struct intern_item * intern_stack /* = intern_stack_init */;
+  struct intern_item * intern_stack_limit /* = intern_stack_init + INTERN_STACK_INIT_SIZE */;
 
   /* from gc_ctrl.c */
   double caml_stat_minor_words; /* = 0.0, */
@@ -857,6 +872,9 @@ extern library_context *caml_get_library_context_r(
 #define intern_header          ctx->intern_header
 #define intern_block           ctx->intern_block
 #define camlinternaloo_last_id ctx->camlinternaloo_last_id
+#define intern_stack_init      ctx->intern_stack_init
+#define intern_stack           ctx->intern_stack
+#define intern_stack_limit     ctx->intern_stack_limit
 #endif
 
 /* caml_code_fragments_table is used both in extern.c and in intern.c;
