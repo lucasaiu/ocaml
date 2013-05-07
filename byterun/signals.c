@@ -312,8 +312,8 @@ CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value 
   if (Is_block(action)) {
     if (caml_signal_handlers == 0) {
       caml_signal_handlers = caml_alloc_r(ctx, NSIG, 0);
-      ////
-      int i, length = NSIG;
+      //// !!!!!!!!!!!!!!!!!!!!!!!!!!! This is probably ok.  Just remove my comment markers. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      int i;
       for(i = 0; i < NSIG; i ++)
         caml_initialize_r(ctx, &Field(caml_signal_handlers, i), Val_int(0));
       ////

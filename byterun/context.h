@@ -28,7 +28,9 @@
 #include <signal.h>
 #include <setjmp.h> // FIXME: remove if not needed in the end --Luca Saiu REENTRANTRUNTIME
 
+#ifndef __USE_UNIX98
 #define __USE_UNIX98
+#endif
 #include <pthread.h>
 #include <semaphore.h>
 

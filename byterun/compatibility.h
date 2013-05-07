@@ -370,8 +370,12 @@
 
 #endif /* CAML_NAME_SPACE */
 
-/// FIXME: horrible compatibility macros (to compile coq).  This has to be generalized
-//#define raise_out_of_memory() AAAAcaml_raise_out_of_memory()
-#define caml_raise_out_of_memory() caml_raise_out_of_memory_r(caml_get_thread_local_context())
-
+/// FIXME: horrible compatibility macros.  This has to be generalized
+#define CTX caml_get_thread_local_context()
+#define caml_raise_out_of_memory() caml_raise_out_of_memory_r(CTX)
+#define caml_failwith(S) caml_failwith_r(CTX, S)
+#define caml_serialize_int_4(Q) caml_serialize_int_4_r(CTX, Q)
+#define caml_serialize_block_4(B, L) caml_serialize_block_4_r(CTX, B, L)
+#define caml_deserialize_uint_4() caml_deserialize_uint_4_r(CTX)
+#define caml_deserialize_block_4(B, L) caml_deserialize_block_4_r(CTX, B, L)
 #endif /* CAML_COMPATIBILITY_H */

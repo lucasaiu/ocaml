@@ -149,16 +149,17 @@ caml_acquire_global_lock();
   struct caml__roots_block *lr;
   caml_link *lnk;
 
+  // Disabled: roots are now in a contextual extensible buffer
   /* The global roots */
-  for (i = caml_globals_scanned;
-       i <= caml_globals_inited && caml_globals[i] != 0;
-       i++) {
-    glob = caml_globals[i];
-    for (j = 0; j < Wosize_val(glob); j++){
-      Oldify (&Field (glob, j));
-    }
-  }
-  caml_globals_scanned = caml_globals_inited;
+  /* for (i = caml_globals_scanned; */
+  /*      i <= caml_globals_inited && caml_globals[i] != 0; */
+  /*      i++) { */
+  /*   glob = caml_globals[i]; */
+  /*   for (j = 0; j < Wosize_val(glob); j++){ */
+  /*     Oldify (&Field (glob, j)); */
+  /*   } */
+  /* } */
+  /* caml_globals_scanned = caml_globals_inited; */
 
   /* Dynamic global roots */
   iter_list(caml_dyn_globals, lnk) {
@@ -247,17 +248,17 @@ void caml_darken_all_roots_r (CAML_R)
 
 void caml_do_roots_r (CAML_R, scanning_action f)
 {
-caml_acquire_global_lock();
-  int i, j;
+caml_acquire_global_lock(); // FIXME: is this really needed?  I strongly suspect not  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  int /*i,*/ j;
   value glob;
   caml_link *lnk;
 
-  /* The global roots */
-  for (i = 0; caml_globals[i] != 0; i++) {
-    glob = caml_globals[i];
-    for (j = 0; j < Wosize_val(glob); j++)
-      f (ctx, Field (glob, j), &Field (glob, j));
-  }
+  /* /\* The global roots *\/ */
+  /* for (i = 0; caml_globals[i] != 0; i++) { */
+  /*   glob = caml_globals[i]; */
+  /*   for (j = 0; j < Wosize_val(glob); j++) */
+  /*     f (ctx, Field (glob, j), &Field (glob, j)); */
+  /* } */
 
   /* Dynamic global roots */
   iter_list(caml_dyn_globals, lnk) {

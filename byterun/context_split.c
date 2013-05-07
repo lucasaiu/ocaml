@@ -16,6 +16,7 @@
 #include "callback.h" // for caml_callback_r and friends
 #include "alloc.h"
 #include "intext.h"
+#include "printexc.h" // FIXME: remove after debugging, if possible
 
 #include "gc_ctrl.h" // FIXME: remove after debugging, if possible
 #include "compact.h" // FIXME: remove after debugging, if possible
@@ -129,7 +130,7 @@ value caml_global_tuple_r(CAML_R)
   /* No need for GC-protection: there is no allocation here. */
   // FIXME: for debugging only.  Remove: BEGIN
   globals = ctx->caml_global_data;
-  int element_no = Wosize_val(globals);
+  //int element_no = Wosize_val(globals);
   //fprintf(stderr, "[bytecode] The tuple has %i elements\n", (int)element_no);
   // FIXME: for debugging only.  Remove: END
 

@@ -19,7 +19,7 @@
 
 #include "config.h"
 #include "misc.h"
-#include "mlvalues.h" /* for CAML_R */
+#include "context.h" /* for CAML_R */
 
 extern void caml_compact_heap_r (CAML_R);
 extern void caml_compact_heap_maybe_r (CAML_R);

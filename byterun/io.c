@@ -130,7 +130,7 @@ caml_release_global_lock();
 
 CAMLexport void caml_close_channel(struct channel *channel)
 {
-  INIT_CAML_R;
+  //INIT_CAML_R;
   int greater_than_zero;
   close(channel->fd);
   Lock(channel);
@@ -472,7 +472,7 @@ CAMLexport void caml_finalize_channel(value vchan)
 {
   struct channel * chan = Channel(vchan);
   int greater_than_zero;
-  INIT_CAML_R;
+  //INIT_CAML_R;
   Lock(chan);
   greater_than_zero = --chan->refcount > 0;
   fprintf(stderr, "Context %p: finalizing the channel with struct channel* %p, fd %i: its refcount is now %i\n", ctx, chan, chan->fd, chan->refcount); fflush(stderr);

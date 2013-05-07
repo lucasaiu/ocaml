@@ -35,6 +35,7 @@
 #include "callback.h" // for caml_callback_r
 #include "alloc.h"
 #include "intext.h"
+#include <pthread.h>
 
 static __thread caml_global_context *the_thread_local_caml_context = NULL;
 
@@ -66,6 +67,7 @@ static pthread_mutex_t caml_global_mutex = (pthread_mutex_t)(long)0xdeaddeaddead
 void caml_initialize_mutex(pthread_mutex_t *mutex){
   pthread_mutexattr_t attributes;
   pthread_mutexattr_init(&attributes);
+  //int result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE_NP);
   int result = pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_RECURSIVE_NP);
   if(result){
     fprintf(stderr, "++++++++ [thread %p] pthread_mutexattr_settype failed\n", (void*)(pthread_self())); fflush(stderr);
@@ -626,7 +628,7 @@ library_context *caml_get_library_context_r(CAML_R,
 extern void caml_destroy_context(CAML_R){
   //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
-  caml_remove_global_root_r(ctx, ctx->caml_signal_handlers);
+  caml_remove_global_root_r(ctx, &ctx->caml_signal_handlers);
 
   //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
   ///
@@ -658,18 +660,18 @@ extern void caml_destroy_context(CAML_R){
   // FIXME: really destroy stuff
 }
 
+#ifdef NATIVE_CODE
 /* The index of the first word in caml_globals which is not used yet.
    This variable is shared by all contexts, and accessed in mutual
    exclusion. */
-static long first_unused_word_offset = 0; // the first word is unused
+static long first_unused_word_offset = 0;
 
-#ifdef NATIVE_CODE
 void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* Compute the size in words, which is to say how many globals are there: */
   int size_in_words = size_in_bytes / sizeof(void*);
   /* We keep the module name right after the offset pointer, as a read-only string: */
   char *module_name = (char*)offset_pointer + sizeof(long);
-  DUMP("module_name is %s", module_name);
+  DUMP("module_name is %s (%li bytes); offset_pointer is at %p", module_name, (long)size_in_bytes, offset_pointer);
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
   //fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n", ctx, module_name, offset_pointer, (unsigned long)size_in_bytes, offset_pointer); fflush(stderr);
 

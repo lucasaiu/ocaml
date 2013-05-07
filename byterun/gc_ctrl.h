@@ -41,4 +41,6 @@ void caml_init_gc_r (CAML_R, uintnat, uintnat, uintnat,
 void caml_heap_check_r (CAML_R);
 #endif
 
+value caml_gc_compaction_r(CAML_R, value v); // FIXME: Remove after debugging, if possible !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 #endif /* CAML_GC_CTRL_H */

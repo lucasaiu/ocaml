@@ -86,6 +86,7 @@ extern void caml_init_frame_descriptors(dont_use);
 extern void caml_init_frame_descriptors_r(CAML_R);
 //extern void caml_register_frametable(dont_use, intnat *); // Not used from the outside
 //extern void caml_register_frametable_r(CAML_R, intnat *); // Not used from the outside
+extern void caml_register_frametable_r(CAML_R, intnat *); // I think Fabrice commented out the prototype.  I might be missing something here.  FIXME: ask Fabrice  --Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 extern void caml_register_dyn_global(dont_use, void *);
 extern void caml_register_dyn_global_r(CAML_R, void *);
 
@@ -98,7 +99,7 @@ extern uintnat caml_stack_usage_r (CAML_R);
 /* extern uintnat caml_last_return_address; */
 /* extern value * caml_gc_regs; */
 /* extern char * caml_exception_pointer; */
-extern value caml_globals[];
+/* extern value caml_globals[]; */ // This is now a resizable_buffer, in the context
 /* extern intnat caml_globals_inited; */
 extern intnat * caml_frametable[];
 

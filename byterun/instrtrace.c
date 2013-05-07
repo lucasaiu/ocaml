@@ -186,19 +186,19 @@ caml_trace_value_file_r (CAML_R, value v, code_t prog, int proglen, FILE * f)
   if (prog && v % sizeof (int) == 0
            && (code_t) v >= prog
            && (code_t) v < (code_t) ((char *) prog + proglen))
-    fprintf (f, "=code@%d", (code_t) v - prog);
+    fprintf (f, "=code@%d", (int)((code_t) v - prog));
   else if (Is_long (v))
     fprintf (f, "=long%" ARCH_INTNAT_PRINTF_FORMAT "d", Long_val (v));
   else if ((void*)v >= (void*)caml_stack_low
            && (void*)v < (void*)caml_stack_high)
-    fprintf (f, "=stack_%d", (intnat*)caml_stack_high - (intnat*)v);
+    fprintf (f, "=stack_%d", (int)((intnat*)caml_stack_high - (intnat*)v));
   else if (Is_block (v)) {
     int s = Wosize_val (v);
     int tg = Tag_val (v);
     int l = 0;
     switch (tg) {
     case Closure_tag:
-      fprintf (f, "=closure[s%d,cod%d]", s, (code_t) (Code_val (v)) - prog);
+      fprintf (f, "=closure[s%d,cod%d]", s, (int)((code_t) (Code_val (v)) - prog));
       goto displayfields;
     case String_tag:
       l = caml_string_length (v);
@@ -254,10 +254,10 @@ caml_trace_accu_sp_file_r (CAML_R, value accu, value * sp, code_t prog, int prog
   fprintf (f, "accu=");
   caml_trace_value_file_r (ctx, accu, prog, proglen, f);
   fprintf (f, "\n sp=%#" ARCH_INTNAT_PRINTF_FORMAT "x @%d:",
-           (intnat) sp, caml_stack_high - sp);
+           (intnat) sp, (int)(caml_stack_high - sp));
   for (p = sp, i = 0; i < 12 + (1 << caml_trace_flag) && p < caml_stack_high;
        p++, i++) {
-    fprintf (f, "\n[%d] ", caml_stack_high - p);
+    fprintf (f, "\n[%d] ", (int)(caml_stack_high - p));
     caml_trace_value_file_r (ctx, *p, prog, proglen, f);
   };
   putc ('\n', f);

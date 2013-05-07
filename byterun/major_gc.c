@@ -78,7 +78,14 @@ void caml_darken_r (CAML_R, value v, value *p /* not used */)
       h = Hd_val (v);
       t = Tag_hd (h);
     }
-    CAMLassert (!Is_blue_hd (h));
+    //    CAMLassert (!Is_blue_hd (h));
+    if(Is_blue_hd (h)) // !!!!!!!!!!!!!!
+      { volatile int n = 1000;
+        n /= 2;
+        /* n /= 4; */
+        /* n /= 4; */
+        /* n /= 4; */
+      } // !!!!!
     if (Is_white_hd (h)){
       if (t < No_scan_tag){
         Hd_val (v) = Grayhd_hd (h);
@@ -109,7 +116,9 @@ static void start_cycle_r (CAML_R)
 static void mark_slice_r (CAML_R, intnat work)
 {
   value *gray_vals_ptr;  /* Local copy of gray_vals_cur */
-  value v, child;
+  // ORIGINAL VERSION: there was no volatile qualifier !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+  /* value v, child; */
+  volatile value v, child;
   header_t hd;
   mlsize_t size, i;
 

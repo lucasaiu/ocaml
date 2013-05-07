@@ -52,7 +52,7 @@ CAMLprim value unix_inet_addr_of_string_r(CAML_R, value s)
   default:
     {
       freeaddrinfo(res);
-      caml_failwith(ctx, "inet_addr_of_string");
+      caml_failwith_r(ctx, "inet_addr_of_string");
     }
   }
   freeaddrinfo(res);

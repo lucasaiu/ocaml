@@ -25,6 +25,8 @@
 #include "bng.h"
 #include "nat.h"
 
+#include <context.h>
+
 /* Stub code for the Nat module. */
 
 static intnat hash_nat(value);
@@ -97,7 +99,8 @@ CAMLprim value set_digit_nat_native(value nat, value ofs, value digit)
 
 CAMLprim value nth_digit_nat_native(value nat, value ofs)
 {
-  return caml_copy_nativeint(Digit_val(nat, Long_val(ofs)));
+  INIT_CAML_R;
+  return caml_copy_nativeint_r(ctx, Digit_val(nat, Long_val(ofs)));
 }
 
 CAMLprim value num_digits_nat(value nat, value ofs, value len)
