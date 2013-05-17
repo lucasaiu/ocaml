@@ -29,12 +29,13 @@ val is_mailbox_local : mailbox -> bool
 (* These may raise CannotSplit *)
 val split1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
 val split : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
+val split_into_array : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox array)
 
 val send : mailbox -> 'a -> unit
 val receive : mailbox -> 'a (* raises ForeignMailbox if the mailbox is foreign *)
 
 (* Wait until the context local to the given mailbox or mailboxes terminates: *)
-(* FIXME: fix the multi-thread case *)
+(* FIXME: fix the multi-thread case [FIXME: is it already fixed?]*)
 val join_context : t -> unit 
 val join_contexts : t list -> unit
 val join1 : mailbox -> unit

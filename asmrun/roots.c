@@ -132,7 +132,7 @@ void caml_register_dyn_global_r(CAML_R, void *v) {
    heap. */
 void caml_oldify_local_roots_r (CAML_R)
 {
-caml_acquire_global_lock();
+//caml_acquire_global_lock();
   char * sp;
   uintnat retaddr;
   value * regs;
@@ -174,8 +174,8 @@ caml_acquire_global_lock();
   sp = caml_bottom_of_stack;
   retaddr = caml_last_return_address;
   regs = caml_gc_regs;
-  assert(caml_gc_regs != (typeof(caml_gc_regs))0xaaaaaaaaaaaaaaaa); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
-  assert(caml_gc_regs != (typeof(caml_gc_regs))0xbbbbbbbbbbbbbbbb); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
+  //Assert(caml_gc_regs != (typeof(caml_gc_regs))0xaaaaaaaaaaaaaaaa); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
+  //Assert(caml_gc_regs != (typeof(caml_gc_regs))0xbbbbbbbbbbbbbbbb); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
   if (sp != NULL) {
     while (1) {
       /* Find the descriptor corresponding to the return address */
@@ -236,7 +236,7 @@ caml_acquire_global_lock();
   caml_final_do_young_roots_r (ctx, &caml_oldify_one_r);
   /* Hook */
   if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(&caml_oldify_one_r);
-caml_release_global_lock();
+//caml_release_global_lock();
 }
 
 /* Call [darken] on all roots */
@@ -248,7 +248,7 @@ void caml_darken_all_roots_r (CAML_R)
 
 void caml_do_roots_r (CAML_R, scanning_action f)
 {
-caml_acquire_global_lock(); // FIXME: is this really needed?  I strongly suspect not  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//caml_acquire_global_lock(); // FIXME: is this really needed?  I strongly suspect not  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   int /*i,*/ j;
   value glob;
   caml_link *lnk;
@@ -270,8 +270,8 @@ caml_acquire_global_lock(); // FIXME: is this really needed?  I strongly suspect
 
   /* The stack and local roots */
   if (caml_frame_descriptors == NULL) caml_init_frame_descriptors_r(ctx);
-  assert(caml_gc_regs != (typeof(caml_gc_regs))0xaaaaaaaaaaaaaaaa); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
-  assert(caml_gc_regs != (typeof(caml_gc_regs))0xbbbbbbbbbbbbbbbb); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
+  //Assert(caml_gc_regs != (typeof(caml_gc_regs))0xaaaaaaaaaaaaaaaa); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
+  //Assert(caml_gc_regs != (typeof(caml_gc_regs))0xbbbbbbbbbbbbbbbb); // FIXME: remove!!!!!!!!!!!!!!! Luca Saiu REENTRANTRUNTIME !!!!!!!!!!!!!!
   caml_do_local_roots_r(ctx, f, caml_bottom_of_stack, caml_last_return_address,
                       caml_gc_regs, caml_local_roots);
   /* Global C roots */
@@ -280,14 +280,14 @@ caml_acquire_global_lock(); // FIXME: is this really needed?  I strongly suspect
   caml_final_do_strong_roots_r (ctx, f);
   /* Hook */
   if (caml_scan_roots_hook != NULL) (*caml_scan_roots_hook)(f);
-caml_release_global_lock();
+//caml_release_global_lock();
 }
 
 void caml_do_local_roots_r(CAML_R, scanning_action f, char * bottom_of_stack,
                          uintnat last_retaddr, value * gc_regs,
                          struct caml__roots_block * local_roots)
 {
-caml_acquire_global_lock();
+//caml_acquire_global_lock();
   char * sp;
   uintnat retaddr;
   value * regs;
@@ -356,17 +356,17 @@ caml_acquire_global_lock();
       }
     }
   }
-caml_release_global_lock();
+//caml_release_global_lock();
 }
 
 uintnat caml_stack_usage_r (CAML_R)
 {
   uintnat sz;
-caml_acquire_global_lock();
+//caml_acquire_global_lock();
   sz = (value *) caml_top_of_stack - (value *) caml_bottom_of_stack;
   if (caml_stack_usage_hook != NULL)
     sz += (*caml_stack_usage_hook)();
-caml_release_global_lock();
+//caml_release_global_lock();
   return sz;
 }
 

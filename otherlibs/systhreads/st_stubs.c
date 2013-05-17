@@ -136,7 +136,7 @@ static void caml_thread_scan_roots(scanning_action action)
   caml_thread_t th;
   int how_many = 0; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   th = curr_thread;
-  DUMP("curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!
+  //DUMP("curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!
   do {
     (*action)(ctx, th->descr, &th->descr);
     (*action)(ctx, th->backtrace_last_exn, &th->backtrace_last_exn);
@@ -147,7 +147,7 @@ static void caml_thread_scan_roots(scanning_action action)
       if (th->bottom_of_stack != NULL)
         caml_do_local_roots_r(ctx, action, th->bottom_of_stack, th->last_retaddr,
                               th->gc_regs, th->local_roots);
-      DUMP("%p->gc_regs is %p", th, th->gc_regs); // !!!!!!!!!!!!!!!!
+      //DUMP("%p->gc_regs is %p", th, th->gc_regs); // !!!!!!!!!!!!!!!!
 #else
       caml_do_local_roots_r(ctx, action, th->sp, th->stack_high, th->local_roots);
 #endif
@@ -155,8 +155,8 @@ static void caml_thread_scan_roots(scanning_action action)
     }
     th = th->next;
   } while (th != curr_thread);
-  DUMP("scanned local roots for %i threads (of %i)", how_many, caml_systhreads_get_thread_no_r(ctx)); // !!!!!!!!!!!!
-  DUMP("Is there a prev_scan_roots_hook? %s", prev_scan_roots_hook ? "yes": "no"); // !!!!!!!!!!!!
+  //DUMP("scanned local roots for %i threads (of %i)", how_many, caml_systhreads_get_thread_no_r(ctx)); // !!!!!!!!!!!!
+  //DUMP("Is there a prev_scan_roots_hook? %s", prev_scan_roots_hook ? "yes": "no"); // !!!!!!!!!!!!
   /* Hook */
   if (prev_scan_roots_hook != NULL) (*prev_scan_roots_hook)(action);
   QR();
@@ -177,7 +177,7 @@ static void caml_thread_enter_blocking_section_hook(void)
   //fprintf(stderr, "caml_thread_enter_blocking_section_hook: ctx %p, thread %p: curr_thread->gc_regs, about to be overwritten, was %p\n", ctx, (void*)pthread_self(), curr_thread->gc_regs); fflush(stderr);
   //fprintf(stderr, "caml_thread_enter_blocking_section_hook: ctx %p, thread %p: caml_gc_regs is %p\n", ctx, (void*)pthread_self(), caml_gc_regs); fflush(stderr);
 
-DUMP("changing curr_thread->gc_regs from %p to %p", curr_thread->gc_regs, caml_gc_regs);
+  //DUMP("changing curr_thread->gc_regs from %p to %p", curr_thread->gc_regs, caml_gc_regs);
   curr_thread->gc_regs = caml_gc_regs;
   curr_thread->exception_pointer = caml_exception_pointer;
   curr_thread->local_roots = caml_local_roots;
@@ -215,7 +215,7 @@ static void caml_thread_leave_blocking_section_hook_default(void)
   //fprintf(stderr, "caml_thread_leave_blocking_section_hook_default: ctx %p, thread %p: caml_gc_regs, about to be overwritten, was %p\n", ctx, (void*)pthread_self(), caml_gc_regs); fflush(stderr);
   //fprintf(stderr, "caml_thread_leave_blocking_section_hook_default: ctx %p, thread %p: curr_thread->gc_regs is %p\n", ctx, (void*)pthread_self(), curr_thread->gc_regs); fflush(stderr);
 
-DUMP("changing ctx->caml_gc_regs from %p to %p", caml_gc_regs, curr_thread->gc_regs);
+  //DUMP("changing ctx->caml_gc_regs from %p to %p", caml_gc_regs, curr_thread->gc_regs);
   caml_gc_regs = curr_thread->gc_regs;
   caml_exception_pointer = curr_thread->exception_pointer;
   caml_local_roots = curr_thread->local_roots;

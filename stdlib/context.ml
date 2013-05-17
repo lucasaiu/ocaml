@@ -33,20 +33,21 @@ external self : unit -> t = "caml_context_self_r" "reentrant"
 external is_main : t -> bool = "caml_context_is_main_r" "reentrant"
 (* external is_alive : t -> bool = "caml_context_is_alive_r" "reentrant" *)
 
-external actually_split_into_array : int -> (int -> unit) -> (t array) = "caml_context_split_r" "reentrant"
+external actually_split_into_context_array : int -> (int -> unit) -> (t array) = "caml_context_split_r" "reentrant"
 
-let split_into_array =
+let split_into_context_array =
   if implemented_bool then
-    actually_split_into_array
+    actually_split_into_context_array
   else
     raise Unimplemented
 
-let split_into_contexts how_many f =
-  Array.to_list (split_into_array how_many f)
+let split_into_context_list how_many f =
+  Array.to_list (split_into_context_array how_many f)
 
 let split_into_context thunk =
-  List.hd (split_into_contexts 1 (fun i -> thunk ()))
+  List.hd (split_into_context_list 1 (fun _ -> thunk ()))
 
+(* Debugging stuff *)
 
 let to_string context =
   string_of_int ((Obj.magic context) :> int)
@@ -126,7 +127,7 @@ let split context_no f =
   let split_mailbox_receiving_mailbox =
     make_mailbox () in
   let _ =
-    split_into_contexts
+    split_into_context_list
       context_no
       (fun index ->
         let mailbox = make_mailbox () in
@@ -140,6 +141,9 @@ let split context_no f =
        (List.map
           (fun _ -> receive split_mailbox_receiving_mailbox)
           (iota context_no)))
+
+let split_into_array context_no f =
+  Array.of_list (split context_no f)
 
 let split1 f =
   List.hd (split 1 (fun _ mailbox -> f mailbox))
