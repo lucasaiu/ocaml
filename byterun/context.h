@@ -1059,7 +1059,7 @@ void caml_finalize_semaphore(sem_t *semaphore);
 #define DUMP(FORMAT, ...) \
   do{ \
     fprintf(stderr, \
-            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p "/* "AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self()); \
     fflush(stderr); \
@@ -1126,6 +1126,12 @@ extern __thread int caml_indentation_level;
 #define QB(FORMAT, ...) /* nothing */
 #define QR(FORMAT, ...) /* nothing */
 #define QBR(FORMAT, ...) /* nothing */
+
+#define DUMPUNLESSMAIN(FORMAT, ...) \
+  do{ \
+    if(ctx->descriptor->kind != caml_global_context_main) \
+      DUMP(FORMAT, ##__VA_ARGS__); \
+  } while(0)
 
 /* int caml_get_thread_no_r(CAML_R); */
 /* void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R)); */

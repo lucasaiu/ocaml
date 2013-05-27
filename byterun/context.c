@@ -801,9 +801,8 @@ void caml_acquire_global_lock(void){
   //int old_owner = caml_global_mutex.__data.__owner;
   int result __attribute__((unused));
   INIT_CAML_R;
-  //caml_enter_blocking_section_r(ctx);
+  //DUMP("lock");
   result = pthread_mutex_lock(&caml_global_mutex);
-  //caml_leave_blocking_section_r(ctx);
   /////BEGIN
   if(result){
     DUMP("thread_mutex_lock failed");
@@ -817,9 +816,8 @@ void caml_release_global_lock(void){
   //int old_value = caml_global_mutex.__data.__count;
   //int old_owner = caml_global_mutex.__data.__owner;
   INIT_CAML_R;
-  //caml_enter_blocking_section_r(ctx);
   int result __attribute__((unused)) = pthread_mutex_unlock(&caml_global_mutex);
-  //caml_leave_blocking_section_r(ctx);
+  //DUMP("unlock");
   Assert(result == 0);
   /////BEGIN
   if(result){

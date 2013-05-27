@@ -75,6 +75,25 @@ sp is a local copy of the global variable caml_extern_sp. */
 #  define Next break
 #endif
 
+// FIXME: this is the correct version without my debugging crap.  Restore. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/* #ifdef THREADED_CODE */
+/* #  define Instruct(name) lbl_##name */
+/* #  if defined(ARCH_SIXTYFOUR) && !defined(ARCH_CODE32) */
+/* #    define Jumptbl_base ((char *) &&lbl_ACC0) */
+/* #  else */
+/* #    define Jumptbl_base ((char *) 0) */
+/* #    define jumptbl_base ((char *) 0) */
+/* #  endif */
+/* #  ifdef DEBUG */
+/* #    define Next goto next_instr */
+/* #  else */
+/* #    define Next goto *(void *)(jumptbl_base + *pc++) */
+/* #  endif */
+/* #else */
+/* #  define Instruct(name) case name */
+/* #  define Next break */
+/* #endif */
+
 /* GC interface */
 
 #define Setup_for_gc \

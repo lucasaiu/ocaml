@@ -35,6 +35,18 @@
 #include "mlvalues.h"
 #include "reverse.h"
 
+// !!!!!!!!!!!!!!!
+void dump_digest(unsigned char *digest){
+  char msg[256];
+  sprintf(msg, "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+          digest[0], digest[1], digest[2], digest[3],
+          digest[4], digest[5], digest[6], digest[7],
+          digest[8], digest[9], digest[10], digest[11],
+          digest[12], digest[13], digest[14], digest[15]);
+  INIT_CAML_R;
+  DUMP("dumping %s", msg);
+}
+
 
 /* Forward declarations */
 
@@ -325,6 +337,7 @@ static void extern_rec_r(CAML_R, value v)
   sp = extern_stack;
 
   while(1) {
+    //?????DUMP("QQQ 0x%lx, or %li ", v, v);
   if (Is_long(v)) {
     intnat n = Long_val(v);
     if (n >= 0 && n < 0x40) {
@@ -345,7 +358,7 @@ static void extern_rec_r(CAML_R, value v)
     header_t hd = Hd_val(v);
     tag_t tag = Tag_hd(hd);
     mlsize_t sz = Wosize_hd(hd);
-
+    //DUMP("dumping %p, tag %i, size %i", (void*)v, (int)tag, (int)sz); // !!!!!!!!!!!!!!!
     if (tag == Forward_tag) {
       value f = Forward_val (v);
       if (Is_block (f)
@@ -495,19 +508,27 @@ static void extern_rec_r(CAML_R, value v)
     }
   }
   else if ((cf = extern_find_code_r(ctx, (char *) v)) != NULL) {
-    if (!extern_closures)
-      //extern_invalid_argument_r(ctx, "output_value: functional value"); // FIXME: this is the correct version. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      {DUMP("output_value: functional value"); {volatile int a = 1; a /= 0;}}
+    if (!extern_closures){
+      extern_invalid_argument_r(ctx, "output_value: functional value"); // FIXME: this is the correct version. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      //DUMP("output_value: functional value"); {volatile int a = 1; a /= 0;}
+      }
     //fprintf(stderr, "ZZZZ dumping a code pointer: BEGIN\n");
+    //DUMP("dumping a code pointer 0x%lx, or %li; code start is at %p", v, v, cf->code_start);
     writecode32_r(ctx, CODE_CODEPOINTER, (char *) v - cf->code_start);
     writeblock_r(ctx, (char *) cf->digest, 16);
+    //dump_digest(cf->digest);
     //fprintf(stderr, "ZZZZ dumping a code pointer: END\n");
   } else {
     if(extern_cross_context){
-      fprintf(stderr, "ZZZZ Copying an external pointer: %p, which is to say %li [cf is %p]\n", (void*)v, (long)v, cf);
-      fprintf(stderr, "ZZZZ I'm doing a horrible, horrible thing: serializing the pointer as a tagged 0.\n");
+      //fprintf(stderr, "ZZZZ Copying an external pointer: %p, which is to say %li [cf is %p]\n", (void*)v, (long)v, cf);
+      //fprintf(stderr, "ZZZZ I'm doing a horrible, horrible thing: serializing the pointer as a tagged 0.\n");
+      DUMP("about to crash in the strange case I'm debugging");
+      /* DUMP("the object is 0x%lx, or %li ", v, v); */
+      /* DUMP("probably crashing now"); */
+      /* DUMP("tag is %i", (int)Tag_val(v)); */
+      /* DUMP("size is %i", (int)Wosize_val(v)); */
       volatile int a = 1; a /= 0;
-      extern_rec_r(ctx, Val_int(0));
+      //extern_rec_r(ctx, Val_int(0));
       /* fprintf(stderr, "ZZZZ [This is probably wrong: I'm marshalling an out-of-heap pointer as an int64]\n"); */
       /* writecode64_r(ctx, CODE_INT64, (v << 1) | 1); */
       //extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap) [FIXME: implement]");

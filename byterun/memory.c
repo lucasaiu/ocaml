@@ -19,6 +19,7 @@
 #define CAML_CONTEXT_FREELIST
 #define CAML_CONTEXT_GC_CTRL
 
+#include <stdio.h> // FIXME: remove in the end unless still needed
 #include <stdlib.h>
 #include <string.h>
 #include "fail.h"
@@ -409,6 +410,7 @@ CAMLexport value caml_alloc_shr_r (CAML_R, mlsize_t wosize, tag_t tag)
     new_block = expand_heap_r (ctx, wosize);
     if (new_block == NULL) {
       if (caml_in_minor_collection){
+        DUMP("trying to allocate %i words with tag %i", (int)wosize, (int)tag);
         volatile int a = 1; a /= 0; // FIXME: remove this kludge
         caml_fatal_error ("Fatal error: out of memory.\n");
       }

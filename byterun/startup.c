@@ -350,12 +350,12 @@ caml_global_context* caml_make_empty_context(void)
   // FIXME: lock
   /* Make a new context in which to unmarshal back the byte array back
      into a big data structure, copying whatever's needed: */
-  //caml_acquire_global_lock(); // FIXME: is this critical section needed?
+  caml_acquire_global_lock(); // FIXME: is this critical section needed?
   //caml_global_context *old_thread_local_context = caml_get_thread_local_context();
   caml_global_context *ctx = caml_initialize_first_global_context();
   ctx->descriptor->kind = caml_global_context_nonmain_local;
   //caml_set_thread_local_context(old_thread_local_context); // undo caml_initialize_first_global_context's trashing of the __thread variable
-  //caml_release_global_lock();
+  caml_release_global_lock();
   // FIXME: unlock
 
   /* Initialize the abstract machine */

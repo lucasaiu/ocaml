@@ -19,6 +19,7 @@
 #define CAML_CONTEXT_EXTERN
 #define CAML_CONTEXT_FIX_CODE
 
+#include <stdio.h> // !! remove if not needed in the end
 #include "config.h"
 
 #ifdef HAS_UNISTD

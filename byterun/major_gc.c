@@ -307,6 +307,10 @@ static void sweep_slice_r (CAML_R, intnat work)
         Hd_hp (hp) = Whitehd_hd (hd);
         break;
       }
+      ///////////////////////////  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      if(caml_gc_sweep_hp > mark_limit)
+        DUMP("caml_gc_sweep_hp = %p, mark_limit = %p", caml_gc_sweep_hp, mark_limit);
+      ///////////////////////////  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       Assert (caml_gc_sweep_hp <= mark_limit);
     }else{
       mark_chunk = Chunk_next (mark_chunk);

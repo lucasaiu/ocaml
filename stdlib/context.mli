@@ -31,8 +31,14 @@ val split1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
 val split : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
 val split_into_array : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox array)
 
+(* FIXME: do I need to expose these? *)
+val split_into_context_array : int -> (int -> unit) -> (t array)
+val split_into_context_list : int -> (int -> unit) -> (t list)
+val split_into_context : (unit -> unit) -> t
+
 val send : mailbox -> 'a -> unit
 val receive : mailbox -> 'a (* raises ForeignMailbox if the mailbox is foreign *)
+
 
 (* Wait until the context local to the given mailbox or mailboxes terminates: *)
 (* FIXME: fix the multi-thread case [FIXME: is it already fixed?]*)
@@ -65,8 +71,13 @@ val sself : unit -> string
 
 (* FIXME: these are for debugging only, and global_index in particular
    is not exactly type-safe :-) *)
-val globals : unit -> 'a
-(* val globals_and_datum : 'a -> ('b * 'a) *)
+
+(* A Caml tuple/array containing all the globals of the given context.
+   The result should not be modified as it may share structure with
+   the context globals.  The result may be invalidated by loading caml
+   compilation units at run time (via dynlink, I suppose -- not yet
+   supported). *)
+val globals : Obj.t array
 
 (* Return the index for the given global value (compared by identity)
    within the array of all globals.  Raise an exception or crash

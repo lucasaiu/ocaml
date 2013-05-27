@@ -16,6 +16,7 @@
 #include "callback.h" // for caml_callback_r and friends
 #include "alloc.h"
 #include "intext.h"
+#include "fix_code.h"
 #include "printexc.h" // FIXME: remove after debugging, if possible
 
 #include "gc_ctrl.h" // FIXME: remove after debugging, if possible
@@ -103,17 +104,16 @@ static value caml_pair_r(CAML_R, value left, value right)
   CAMLreturn(result);
 }
 
-/* Return a Caml tuple containing all the globals of the given context.  The
-   result should not be modified as it may share structure with the context
-   globals. */
-value caml_global_tuple_r(CAML_R)
+/* Return a Caml tuple/array containing all the globals of the given
+   context.  The result should not be modified as it may share
+   structure with the context globals.  The result may be invalidated
+   by loading more caml compilation units. */
+CAMLprim value caml_global_array_r(CAML_R, value unit)
 {
   CAMLparam0();
-  CAMLlocal1(globals);
 #ifdef NATIVE_CODE
+  CAMLlocal1(globals);
   const int global_no = ctx->caml_globals.used_size / sizeof(value);
-  /* This is the only allocation, and no Caml locals are alive at this
-     point: no need fot GC protection: */
   globals = caml_alloc_tuple_r(ctx, global_no);
   int i;
   for(i = 0; i < global_no; i ++){
@@ -129,18 +129,13 @@ value caml_global_tuple_r(CAML_R)
 #else /* bytecode */
   /* No need for GC-protection: there is no allocation here. */
   // FIXME: for debugging only.  Remove: BEGIN
-  globals = ctx->caml_global_data;
+  //globals = ctx->caml_global_data;
   //int element_no = Wosize_val(globals);
   //fprintf(stderr, "[bytecode] The tuple has %i elements\n", (int)element_no);
   // FIXME: for debugging only.  Remove: END
 
   CAMLreturn(ctx->caml_global_data);
 #endif /* #else, #ifdef NATIVE_CODE */
-}
-
-CAMLprim value caml_global_array_r(CAML_R, value unit)
-{
-  return caml_global_tuple_r(ctx);
 }
 
 /* Replace the globals of the given context with the elements of the given tuple: */
@@ -173,13 +168,13 @@ static value caml_globals_and_data_r(CAML_R, value *data, size_t element_no)
 {
   CAMLparam0();
   CAMLlocal2(globals, values_to_clone);
-  /* The GC can move the objects pointed by data at this time: no problem. */
-  globals = caml_global_tuple_r(ctx);
+  globals = caml_global_array_r(ctx, Val_unit);
   values_to_clone = caml_tuple_of_c_array_r(ctx, data, element_no);
   CAMLreturn(caml_pair_r(ctx, globals, values_to_clone));
 }
 
 /* Return a pointer to a malloc'ed buffer: */
+//static long QQQ_length;
 char* caml_serialize_into_blob_r(CAML_R, value caml_value){
   CAMLparam1(caml_value);
   CAMLlocal1(flags);
@@ -189,9 +184,7 @@ char* caml_serialize_into_blob_r(CAML_R, value caml_value){
   flags = /* Marshal.Closures :: Marshal.Cross_context :: [] */
 //caml_pair_r(ctx, Val_int(0), /* Marshal.No_sharing, 1st constructor */
     caml_pair_r(ctx,
-                ///////// FIXME: replace with Val_int(2) for testing (only)
                 Val_int(1), /* Marshal.Closures, 2nd constructor */
-                ///////// FIXME: replace with Val_int(2) for testing (only)
                 caml_pair_r(ctx,
                             Val_int(2), /* Marshal.Cross_context, 3rd constructor */
                             Val_emptylist))
@@ -202,15 +195,21 @@ char* caml_serialize_into_blob_r(CAML_R, value caml_value){
 caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
   caml_output_value_to_malloc_r(ctx, caml_value, flags, &blob, &blob_length);
 caml_release_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
-  //fprintf(stderr, "Ok-Q 100: ...serialized a structure into the blob at %p (length %.2fMB).\n", blob, blob_length / 1024. / 1024.); fflush(stderr);
+//fprintf(stderr, "Ok-Q 100: ...serialized a structure into the blob at %p (length %.2fMB).\n", blob, blob_length / 1024. / 1024.); fflush(stderr);
+//DUMP("Made a %fMB blob at %p", blob_length / 1024. / 1024., blob);
+//  QQQ_length = blob_length;
 
   CAMLreturnT(char*, blob);
 }
 
+value caml_input_value_from_string_r(CAML_R, value, value);
+
 value caml_deserialize_blob_r(CAML_R, char *blob){
   CAMLparam0();
-  CAMLlocal1(result);
+  //CAMLlocal1(result);
+  CAMLlocal2(result, blob_as_caml_string);
 caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
+//DUMP("Deserializing the blob at %p", blob);
   result = caml_input_value_from_block_r(ctx,
                                          blob,
                                          /* FIXME: this third parameter is useless in practice: ask the OCaml people to
@@ -218,6 +217,11 @@ caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW:
                                             I don't want to mess up the interface myself, since I'm doing a lot of other
                                             invasive changes --Luca Saiu REENTRANTRUNTIME */
                                          LONG_MAX);
+  //blob_as_caml_string = caml_alloc_string_r(ctx, QQQ_length);
+  //memmove(String_val(blob_as_caml_string), blob, QQQ_length);
+  //result = caml_input_value_from_string_r(ctx, blob_as_caml_string, Val_int(0));
+
+  //DUMP("Deserialized with success");
 caml_release_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
   CAMLreturn(result);
 }
@@ -229,11 +233,9 @@ static char* caml_globals_and_data_as_c_byte_array_r(CAML_R, value *data, size_t
 }
 
 static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_values, char *globals_and_data_as_c_array){
-  /* No need to GC-protect anything here.  We have no Caml objects to
-     GC-protect before initializing globals_and_data by a call to
-     caml_input_value_from_malloc_r.  After that call we don't
-     allocate anything in this function. */
-  value globals_and_data, global_tuple, data_tuple;
+  CAMLparam0();
+  CAMLlocal3(globals_and_data, global_tuple, data_tuple);
+  //value globals_and_data, global_tuple, data_tuple;
   size_t to_value_no __attribute__((unused));
   //fprintf(stderr, "Ok-A 100\n");
 
@@ -252,13 +254,14 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, value *to_va
   caml_set_globals_r(ctx, global_tuple);
   //fprintf(stderr, "Context %p: L3 [thread %p]\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
-  /* Copy deserialized data from the tuple where the user requested; the tuple
-     will be GC'd: */
+  /* Copy deserialized data from the tuple to the given address; the
+     tuple will be GC'd: */
   caml_copy_tuple_elements_r(ctx,
                              to_values, &to_value_no,
                              data_tuple);
   //fprintf(stderr, "Context %p: L4 [thread %p]\n", ctx, (void*)(pthread_self())); fflush(stderr);
   //fprintf(stderr, "Ok-A 600 (the tuple has %i elements)\n", (int)to_value_no);
+  CAMLreturn0;
 }
 
 /* Implement the interface specified in the header file. */
@@ -316,7 +319,9 @@ static int caml_run_function_this_thread_r(CAML_R, value function, int index)
   /* It's important that Extract_exception be used before the next
      collection, because result_or_exception is an invalid value in
      case of exception: */
+  DUMP("running caml code in the new context");
   result_or_exception = caml_callback_exn_r(ctx, function, Val_int(index));
+  DUMP("back from the caml code in the new context");
   /* If we decide to actually do something with result_or_exception,
      then it becomes important that we call Extract_exception on it
      (when it's an exception) before the next Caml allocation: in case
@@ -333,29 +338,56 @@ static int caml_run_function_this_thread_r(CAML_R, value function, int index)
 }
 
 /* Return 0 on success and non-zero on failure. */
-static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
+static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_context, char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
 {
   /* Make a new empty context, and use it to deserialize the blob
-     into.  We don't want to GC-protect local variables here, since we
-     will destroy the context at exit.  This is ok: the only Caml
-     allocations are in
-     caml_install_globals_and_data_as_c_byte_array_r and in the function
-     itself, which correctly GC-protect their own locals. */
+     into. */
   CAML_R = caml_make_empty_context(); // ctx also becomes the thread-local context
-  caml_initialize_context_thread_support(ctx);
   CAMLparam0();
   CAMLlocal1(function);
   int did_we_fail;
+
+  caml_initialize_context_thread_support(ctx);
+  // !!!!!! NEW STUFF ADDED: BEGIN !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ctx->caml_start_code = parent_context->caml_start_code;
+  ctx->caml_code_size = parent_context->caml_code_size;
+  ctx->caml_saved_code = parent_context->caml_saved_code;
+#ifdef THREADED_CODE
+  ctx->caml_instr_table = parent_context->caml_instr_table;
+  ctx->caml_instr_base = parent_context->caml_instr_base;
+#endif // #ifdef THREADED_CODE
+
+#ifndef NATIVE_CODE
+  DUMP();
+  caml_init_code_fragments_r(ctx); // this is needed for caml_install_globals_and_data_as_c_byte_array_r
+  DUMP();
+  ctx->caml_prim_table = parent_context->caml_prim_table;
+  ctx->caml_prim_name_table = parent_context->caml_prim_name_table;
+#endif // #ifdef THREADED_CODE
+
   *to_context = ctx;
   caml_install_globals_and_data_as_c_byte_array_r(ctx, &function, blob);
 
   /* We're done with the blob: unpin it via the semaphore, so that it
      can be destroyed when all split threads have deserialized. */
 //fprintf(stderr, "W5.5context %p] [thread %p] (index %i) EEEEEEEEEEEEEEEEEEEEEEEEEE\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_release_global_lock();
-  fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  About to V the semaphore.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
+  DUMP("About to V the semaphore.  index=%i\n", index);
   sem_post(semaphore);
 
+#ifndef NATIVE_CODE
+  DUMP();
+  caml_init_exceptions_r(ctx);
+  DUMP();
+  //caml_debugger_r(ctx, PROGRAM_START);
+#endif // #ifndef NATIVE_CODE
+  DUMP();
+  ctx->caml_exe_name = parent_context->caml_exe_name;
+  ctx->caml_main_argv = parent_context->caml_main_argv;
+  DUMP();
+  // !!!!!! NEW STUFF ADDED: END !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   /* Now do the actual work, in a function which correctly GC-protects its locals: */
+  DUMP();
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
   if(did_we_fail){
     fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  FAILED.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
@@ -368,6 +400,7 @@ static int caml_deserialize_and_run_in_this_thread(char *blob, int index, sem_t 
 }
 
 struct caml_thread_arguments{
+  caml_global_context *parent_context;
   char *blob;
   sem_t *semaphore;
   caml_global_context **split_contexts;
@@ -377,7 +410,7 @@ struct caml_thread_arguments{
 static void* caml_deserialize_and_run_in_this_thread_as_thread_function(void *args_as_void_star)
 {
   struct caml_thread_arguments *args = args_as_void_star;
-  int did_we_fail = caml_deserialize_and_run_in_this_thread(args->blob, args->index, args->semaphore, args->split_contexts + args->index);
+  int did_we_fail = caml_deserialize_and_run_in_this_thread(args->parent_context, args->blob, args->index, args->semaphore, args->split_contexts + args->index);
   //fprintf(stderr, "caml_deserialize_and_run_in_this_thread_as_thread_function (index %i) [about to free args].  Did we fail? %i\n", args->index, did_we_fail); fflush(stderr);
   caml_stat_free(args);
   return (void*)(long)did_we_fail;
@@ -399,29 +432,48 @@ static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **spli
     pthread_t thread;
     struct caml_thread_arguments *args = caml_stat_alloc(sizeof(struct caml_thread_arguments));
     int pthread_create_result;
+    args->parent_context = ctx;
     args->blob = blob;
     args->semaphore = semaphore;
     args->split_contexts = split_contexts;
     args->index = i;
+
     pthread_create_result =
       pthread_create(&thread, NULL, caml_deserialize_and_run_in_this_thread_as_thread_function, args);
     if(pthread_create_result != 0)
       caml_failwith_r(ctx, "pthread_create failed"); // FIXME: blob is leaked is this case
   } /* for */
-  /* Wait for the last thread to use the blob, then destroy it: */
+  /* Wait for the last thread to use the blob: */
   //DUMP("waiting for every thread to deserialize");
   for(i = 0; i < how_many; i ++){
-    //DUMP("about to P");
+    DUMP("about to P");
     sem_wait(semaphore);
-    //DUMP("one child finished; waiting for %i more", (int)(how_many - i - 1));
+    DUMP("one child finished; waiting for %i more", (int)(how_many - i - 1));
   }
-  //DUMP("every thread has deserialized");
+  DUMP("every thread has deserialized");
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  #define MAXK 0
+  int k; for(k = MAXK; k > 0; k --) { sleep(1); DUMP("countdown: %i", k); DUMP("GC'ing"); caml_gc_compaction_r(ctx, Val_unit); DUMP("GC'd"); }
+  DUMP("the countdown is over"); DUMP("GC'ing"); caml_gc_compaction_r(ctx, Val_unit); DUMP("GC'd");
+  DUMP("and now we're screwed.  Aren't we?");
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
 
 CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
 {
   CAMLparam1(function);
   CAMLlocal2(result, open_channels);
+
+  /* DUMP("running caml code in the new context (so to speak)"); */
+  /* int i; */
+  /* for(i = 0; i < Int_val(thread_no_as_value); i ++) */
+  /*   caml_callback_exn_r(ctx, function, Val_int(i)); */
+  /* DUMP("Done running caml code in the new context  (so to speak)"); */
+  /* CAMLreturn(Val_unit); */
+  /* if(0){ */
+  /* caml_serialize_context(ctx, function); */
+  /* caml_split_and_wait_r(NULL, NULL, NULL, 10, NULL); */
+  /* } */
   value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
   int can_split = caml_can_split_r(ctx);
   //DUMP("************************** can_split is %i", can_split);
@@ -447,7 +499,9 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
 
   /* Now we're done with the blob: */
 //  DUMP("child threads have finished with the blob: destroying it");
-  caml_stat_free(blob);
+  //memset(blob, 0xcc, 100000); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  //???????
+  caml_stat_free(blob); // !!!!!!!!!!!!!!!!!!!!!!!!!!! This is needed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //  DUMP();
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@
   //  DUMP();

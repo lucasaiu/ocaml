@@ -338,8 +338,10 @@ static caml_thread_t caml_thread_new_info(void)
   th = (caml_thread_t) malloc(sizeof(struct caml_thread_struct));
   if (th == NULL) return NULL;
   //memset(th, 0, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
-  INIT_CAML_R; DUMP("memset'ting the new caml_thread_struct with 0xbb");
-  memset(th, 0xbb, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
+  //INIT_CAML_R; DUMP("memset'ting the new caml_thread_struct with 0xbb");
+  //memset(th, 0xbb, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
+  INIT_CAML_R; DUMP("memset'ting the new caml_thread_struct with 0x0 in [%p, %p)", th, ((char*)th) + sizeof(struct caml_thread_struct));
+  memset(th, 0x0, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME
 /*   //memset(th, 42, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME */
 /*   memset(th, -1, sizeof(struct caml_thread_struct)); // This was for debugging only --Luca Saiu REENTRANTRUNTIME */
 /*   {int i; */
@@ -527,9 +529,10 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
   /* Set up a thread info block for the current thread */
   curr_thread =
     (caml_thread_t) stat_alloc(sizeof(struct caml_thread_struct));
-  DUMP("memset'ting the main caml_thread_struct with 0xaa");
-  memset(curr_thread, 0xaa, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only
-  //memset(curr_thread, 0x00, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only. [FIXME: is it?  I strongly suspect that gc_regs or some other fields used for GC must be a valid NULL pointer for this to work *in all circumstances*; stat_alloc used malloc, which in the GNU implementation *in practice* zeros small allocted buffers.]
+  //DUMP("memset'ting the main caml_thread_struct with 0xaa");
+  //memset(curr_thread, 0xaa, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only
+  DUMP("memset'ting the main caml_thread_struct with 0x0 in [%p, %p)", curr_thread, ((char*)curr_thread) + sizeof(struct caml_thread_struct));
+  memset(curr_thread, 0x0, sizeof(struct caml_thread_struct)); // !!!!!!!!! FIXME: remove.  This is for debugging only. [FIXME: is it?  I strongly suspect that gc_regs or some other fields used for GC must be a valid NULL pointer for this to work *in all circumstances*; stat_alloc used malloc, which in the GNU implementation *in practice* zeros small allocted buffers.]
   curr_thread->descr = caml_thread_new_descriptor_r(ctx, Val_unit);
   curr_thread->next = curr_thread;
   curr_thread->prev = curr_thread;
@@ -690,8 +693,9 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   Begin_root (clos);
     caml_modify_r(ctx, &(Start_closure(th->descr)), Val_unit);
     DUMP("calling the caml code");
-    //caml_callback_exn_r(ctx, clos, Val_unit); // !!!!!!!!!!!!!!!!!!!!!!!!!!!! This is the right version
-    caml_callback_r(ctx, clos, Val_unit); // Just for testing: I want to see the exception !!!!!!!!!!!!!!!!!!!!!!!!
+    //DUMP("stack is [%p, ~%p]", caml_bottom_of_stack, &tos);
+    caml_callback_exn_r(ctx, clos, Val_unit); // !!!!!!!!!!!!!!!!!!!!!!!!!!!! This is the right version
+    //caml_callback_r(ctx, clos, Val_unit); // Just for testing: I want to see the exception !!!!!!!!!!!!!!!!!!!!!!!!
     QR("exiting the native-code thread");
   End_roots();
     caml_thread_stop_r(ctx);

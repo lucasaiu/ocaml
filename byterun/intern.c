@@ -411,9 +411,21 @@ static void intern_rec_r(CAML_R, value *dest)
         len = read32u();
         goto read_double_array;
       case CODE_CODEPOINTER:
+        /* DUMP("unmarshalling codepointer: begin"); */
         ofs = read32u();
+        /* DUMP("* ofs is %p or %i", (void*)(long)ofs, (int)ofs); */
         readblock(digest, 16);
+  /*       // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+  /* char readable_digest[256]; */
+  /* sprintf(readable_digest, "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X", */
+  /*         digest[0], digest[1], digest[2], digest[3], */
+  /*         digest[4], digest[5], digest[6], digest[7], */
+  /*         digest[8], digest[9], digest[10], digest[11], */
+  /*         digest[12], digest[13], digest[14], digest[15]); */
+  /* DUMP("digest is %s", readable_digest); */
+  /*       // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
         codeptr = intern_resolve_code_pointer_r(ctx, digest, ofs);
+        /* DUMP("* codeptr is %p", codeptr); */
         if (codeptr != NULL) {
           v = (value) codeptr;
         } else {
@@ -423,9 +435,11 @@ static void intern_rec_r(CAML_R, value *dest)
             v = *function_placeholder;
           } else {
             intern_cleanup_r(ctx);
+            /* DUMP("about to call intern_bad_code_pointer_r on the NULL code pointer"); */
             intern_bad_code_pointer_r(ctx, digest);
           }
         }
+        /* DUMP("unmarshalling codepointer: end"); */
         break;
       case CODE_INFIXPOINTER:
         ofs = read32u();
@@ -704,27 +718,34 @@ CAMLprim value caml_marshal_data_size_r(CAML_R, value buff, value ofs)
 static char * intern_resolve_code_pointer_r(CAML_R, unsigned char digest[16],
                                             asize_t offset)
 {
+caml_acquire_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   int i;
+  /* DUMP("caml_code_fragments_table.size=%i", (int)caml_code_fragments_table.size); */
   for (i = caml_code_fragments_table.size - 1; i >= 0; i--) {
+    /* DUMP("i=%i", i); */
     struct code_fragment * cf = caml_code_fragments_table.contents[i];
+    /* DUMP("cf=%p", cf); */
     if (! cf->digest_computed) {
+    /* DUMP("cf=%p: computing MD5", cf); */
       caml_md5_block(cf->digest, cf->code_start, cf->code_end - cf->code_start);
       cf->digest_computed = 1;
     }
     if (memcmp(digest, cf->digest, 16) == 0) {
+caml_release_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (cf->code_start + offset < cf->code_end)
         return cf->code_start + offset;
       else
         return NULL;
     }
   }
+caml_release_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   return NULL;
 }
 
 static void intern_bad_code_pointer_r(CAML_R, unsigned char digest[16])
 {
   char msg[256];
-  sprintf(msg, "input_value: unknown code module %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+  sprintf(msg, "input_value: unknown code module %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X (or bad code pointer)",
           digest[0], digest[1], digest[2], digest[3],
           digest[4], digest[5], digest[6], digest[7],
           digest[8], digest[9], digest[10], digest[11],

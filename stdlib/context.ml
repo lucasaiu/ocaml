@@ -54,16 +54,17 @@ let to_string context =
 
 let sself () = to_string (self ())
 
-external globals : unit -> 'a = "caml_global_array_r" "reentrant"
-(* external globals_and_datum : 'a -> ('b * 'a) = "caml_global_tuple_and_datum_r" "reentrant" *)
+external globals_function : unit -> 'a = "caml_global_array_r" "reentrant"
+
+let globals = globals_function ()
 
 let rec global_index_from global globals from =
-  if globals.(from) == global then
+  if globals.(from) = (* == *) global then
     from
   else
     global_index_from global globals (from + 1);;
 let global_index global =
-  global_index_from global (globals ()) 0;;
+  global_index_from global globals 0;;
 
 external actually_join_context : t -> unit = "caml_context_join_r" "reentrant"
 let join_context =

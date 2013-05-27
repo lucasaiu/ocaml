@@ -27,6 +27,8 @@
 
 (** {6 Exceptions} *)
 
+val qqq : int
+
 external raise : exn -> 'a = "%raise"
 (** Raise the given exception value *)
 
