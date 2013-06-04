@@ -543,16 +543,18 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
 #endif
   curr_thread->ctx = ctx;
 
-  /* If this is not the main context, then we have to copy its signal
-     handlers (a Caml array, which can be cloned via a blob): */
-  if(ctx->descriptor->kind != caml_global_context_main){
-    DUMP("ctx->caml_signal_handlers is %p", (void*)ctx->caml_signal_handlers);
-    assert(ctx->caml_signal_handlers == 0);
-    char *blob = caml_serialize_into_blob_r(the_main_context, the_main_context->caml_signal_handlers);
-    ctx->caml_signal_handlers = caml_deserialize_blob_r(ctx, blob);
-    free(blob);
-    //caml_register_global_root_r(ctx, &ctx->caml_signal_handlers); // moved to context.h, at context creation time
-  }
+/*   /\* If this is not the main context, then we have to copy its signal */
+/*      handlers (a Caml array, which can be cloned via a blob): *\/ */
+/*   if(ctx->descriptor->kind != caml_global_context_main){ */
+/*     DUMP("ctx->caml_signal_handlers is %p", (void*)ctx->caml_signal_handlers); */
+/*     assert(ctx->caml_signal_handlers == 0); */
+/* if(0){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*     char *blob = caml_serialize_into_blob_r(the_main_context, the_main_context->caml_signal_handlers); */
+/*     ctx->caml_signal_handlers = caml_deserialize_blob_r(ctx, blob); */
+/*     free(blob); */
+/* }// if */
+/*     //caml_register_global_root_r(ctx, &ctx->caml_signal_handlers); // moved to context.h, at context creation time */
+/*   } */
   /* The stack-related fields will be filled in at the next
      enter_blocking_section */
   /* Associate the thread descriptor with the thread */
@@ -570,8 +572,10 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   static int already_initialized = 0;
   if(already_initialized) {QR(); return Val_unit;} else already_initialized = 1;
 
+  /* if(0){ //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
   /* caml_set_caml_get_thread_no_r(ctx, caml_systhreads_get_thread_no_r); */
-  caml_set_caml_initialize_context_thread_support(ctx, caml_thread_initialize_for_current_context_r);
+  caml_set_caml_initialize_context_thread_support_r(caml_thread_initialize_for_current_context_r);
+  /* }//if(0){ //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
   /* OS-specific initialization */
   st_initialize();
@@ -581,6 +585,7 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   st_tls_newkey(&thread_descriptor_key);
   st_tls_newkey(&last_channel_locked_key);
 
+  //if(0){ //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   /* Set up the hooks */
   prev_scan_roots_hook = caml_scan_roots_hook;
   caml_scan_roots_hook = caml_thread_scan_roots;
@@ -599,11 +604,12 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
   /* Set up fork() to reinitialize the thread machinery in the child
      (PR#4577) */
   st_atfork(caml_thread_reinitialize);
+  //}// if(0){ //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   /* We've set up the whole machinery which will be used from now on
      at context split; good, but we also have to initialize the
      *current* context: */
-  caml_initialize_context_thread_support(ctx);
+  caml_initialize_context_thread_support_r(ctx);
 
   QR();
   return Val_unit;

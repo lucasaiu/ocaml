@@ -23,6 +23,7 @@
 /* #include <stdio.h> */
 //#include <stddef.h> /* for offsetof */
 #include <unistd.h> // for sleep
+#include <assert.h> // FIXME: remove unless unsed in the end
 #include <string.h>
 #include <sys/sysinfo.h> // for sysconf
 #include "mlvalues.h"
@@ -120,8 +121,8 @@ that calling several times caml_main will actually start several
 runtimes, with different contexts. A thread would then be able to
 schedule several ocaml runtimes ! Protect this with a protected
 section.  */
-  //  ctx->caml_globals_map = caml_globals_map; // FIXME: this is Fabrice's version; I really have no reason to change it, except to see the effect --Luca Saiu REENTRANTRUNTIME
-  ctx->caml_globals_map = NULL; // FIXME: horrible, horrible test.  I'm intentionally breaking Fabrice's code to see what breaks [nothing, apparently].  --Luca Saiu REENTRANTRUNTIME
+  ctx->caml_globals_map = caml_globals_map; // FIXME: this is Fabrice's version; I really have no reason to change it, except to see the effect --Luca Saiu REENTRANTRUNTIME
+  //ctx->caml_globals_map = NULL; // FIXME: horrible, horrible test.  I'm intentionally breaking Fabrice's code to see what breaks [nothing, apparently].  --Luca Saiu REENTRANTRUNTIME
 #endif/* #ifdef NATIVE_CODE */
 
   /* from stacks.c */
@@ -136,7 +137,7 @@ section.  */
   ctx->caml_max_stack_size;
   */
 
-  /* from majoc_gc.c */
+  /* from major_gc.c */
   /*  ctx->caml_percent_free;
   ctx->caml_major_heap_increment;
   ctx->caml_heap_start;
@@ -829,6 +830,16 @@ void caml_release_global_lock(void){
   /////END
 }
 
+void caml_acquire_contextual_lock(CAML_R){
+  int result = pthread_mutex_lock(&ctx->mutex);
+  assert(result == 0);
+}
+void caml_release_contextual_lock(CAML_R){
+  int result = pthread_mutex_unlock(&ctx->mutex);
+  assert(result == 0);
+}
+
+
 void caml_dump_global_mutex(void){
   fprintf(stderr, "{%u %p | %p}\n", caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
 }
@@ -850,14 +861,14 @@ void caml_dump_global_mutex(void){
 /* } */
 
 
-static void (*the_caml_initialize_context_thread_support)(CAML_R) = NULL;
-void caml_set_caml_initialize_context_thread_support(CAML_R, void (*f)(CAML_R)){
-  the_caml_initialize_context_thread_support = f;
+static void (*the_caml_initialize_context_thread_support_r)(CAML_R) = NULL;
+void caml_set_caml_initialize_context_thread_support_r(void (*f)(CAML_R)){
+  the_caml_initialize_context_thread_support_r = f;
 }
 
-void caml_initialize_context_thread_support(CAML_R){
-  if(the_caml_initialize_context_thread_support != NULL)
-    the_caml_initialize_context_thread_support(ctx);
+void caml_initialize_context_thread_support_r(CAML_R){
+  if(the_caml_initialize_context_thread_support_r != NULL)
+    the_caml_initialize_context_thread_support_r(ctx);
 }
 
 int caml_can_split_r(CAML_R){

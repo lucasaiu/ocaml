@@ -1038,6 +1038,11 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer);
 void caml_acquire_global_lock(void);
 void caml_release_global_lock(void);
 
+/* Acquire or release a per-context mutex: */
+void caml_acquire_contextual_lock(CAML_R);
+void caml_release_contextual_lock(CAML_R);
+
+
 // FIXME: remove this after debugging
 void caml_dump_global_mutex(void);
 
@@ -1133,13 +1138,18 @@ extern __thread int caml_indentation_level;
       DUMP(FORMAT, ##__VA_ARGS__); \
   } while(0)
 
+#define USLEEP(LABEL, FLOAT_SECONDS) \
+  do { \
+    DUMP("before usleep'ing for %.2f seconds (%s)", (double)(FLOAT_SECONDS), LABEL); usleep((long)(FLOAT_SECONDS * 1000.0 * 1000.0)); DUMP("after usleep'ing for %.2f seconds (%s)", (double)(FLOAT_SECONDS), LABEL); \
+  } while(0)
+
 /* int caml_get_thread_no_r(CAML_R); */
 /* void caml_set_caml_get_thread_no_r(CAML_R, int (*f)(CAML_R)); */
 
 /* Initialize thread support for the current context.  This must be
    called once at context creation time. */
-void caml_initialize_context_thread_support(CAML_R);
-void caml_set_caml_initialize_context_thread_support(CAML_R, void (*caml_initialize_context_thread_support)(CAML_R));
+void caml_initialize_context_thread_support_r(CAML_R);
+void caml_set_caml_initialize_context_thread_support_r(void (*caml_initialize_context_thread_support_r)(CAML_R));
 
 /* Return non-zero iff the given context can be split: */
 int caml_can_split_r(CAML_R);

@@ -718,7 +718,7 @@ CAMLprim value caml_marshal_data_size_r(CAML_R, value buff, value ofs)
 static char * intern_resolve_code_pointer_r(CAML_R, unsigned char digest[16],
                                             asize_t offset)
 {
-caml_acquire_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//caml_acquire_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   int i;
   /* DUMP("caml_code_fragments_table.size=%i", (int)caml_code_fragments_table.size); */
   for (i = caml_code_fragments_table.size - 1; i >= 0; i--) {
@@ -731,7 +731,7 @@ caml_acquire_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       cf->digest_computed = 1;
     }
     if (memcmp(digest, cf->digest, 16) == 0) {
-caml_release_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//caml_release_global_lock(); // FIXME: remove !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (cf->code_start + offset < cf->code_end)
         return cf->code_start + offset;
       else
