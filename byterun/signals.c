@@ -310,7 +310,7 @@ CAMLprim value caml_install_signal_handler_r(CAML_R, value signal_number, value 
     caml_sys_error_r(ctx, NO_ARG);
   }
   if (Is_block(action)) {
-    if (caml_signal_handlers == 0) {
+    if (caml_signal_handlers == Val_int(0)) {
       caml_signal_handlers = caml_alloc_r(ctx, NSIG, 0);
       //// !!!!!!!!!!!!!!!!!!!!!!!!!!! This is probably ok.  Just remove my comment markers. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       int i;

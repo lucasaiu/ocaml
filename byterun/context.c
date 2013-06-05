@@ -290,7 +290,7 @@ section.  */
   /* ctx->caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default; */
 
   ctx->caml_force_major_slice = 0;
-  ctx->caml_signal_handlers = 0;
+  ctx->caml_signal_handlers = Val_int(0);
   caml_register_global_root_r(ctx, &ctx->caml_signal_handlers);
 
   /* from backtrace.c */
