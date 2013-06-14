@@ -432,6 +432,7 @@ section.  */
   /* ctx->caml_master_lock; */
   ctx->caml_tick_thread_running = 0;
   /* ctx->caml_tick_thread_id; */
+  ctx->caml_thread_next_ident = 0;
 
   /* Global context-local OCaml variables */
 #ifdef NATIVE_CODE

@@ -15,6 +15,7 @@
 
 #define CAML_CONTEXT_ROOTS
 
+#include <stdio.h> // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <string.h>
 #include "alloc.h"
 #include "fail.h"

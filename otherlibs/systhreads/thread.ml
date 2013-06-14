@@ -35,6 +35,9 @@ external exit : unit -> unit = "caml_thread_exit_r" "reentrant"
 let create fn arg =
   thread_new
     (fun () ->
+Printf.fprintf stderr "* About to start caml code in new thread: compacting...\n%!";
+Gc.compact ();
+Printf.fprintf stderr "* ...compacted.  Now really starting caml code in new thread\n%!";
       try
         fn arg; ()
       with exn ->

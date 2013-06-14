@@ -520,7 +520,7 @@ static void extern_rec_r(CAML_R, value v)
     //fprintf(stderr, "ZZZZ dumping a code pointer: END\n");
   } else {
     if(extern_cross_context){
-      //fprintf(stderr, "ZZZZ Copying an external pointer: %p, which is to say %li [cf is %p]\n", (void*)v, (long)v, cf);
+      fprintf(stderr, "ZZZZ working on the external pointer: %p, which is to say %li [cf is %p]\n", (void*)v, (long)v, cf);
       //fprintf(stderr, "ZZZZ I'm doing a horrible, horrible thing: serializing the pointer as a tagged 0.\n");
       DUMP("about to crash in the strange case I'm debugging");
       /* DUMP("the object is 0x%lx, or %li ", v, v); */

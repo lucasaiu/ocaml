@@ -603,6 +603,9 @@ struct caml_global_context {
   /* The thread identifier of the ``tick'' thread */
   st_thread_id caml_tick_thread_id;
 
+  /* Identifier for next thread creation */
+  intnat caml_thread_next_ident /* = 0 */;
+
   /* Context-local "global" C variables: */
 #define INITIAL_C_GLOBALS_ALLOCATED_SIZE 16
   struct caml_extensible_buffer c_globals; /* = {INITIAL_C_GLOBALS_ALLOCATED_SIZE, 0, dynamic} */
@@ -1000,6 +1003,7 @@ extern library_context *caml_get_library_context_r(
 #define caml_master_lock ctx->caml_master_lock
 #define caml_tick_thread_running ctx->caml_tick_thread_running
 #define caml_tick_thread_id ctx->caml_tick_thread_id
+#define caml_thread_next_ident ctx->caml_thread_next_ident
 #endif /* #ifdef CAML_ST_POSIX_CODE */
 
 /* OCaml context-local "globals" */
@@ -1122,12 +1126,12 @@ extern __thread int caml_indentation_level;
   } while(0)
 
 /* #undef DUMP */
-/* #undef QDUMP */
+#undef QDUMP
 #undef QB
 #undef QR
 #undef QBR
 /* #define DUMP(FORMAT, ...) /\* nothing *\/ */
-/* #define QDUMP(FORMAT, ...) /\* nothing *\/ */
+#define QDUMP(FORMAT, ...) /* nothing */
 #define QB(FORMAT, ...) /* nothing */
 #define QR(FORMAT, ...) /* nothing */
 #define QBR(FORMAT, ...) /* nothing */

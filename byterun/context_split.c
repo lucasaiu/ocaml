@@ -61,27 +61,27 @@ void caml_destroy_local_mailbox_r(CAML_R, struct caml_mailbox *mailbox){
   free(mailbox);
 }
 
-/* We implement a slightly more general facility than what is declared
-   in the header.  Each serialized context contains globals, plus a
-   tuple of values which may share pointers (not necessarily one
-   single closure). */
+/* /\* We implement a slightly more general facility than what is declared */
+/*    in the header.  Each serialized context contains globals, plus a */
+/*    tuple of values which may share pointers (not necessarily one */
+/*    single closure). *\/ */
 
-static value caml_tuple_of_c_array_r(CAML_R, value *array, size_t element_no) __attribute__((unused));
-static value caml_tuple_of_c_array_r(CAML_R, value *array, size_t element_no)
-{
-  CAMLparam0();
-  CAMLlocal1(result);
-  result = caml_alloc_tuple_r(ctx, element_no);
-  int i;
-  for(i = 0; i < element_no; i ++){
-    if(array[i] == 0)
-      fprintf(stderr, "%%%%%%%%%% Context %p: the %i-th array element is zero!\n", ctx, i);
-    caml_initialize_r(ctx, &Field(result, i), array[i]);
-  }
-  CAMLreturn(result);
-}
+/* static value caml_tuple_of_c_array_r(CAML_R, value *array, size_t element_no) __attribute__((unused)); */
+/* static value caml_tuple_of_c_array_r(CAML_R, value *array, size_t element_no) */
+/* { */
+/*   CAMLparam0(); */
+/*   CAMLlocal1(result); */
+/*   result = caml_alloc_tuple_r(ctx, element_no); */
+/*   int i; */
+/*   for(i = 0; i < element_no; i ++){ */
+/*     if(array[i] == 0) */
+/*       fprintf(stderr, "%%%%%%%%%% Context %p: the %i-th array element is zero!\n", ctx, i); */
+/*     caml_initialize_r(ctx, &Field(result, i), array[i]); */
+/*   } */
+/*   CAMLreturn(result); */
+/* } */
 
-static void caml_copy_tuple_elements_r(CAML_R, value *to_array, size_t *to_element_no, value from_tuple) __attribute__((unused));
+static void caml_copy_tuple_elements_r(CAML_R, value *to_array, size_t *to_element_no, value from_tuple) __attribute__((unused)) /* only needed for the native runtime */;
 static void caml_copy_tuple_elements_r(CAML_R, value *to_array, size_t *to_element_no, value from_tuple)
 {
   CAMLparam1(from_tuple);
@@ -207,9 +207,9 @@ char* caml_serialize_into_blob_r(CAML_R, value caml_value){
   /* Marshal the big data structure into a byte array: */
   //caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
 //  pthread_mutex_lock(& ctx->mutex);
-caml_acquire_contextual_lock(ctx);
+//caml_acquire_contextual_lock(ctx);
   caml_output_value_to_malloc_r(ctx, caml_value, flags, &blob, &blob_length);
-caml_release_contextual_lock(ctx);
+//caml_release_contextual_lock(ctx);
   //  pthread_mutex_unlock(& ctx->mutex);
   //caml_release_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
 //fprintf(stderr, "Ok-Q 100: ...serialized a structure into the blob at %p (length %.2fMB).\n", blob, blob_length / 1024. / 1024.); fflush(stderr);
@@ -228,7 +228,7 @@ value caml_deserialize_blob_r(CAML_R, char *blob){
   //caml_acquire_global_lock(); // FIXME: I should be able to remove this RIGHT NOW: do it when the thing is stable
 //DUMP("Deserializing the blob at %p", blob);
   //pthread_mutex_lock(& ctx->mutex);
-caml_acquire_contextual_lock(ctx);
+//caml_acquire_contextual_lock(ctx);
   result = caml_input_value_from_block_r(ctx,
                                          blob,
                                          /* FIXME: this third parameter is useless in practice: discuss with the
@@ -237,7 +237,7 @@ caml_acquire_contextual_lock(ctx);
                                             mess up the interface myself, since I'm doing a lot of other invasive
                                             changes --Luca Saiu REENTRANTRUNTIME */
                                          LONG_MAX);
-caml_release_contextual_lock(ctx);
+//caml_release_contextual_lock(ctx);
   //pthread_mutex_unlock(& ctx->mutex);
   //blob_as_caml_string = caml_alloc_string_r(ctx, QQQ_length);
   //memmove(String_val(blob_as_caml_string), blob, QQQ_length);
@@ -417,7 +417,8 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
   if(did_we_fail){
     fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  FAILED.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
-    volatile int a = 1; a /= 0; /*die horribly*/
+    //volatile int a = 1; a /= 0; /*die horribly*/
+    DUMP("the Caml code failed"); // !!!!!!!!!!!!!!!!!!!!!!!!!!! What shall we do in this case?
   }
   /* We're done.  But we can't destroy the context yet, until it's
      joined: the object must remain visibile to the OCaml code, and
@@ -484,9 +485,9 @@ caml_leave_blocking_section_r(ctx);
   /* int k; for(k = MAXK; k > 0; k --) { sleep(1); DUMP("countdown: %i", k); DUMP("GC'ing"); caml_gc_compaction_r(ctx, Val_unit); DUMP("GC'd"); } */
   /* // ???????????? Re-activate the following line when testing */
   /* DUMP("the countdown is over"); */
-  /* //USLEEP("", 3); */
+  //USLEEP("", 3);
   DUMP("GC'ing"); caml_gc_compaction_r(ctx, Val_unit); DUMP("GC'd");
-  DUMP("and now we're screwed.  Aren't we?");
+  //DUMP("and now we're screwed.  Aren't we?");
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
 

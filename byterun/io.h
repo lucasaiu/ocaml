@@ -108,11 +108,11 @@ CAMLextern void (*caml_channel_mutex_unlock_exn) (void);
 CAMLextern struct channel * caml_all_opened_channels;
 
 #define Lock(channel) \
-  if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel)
+  if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel)/*!!!!!!!!!!!!!!!!!!!!*/;else DUMP("caml_channel_mutex_lock is dummy")/*!!!!!!!!!!!!!!!!!!!!*/
 #define Unlock(channel) \
-  if (caml_channel_mutex_unlock != NULL) (*caml_channel_mutex_unlock)(channel)
+  if (caml_channel_mutex_unlock != NULL) (*caml_channel_mutex_unlock)(channel)/*!!!!!!!!!!!!!!!!!!!!*/;else DUMP("caml_channel_mutex_unlock is dummy")/*!!!!!!!!!!!!!!!!!!!!*/
 #define Unlock_exn() \
-  if (caml_channel_mutex_unlock_exn != NULL) (*caml_channel_mutex_unlock_exn)()
+  if (caml_channel_mutex_unlock_exn != NULL) (*caml_channel_mutex_unlock_exn)()/*!!!!!!!!!!!!!!!!!!!!*/;else DUMP("caml_channel_mutex_unlock_exn is dummy")/*!!!!!!!!!!!!!!!!!!!!*/
 
 /* Conversion between file_offset and int64 */
 
