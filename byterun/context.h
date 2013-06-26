@@ -295,7 +295,7 @@ struct caml_global_context {
 
 #endif
 
-  /* from majoc_gc.c */
+  /* from major_gc.c */
   uintnat caml_percent_free;
   uintnat caml_major_heap_increment;
   char *caml_heap_start;
@@ -316,6 +316,9 @@ struct caml_global_context {
   char *mark_limit; /* instead of limit */
   int caml_gc_subphase;     /* Subphase_{main,weak1,weak2,final} */
   value *weak_prev;
+//#ifdef DEBUG
+  unsigned long major_gc_counter /* = 0 */;
+//#endif
 
   /* from freelist.c */
   fl_sentinel sentinel;
@@ -348,6 +351,9 @@ struct caml_global_context {
   /* = { NULL, NULL, NULL, NULL, NULL, 0, 0}; */
   int caml_in_minor_collection;  /*  = 0; */
   value oldify_todo_list;
+//#ifdef DEBUG
+  unsigned long minor_gc_counter /* = 0 */;
+//#endif
 
   /* from memory.h */
 #ifdef ARCH_SIXTYFOUR
@@ -675,8 +681,8 @@ struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(v
 value caml_value_of_mailbox(struct caml_mailbox *m);
 struct caml_mailbox* caml_mailbox_of_value(value v);
 
-#define CAML_R caml_global_context * /* volatile */ ctx
-#define INIT_CAML_R CAML_R = caml_get_thread_local_context()
+#define CAML_R caml_global_context * /* volatile */ ctx // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#define INIT_CAML_R CAML_R __attribute__((unused)) = caml_get_thread_local_context() // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 extern caml_global_context *caml_initialize_first_global_context(void);
 extern caml_global_context *caml_make_empty_context(void); /* defined in startup.c */
@@ -735,6 +741,7 @@ extern library_context *caml_get_library_context_r(
 #define flp_size  ctx->flp_size
 #define beyond    ctx->beyond
 #define caml_allocation_policy   ctx->caml_allocation_policy
+#define major_gc_counter ctx->major_gc_counter
 #endif
 
 #ifdef CAML_CONTEXT_MINOR_GC
@@ -748,6 +755,7 @@ extern library_context *caml_get_library_context_r(
 #define caml_weak_ref_table   ctx->caml_weak_ref_table
 #define caml_in_minor_collection   ctx->caml_in_minor_collection
 #define oldify_todo_list         ctx->oldify_todo_list
+#define minor_gc_counter ctx->minor_gc_counter
 #endif
 
 #ifdef CAML_CONTEXT_MEMORY
@@ -1038,9 +1046,13 @@ void* caml_context_local_c_variable_r(CAML_R, caml_c_global_id id);
    from the camlMODULE_entry routine. */
 void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer);
 
-/* Acquire or release a global mutex: */
+/* Acquire or release the global mutex: */
 void caml_acquire_global_lock(void);
 void caml_release_global_lock(void);
+
+/* Acquire or release the channel mutex: */
+void caml_acquire_channel_lock(void);
+void caml_release_channel_lock(void);
 
 /* Acquire or release a per-context mutex: */
 void caml_acquire_contextual_lock(CAML_R);
@@ -1065,8 +1077,13 @@ void caml_finalize_semaphore(sem_t *semaphore);
 #define BLUE          NOATTR "\033[34m"
 #define LIGHTPURPLE   NOATTR "\033[1m\033[35m"
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#define flockfile(Q) /* nothing */
+#define funlockfile(Q) /* nothing */
+
 #define DUMP(FORMAT, ...) \
   do{ \
+    flockfile(stderr); \
     fprintf(stderr, \
             "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
@@ -1075,16 +1092,19 @@ void caml_finalize_semaphore(sem_t *semaphore);
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
+    funlockfile(stderr); \
   } while(0)
 
 #define QDUMP(FORMAT, ...) \
   do{ \
+    flockfile(stderr); \
     fprintf(stderr, \
             "%s:%i(" RED "%s" NOATTR ") T%p: ", \
             __FILE__, __LINE__, __FUNCTION__, (void*)pthread_self()); \
     fprintf(stderr, GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
+    funlockfile(stderr); \
   } while(0)
 
 extern __thread int caml_indentation_level;
@@ -1094,6 +1114,7 @@ extern __thread int caml_indentation_level;
 
 #define QB(FORMAT, ...) \
   do{ \
+    flockfile(stderr); \
     caml_indentation_level ++; \
     INDENT; \
     fprintf(stderr, \
@@ -1102,9 +1123,11 @@ extern __thread int caml_indentation_level;
     fprintf(stderr, PURPLE "BEGIN " FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
+    funlockfile(stderr); \
   } while(0)
 #define QR(FORMAT, ...) \
   do{ \
+    flockfile(stderr); \
     INDENT; \
     fprintf(stderr, \
             PURPLE "%s:%i(" LIGHTPURPLE "%s" NOATTR ") T%p: ", \
@@ -1113,9 +1136,11 @@ extern __thread int caml_indentation_level;
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
     caml_indentation_level --; \
+    funlockfile(stderr); \
   } while(0)
 #define QBR(FORMAT, ...) \
   do{ \
+    flockfile(stderr); \
     INDENT; \
     fprintf(stderr, \
             PURPLE "%s:%i(" LIGHTPURPLE "%s" NOATTR ") T%p: ", \
@@ -1123,6 +1148,7 @@ extern __thread int caml_indentation_level;
     fprintf(stderr, PURPLE "BEGIN-AND-RETURN " FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \
+    funlockfile(stderr); \
   } while(0)
 
 /* #undef DUMP */

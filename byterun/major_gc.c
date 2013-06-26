@@ -35,10 +35,9 @@
 #include "roots.h"
 #include "weak.h"
 
-#ifdef DEBUG
-static unsigned long major_gc_counter = 0;
-#endif
-
+/* #ifdef DEBUG */
+/* static unsigned long major_gc_counter = 0; */
+/* #endif */
 
 
 static void realloc_gray_vals_r (CAML_R)

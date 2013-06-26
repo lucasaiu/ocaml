@@ -63,7 +63,9 @@ extern char caml_globals_map[];
 #endif
 
 /* The global lock: */
-static pthread_mutex_t caml_global_mutex = (pthread_mutex_t)(long)0xdeaddeaddeaddead;
+static pthread_mutex_t caml_global_mutex;
+static pthread_mutex_t caml_channel_mutex __attribute__((unused));
+static int caml_are_global_mutexes_initialized = 0; // FIXME: will this be needed in the end?
 
 void caml_initialize_mutex(pthread_mutex_t *mutex){
   pthread_mutexattr_t attributes;
@@ -161,6 +163,9 @@ section.  */
   ctx->caml_gc_subphase;
   ctx->weak_prev;
   */
+#ifdef DEBUG
+  ctx->major_gc_counter = 0;
+#endif
 
   /* from freelist.c */
   ctx->sentinel.filler1 = 0;
@@ -203,6 +208,9 @@ section.  */
   ctx->caml_weak_ref_table.reserve = 0;
   ctx->caml_in_minor_collection = 0;
   ctx->oldify_todo_list = 0;
+#ifdef DEBUG
+  ctx->minor_gc_counter = 0;
+#endif
 
 #if 0
   /* from memory.h */
@@ -672,7 +680,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* Compute the size in words, which is to say how many globals are there: */
   int size_in_words = size_in_bytes / sizeof(void*);
   /* We keep the module name right after the offset pointer, as a read-only string: */
-  char *module_name = (char*)offset_pointer + sizeof(long);
+  char *module_name __attribute__((unused)) = (char*)offset_pointer + sizeof(long);
   DUMP("module_name is %s (%li bytes); offset_pointer is at %p", module_name, (long)size_in_bytes, offset_pointer);
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
   //fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n", ctx, module_name, offset_pointer, (unsigned long)size_in_bytes, offset_pointer); fflush(stderr);
@@ -794,50 +802,95 @@ void caml_context_initialize_global_stuff(void){
 
   /* Create the global lock: */
   caml_initialize_mutex(&caml_global_mutex);
+  caml_are_global_mutexes_initialized = 1;
 }
+
+
+/* This is a thin wrapper over pthread_mutex_lock and pthread_mutex_unlock: */
+static void caml_call_on_global_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
+  INIT_CAML_R;
+  if(! caml_are_global_mutexes_initialized){
+    /* INIT_CAML_R; */ DUMP("global mutexes aren't initialized yet.  Bailing out");
+    exit(EXIT_FAILURE);
+  }
+  int result __attribute__((unused));
+  result = function(mutex);
+  if(result){
+    DUMP("the function %p failed on the mutex %p", function, mutex);
+    exit(EXIT_FAILURE);
+  }
+  //Assert(result == 0);
+}
+
+/* void caml_acquire_global_lock(void){ */
+/*   INIT_CAML_R; */
+/*   if(! caml_are_global_mutexes_initialized){ */
+/*     /\* INIT_CAML_R; *\/ DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ caml_global_mutex is not yet initialized"); */
+/*     return; */
+/*   } */
+
+/*   /\* FIXME: is this needed?  I wanna play it safe --Luca Saiu REENTRANTRUNTIME *\/ */
+/*   //int old_value = caml_global_mutex.__data.__count; */
+/*   //int old_owner = caml_global_mutex.__data.__owner; */
+/*   int result __attribute__((unused)); */
+/*   //DUMP("lock"); */
+/*   result = pthread_mutex_lock(&caml_global_mutex); */
+/*   /////BEGIN */
+/*   if(result){ */
+/*     DUMP("thread_mutex_lock failed"); */
+/*     exit(EXIT_FAILURE); */
+/*   } */
+/*   //fprintf(stderr, "+[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr); */
+/*   /////END */
+/*   Assert(result == 0); */
+/* } */
+
+/* void caml_release_global_lock(void){ */
+/*   if(! caml_are_global_mutexes_initialized){ */
+/*     INIT_CAML_R; DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ caml_global_mutex is not yet initialized"); */
+/*     return; */
+/*   } */
+
+/*   //int old_value = caml_global_mutex.__data.__count; */
+/*   //int old_owner = caml_global_mutex.__data.__owner; */
+/*   INIT_CAML_R; */
+/*   int result __attribute__((unused)) = pthread_mutex_unlock(&caml_global_mutex); */
+/*   //DUMP("unlock"); */
+/*   Assert(result == 0); */
+/*   /////BEGIN */
+/*   if(result){ */
+/*     DUMP("pthread_mutex_unlock failed"); */
+/*     //volatile int a = 1; a /= 0; */
+/*     exit(EXIT_FAILURE); */
+/*   } */
+/*   //fprintf(stderr, "-[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr); */
+/*   /////END */
+/* } */
 
 
 void caml_acquire_global_lock(void){
-  /* FIXME: is this needed?  I wanna play it safe --Luca Saiu REENTRANTRUNTIME */
-  //int old_value = caml_global_mutex.__data.__count;
-  //int old_owner = caml_global_mutex.__data.__owner;
-  int result __attribute__((unused));
-  INIT_CAML_R;
-  //DUMP("lock");
-  result = pthread_mutex_lock(&caml_global_mutex);
-  /////BEGIN
-  if(result){
-    DUMP("thread_mutex_lock failed");
-    exit(EXIT_FAILURE);
-  }
-  //fprintf(stderr, "+[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
-  /////END
-  Assert(result == 0);
+  caml_call_on_global_mutex(pthread_mutex_lock, &caml_global_mutex);
 }
 void caml_release_global_lock(void){
-  //int old_value = caml_global_mutex.__data.__count;
-  //int old_owner = caml_global_mutex.__data.__owner;
-  INIT_CAML_R;
-  int result __attribute__((unused)) = pthread_mutex_unlock(&caml_global_mutex);
-  //DUMP("unlock");
-  Assert(result == 0);
-  /////BEGIN
-  if(result){
-    DUMP("pthread_mutex_unlock failed");
-    //volatile int a = 1; a /= 0;
-    exit(EXIT_FAILURE);
-  }
-  //fprintf(stderr, "-[context %p] {%u %p->%u %p | %p}\n", ctx, old_value, (void*)(long)old_owner, caml_global_mutex.__data.__count, (void*)(long)caml_global_mutex.__data.__owner, (void*)(pthread_self())); fflush(stderr);
-  /////END
+  caml_call_on_global_mutex(pthread_mutex_unlock, &caml_global_mutex);
+}
+
+void caml_acquire_channel_lock(void){
+  caml_call_on_global_mutex(pthread_mutex_lock, &caml_channel_mutex);
+}
+void caml_release_channel_lock(void){
+  caml_call_on_global_mutex(pthread_mutex_unlock, &caml_channel_mutex);
 }
 
 void caml_acquire_contextual_lock(CAML_R){
-  int result = pthread_mutex_lock(&ctx->mutex);
-  assert(result == 0);
+  caml_call_on_global_mutex(pthread_mutex_lock, &ctx->mutex);
+  //int result = pthread_mutex_lock(&ctx->mutex);
+  //assert(result == 0);
 }
 void caml_release_contextual_lock(CAML_R){
-  int result = pthread_mutex_unlock(&ctx->mutex);
-  assert(result == 0);
+  caml_call_on_global_mutex(pthread_mutex_unlock, &ctx->mutex);
+  //int result = pthread_mutex_unlock(&ctx->mutex);
+  //assert(result == 0);
 }
 
 

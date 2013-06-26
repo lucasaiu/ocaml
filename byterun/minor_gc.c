@@ -35,9 +35,9 @@
 #include "signals.h"
 #include "weak.h"
 
-#ifdef DEBUG
-static unsigned long minor_gc_counter = 0;
-#endif
+/* #ifdef DEBUG */
+/* static unsigned long minor_gc_counter = 0; */
+/* #endif */
 
 void caml_alloc_table_r (CAML_R,
 			 struct caml_minor_ref_table *tbl, asize_t sz, asize_t rsv)

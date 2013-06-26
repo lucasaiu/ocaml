@@ -295,6 +295,7 @@ static void caml_install_globals_and_data_as_c_byte_array_r(CAML_R, char *blob, 
 /*   int reference_count; */
 /* }; /\* struct *\/ */
 
+static char* caml_serialize_context(CAML_R, value function) __attribute__((unused)); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 static char* caml_serialize_context(CAML_R, value function)
 {
   CAMLparam1(function);
@@ -417,8 +418,8 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
   if(did_we_fail){
     fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  FAILED.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
-    //volatile int a = 1; a /= 0; /*die horribly*/
     DUMP("the Caml code failed"); // !!!!!!!!!!!!!!!!!!!!!!!!!!! What shall we do in this case?
+    volatile int a = 1; a /= 0; /*die horribly*/
   }
   /* We're done.  But we can't destroy the context yet, until it's
      joined: the object must remain visibile to the OCaml code, and
@@ -444,6 +445,7 @@ static void* caml_deserialize_and_run_in_this_thread_as_thread_function(void *ar
 }
 
 /* Create threads, and wait until all of them have signaled that they're done with the blob: */
+static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **split_contexts, size_t how_many, sem_t *semaphore) __attribute__((unused)); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **split_contexts, size_t how_many, sem_t *semaphore)
 {
   //DUMP();
@@ -496,19 +498,8 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   CAMLparam1(function);
   CAMLlocal2(result, open_channels);
 
-  /* DUMP("running caml code in the new context (so to speak)"); */
-  /* int i; */
-  /* for(i = 0; i < Int_val(thread_no_as_value); i ++) */
-  /*   caml_callback_exn_r(ctx, function, Val_int(i)); */
-  /* DUMP("Done running caml code in the new context  (so to speak)"); */
-  /* CAMLreturn(Val_unit); */
-  /* if(0){ */
-  /* caml_serialize_context(ctx, function); */
-  /* caml_split_and_wait_r(NULL, NULL, NULL, 10, NULL); */
-  /* } */
   value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
   int can_split = caml_can_split_r(ctx);
-  //DUMP("************************** can_split is %i", can_split);
   if (! can_split)
     caml_raise_constant_r(ctx, *exception_closure);
 
@@ -519,10 +510,11 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   int i;
   caml_initialize_semaphore(&semaphore, 0);
 
+  /* CAMLparam0(); CAMLlocal1(open_channels); */
   /* Make sure that the currently-existing channels stay alive until
      after deserialization; we can't keep reference counts within the
      blob, so we pin all alive channels by keeping this list alive: */
-  open_channels = caml_ml_all_channels_list_r(ctx);
+  open_channels = caml_ml_all_channels_list_r(ctx); // !!!!!!!!!!!!!!!!!!!! This can occasionally cause crashes related to channel picounts.  I certainly messed up something in io.c. //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   /* Serialize the context in the main thread, then create threads,
      and in each one of them deserialize it back in parallel:  */
@@ -530,20 +522,13 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   caml_split_and_wait_r(ctx, blob, new_contexts, thread_no, &semaphore);
 
   /* Now we're done with the blob: */
-//  DUMP("child threads have finished with the blob: destroying it");
-  //memset(blob, 0xcc, 100000); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  //???????
   DUMP("destroying the blob");
   caml_stat_free(blob); // !!!!!!!!!!!!!!!!!!!!!!!!!!! This is needed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//  DUMP();
   DUMP("GC'ing after destroying the blob");
   caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@
   DUMP("finalizing the semaphore");
-  //  DUMP();
 
   caml_finalize_semaphore(&semaphore);
-//  DUMP();
-  /////
 
   /* Copy the contexts we got, and we're done with new_contexts as well: */
   DUMP("copying the new context (descriptors) into the Caml data structure result");
@@ -554,6 +539,7 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   caml_stat_free(new_contexts);
   DUMP("destroyed the malloced buffer of pointers new_contexts");
   CAMLreturn(result);
+  //CAMLreturn(Val_unit);
 }
 
 CAMLprim value caml_context_join_r(CAML_R, value context_as_value){

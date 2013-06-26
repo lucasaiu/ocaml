@@ -81,7 +81,6 @@ CAMLprim value caml_register_code_fragment_r(CAML_R, value prog, value len, valu
 
 CAMLprim value caml_realloc_global_r(CAML_R, value size)
 {
-  fprintf(stderr, "&&&&&&&&&&&&&&&&&&&&& caml_realloc_global_r [context %p]: resizing to %i\n", ctx, (int)Long_val(size)); fflush(stderr);
   mlsize_t requested_size, actual_size, i;
   value new_global_data;
 
@@ -99,7 +98,7 @@ CAMLprim value caml_realloc_global_r(CAML_R, value size)
     }
     caml_global_data = new_global_data;
   }
-  //printf("Globals are now %li\n", (long)requested_size);
+  DUMP("resized caml_global_data to %iB", (int)requested_size);
   return Val_unit;
 }
 

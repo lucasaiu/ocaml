@@ -1,5 +1,10 @@
-let mycc = "gcc-4.8";;
-let mycflags = "-Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -O0 -g";;
+(* # MYCC=gcc-4.8 *)
+let mycflags  = " -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -g -O1";;
+let mycc = "gcc-4.8 "^mycflags;;
+
+(* # CFLAGS += "^mycflags^" *)
+(* # MYCFLAGS += -g *)
+(* # MYCFLAGS += -O1 *)
 
 (* # This is very likely crap: *)
 (* #MYCFLAGS += -DDEBUG -D_DEBUG *)

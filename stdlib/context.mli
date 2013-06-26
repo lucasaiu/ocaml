@@ -37,7 +37,7 @@ val split_into_context_list : int -> (int -> unit) -> (t list)
 val split_into_context : (unit -> unit) -> t
 
 val send : mailbox -> 'a -> unit
-val receive : mailbox -> 'a (* raises ForeignMailbox if the mailbox is foreign *)
+val receive : mailbox -> 'a
 
 
 (* Wait until the context local to the given mailbox or mailboxes terminates: *)

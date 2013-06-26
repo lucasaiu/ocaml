@@ -149,6 +149,7 @@ static void st_masterlock_acquire(st_masterlock * m)
 {
   QB();
   INIT_CAML_R; //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
+  //DUMP("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
   assert(m == &caml_master_lock);
 //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p: beginning\n", ctx, (void*)pthread_self()); fflush(stderr);
   pthread_mutex_lock(&m->lock);
@@ -169,6 +170,7 @@ static void st_masterlock_release(st_masterlock * m)
 {
   QB();
   INIT_CAML_R; //fprintf(stderr, "Context %p: st_masterlock_release: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
+  //DUMP("__________________________________");
   assert(m == &caml_master_lock);
   pthread_mutex_lock(&m->lock);
   m->busy = 0;

@@ -416,7 +416,7 @@ static value caml_thread_new_descriptor_r(CAML_R, value clos)
     mu = caml_threadstatus_new_r(ctx);
     /* Create a descriptor for the new thread */
     descr = caml_alloc_small_r(ctx, 3, 0);
-    //caml_acquire_global_lock();
+    //caml_acquire_global_lock(); // no need to lock any longer: caml_thread_next_ident is now contextual
     Ident(descr) = Val_long(caml_thread_next_ident);
     caml_thread_next_ident++;
     //caml_release_global_lock();
@@ -673,6 +673,7 @@ caml_release_contextual_lock(ctx);
 }
 
 /* Return the number of threads associated to the given context: */
+static int caml_systhreads_get_thread_no_r(CAML_R) __attribute__((unused));
 static int caml_systhreads_get_thread_no_r(CAML_R){
   QB();
 caml_acquire_contextual_lock(ctx);
@@ -735,6 +736,8 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
     caml_thread_stop_r(ctx);
 #ifdef NATIVE_CODE
   }
+  else
+    DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ sigsetjmp(termination_buf.buf, 0) yielded 0.  What does this entail?"); // !!!!!!!!!!!!!!!!!!!!!!!
 #endif
   /* The thread now stops running */
   QR();

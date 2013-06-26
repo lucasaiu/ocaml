@@ -135,7 +135,8 @@ CAMLexport void caml_close_channel(struct channel *channel)
   close(channel->fd);
   Lock(channel);
   greater_than_zero = channel->refcount > 0;
-  DUMP("closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", channel, channel->fd, (int)channel->refcount);
+  if((channel->fd >= 0) && (channel->fd < 3))
+    DUMP("closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", channel, channel->fd, (int)channel->refcount);
   //channel->already_closed = 1;
   Unlock(channel);
   if (greater_than_zero)
@@ -475,11 +476,11 @@ CAMLexport void caml_finalize_channel(value vchan)
   INIT_CAML_R;
   Lock(chan);
   greater_than_zero = --chan->refcount > 0;
-  DUMP("finalizing the channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
+  QDUMP("finalizing the channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
   Unlock(chan);
   if (greater_than_zero)
     return;
-  DUMP("destroying the channel with struct channel* %p, fd %i", chan, chan->fd);
+  QDUMP("destroying the channel with struct channel* %p, fd %i", chan, chan->fd);
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(chan);
   unlink_channel(chan);
   caml_stat_free(chan);
@@ -537,7 +538,7 @@ static uintnat cross_context_deserialize_channel(void * dst){
   *((struct channel**)dst) = pointer;
   Lock(pointer);
   pointer->refcount ++;
-  DUMP("Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i", pointer, pointer->fd, pointer->refcount);
+  QDUMP("Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i", pointer, pointer->fd, pointer->refcount);
   Unlock(pointer);
 
   //fprintf(stderr, "Deserializing the channel at %p, fd %i: still alive at the end\n", pointer, pointer->fd); fflush(stderr);
@@ -563,7 +564,7 @@ CAMLexport value caml_alloc_channel_r(CAML_R, struct channel *chan)
   value res;
   Lock(chan);
   chan->refcount++;             /* prevent finalization during next alloc */
-  DUMP("allocating a channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
+  QDUMP("allocating a channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
   Unlock(chan);
 
   res = caml_alloc_custom(&caml_channel_operations, sizeof(struct channel *),
@@ -582,8 +583,6 @@ CAMLprim value caml_ml_open_descriptor_out_r(CAML_R, value fd)
   return caml_alloc_channel_r(ctx, caml_open_descriptor_out_r(ctx,Int_val(fd)));
 }
 
-#define Pair_tag 0
-
 static value caml_ml_channels_list_r (CAML_R, const int output_only)
 {
   CAMLparam0 ();
@@ -600,7 +599,7 @@ caml_acquire_global_lock();
     if ((channel->max == NULL) || ! output_only) {
       chan = caml_alloc_channel_r (ctx, channel);
       tail = res;
-      res = caml_alloc_small_r (ctx, 2, Pair_tag);
+      res = caml_alloc_small_r (ctx, 2, 0);
       Field (res, 0) = chan;
       Field (res, 1) = tail;
     }
@@ -635,7 +634,7 @@ CAMLprim value caml_ml_close_channel_r(CAML_R, value vchannel)
   struct channel * channel = Channel(vchannel);
   if (channel->fd != -1){
     fd = channel->fd;
-    DUMP("closing a channel with struct channel* %p, fd %i [now -1]: its refcount is %i", channel, channel->fd, channel->refcount);
+    QDUMP("closing a channel with struct channel* %p, fd %i [now -1]: its refcount is %i", channel, channel->fd, channel->refcount);
     channel->fd = -1;
     do_syscall = 1;
   }else{
