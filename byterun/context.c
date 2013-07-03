@@ -938,3 +938,10 @@ int caml_can_split_r(CAML_R){
 /* } */
 
 __thread int caml_indentation_level = 0; // FIXME: remove this crap after debugging !!!!!!!!!!!!!!!!
+
+// FIXME: remove this kludge
+
+int TRIVIAL_caml_systhreads_get_thread_no_r(CAML_R){
+  return 0;
+}
+int caml_systhreads_get_thread_no_r (CAML_R) __attribute__ ((weak, alias ("TRIVIAL_caml_systhreads_get_thread_no_r")));

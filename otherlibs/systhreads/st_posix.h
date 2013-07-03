@@ -135,9 +135,8 @@ static void st_masterlock_init(st_masterlock * m)
 {
   QB();
   INIT_CAML_R;
-  assert(m == &caml_master_lock);
-  DUMP("st_masterlock_init: initialized the masterlock at %p", m);
-  assert(m == &caml_master_lock);
+  Assert(m == &caml_master_lock);
+  DUMP("st_masterlock_init: initializing the masterlock at %p", m);
   pthread_mutex_init(&m->lock, NULL);
   pthread_cond_init(&m->is_free, NULL);
   m->busy = 1;
@@ -150,7 +149,7 @@ static void st_masterlock_acquire(st_masterlock * m)
   QB();
   INIT_CAML_R; //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
   //DUMP("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-  assert(m == &caml_master_lock);
+  Assert(m == &caml_master_lock);
 //fprintf(stderr, "Context %p: st_masterlock_acquire: thread %p: beginning\n", ctx, (void*)pthread_self()); fflush(stderr);
   pthread_mutex_lock(&m->lock);
   while (m->busy) {
@@ -171,7 +170,7 @@ static void st_masterlock_release(st_masterlock * m)
   QB();
   INIT_CAML_R; //fprintf(stderr, "Context %p: st_masterlock_release: thread %p\n", ctx, (void*)pthread_self()); fflush(stderr);
   //DUMP("__________________________________");
-  assert(m == &caml_master_lock);
+  Assert(m == &caml_master_lock);
   pthread_mutex_lock(&m->lock);
   m->busy = 0;
   pthread_mutex_unlock(&m->lock);
@@ -205,7 +204,7 @@ static int st_mutex_create(st_mutex * res)
 static int st_mutex_destroy(st_mutex m)
 {
   QB();
-   int rc;
+  int rc;
   rc = pthread_mutex_destroy(m);
   free(m);
   QR();
@@ -291,11 +290,11 @@ static int st_event_create(st_event * res)
   QB();
   int rc;
   st_event e = malloc(sizeof(struct st_event_struct));
-  if (e == NULL) {QR();return ENOMEM;}
+  if (e == NULL) { QR();return ENOMEM; }
   rc = pthread_mutex_init(&e->lock, NULL);
-  if (rc != 0) { free(e); QR();return rc; }
+  if (rc != 0) { free(e); QR(); return rc; }
   rc = pthread_cond_init(&e->triggered, NULL);
-  if (rc != 0) { pthread_mutex_destroy(&e->lock); free(e); QR();return rc; }
+  if (rc != 0) { pthread_mutex_destroy(&e->lock); free(e); QR(); return rc; }
   e->status = 0;
   *res = e;
   QR();
@@ -318,10 +317,10 @@ static int st_event_trigger(st_event e)
   QB();
   int rc;
   rc = pthread_mutex_lock(&e->lock);
-  if (rc != 0) {QR();return rc;}
+  if (rc != 0) {QR(); return rc;}
   e->status = 1;
   rc = pthread_mutex_unlock(&e->lock);
-  if (rc != 0) {QR();return rc;}
+  if (rc != 0) {QR(); return rc;}
   rc = pthread_cond_broadcast(&e->triggered);
   QR();
   return rc;
@@ -382,7 +381,7 @@ DUMP("this is the tick thread");
   while(1) {
     /* select() seems to be the most efficient way to suspend the
        thread for sub-second intervals */
-    timeout.tv_sec = 1;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
+    timeout.tv_sec = /*1*/0;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
     timeout.tv_usec = Thread_timeout * 1000;
 //DUMP("calling select");
     select(0, NULL, NULL, NULL, &timeout);
@@ -393,7 +392,7 @@ DUMP("this is the tick thread");
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
-    //DUMP("-- tick --");
+    DUMP("-- tick --");
     /* DUMP("before caml_record_signal_r"); */
     caml_record_signal_r(ctx, SIGPREEMPTION);
     /* DUMP("after caml_record_signal_r"); */
@@ -433,8 +432,6 @@ static value st_encode_sigset_r(CAML_R, sigset_t * set)
 {
   QB();
   value res = Val_int(0);
-  //CAMLparam0();
-  //CAMLlocal1(res);
   int i;
 
   Begin_root(res)
@@ -448,7 +445,6 @@ static value st_encode_sigset_r(CAML_R, sigset_t * set)
   End_roots();
   QR();
   return res;
-  //CAMLreturn(res);
 }
 
 static int sigmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };

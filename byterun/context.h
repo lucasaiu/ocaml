@@ -289,7 +289,7 @@ struct caml_global_context {
   char * caml_code_area_start;
   char * caml_code_area_end;
 
-/* These are termination hooks used by the systhreads library */
+  /* The termination hooks used by the systhreads library: */
   struct longjmp_buffer caml_termination_jmpbuf;
   void (*caml_termination_hook)(void);
 
@@ -1078,16 +1078,19 @@ void caml_finalize_semaphore(sem_t *semaphore);
 #define LIGHTPURPLE   NOATTR "\033[1m\033[35m"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#define flockfile(Q) /* nothing */
-#define funlockfile(Q) /* nothing */
+/* #define flockfile(Q) /\* nothing *\/ */
+/* #define funlockfile(Q) /\* nothing *\/ */
+
+int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
 
 #define DUMP(FORMAT, ...) \
   do{ \
     flockfile(stderr); \
     fprintf(stderr, \
-            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p" PURPLE" %i"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
-            (void*)pthread_self()); \
+            (void*)pthread_self(), \
+            (int)caml_systhreads_get_thread_no_r(ctx)); \
     fflush(stderr); \
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
