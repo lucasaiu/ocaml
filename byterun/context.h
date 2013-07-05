@@ -1083,11 +1083,52 @@ void caml_finalize_semaphore(sem_t *semaphore);
 
 int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
 
+
+#ifdef NATIVE_CODE
+#define DUMPROOTSNATIVE \
+  do{ \
+  DUMP("@@@ caml_bottom_of_stack:   %p", ctx->caml_bottom_of_stack); \
+  DUMP("@@@ caml_top_of_stack:      %p", ctx->caml_top_of_stack); \
+  }while(0)
+#else
+#define DUMPROOTSNATIVE \
+  do{}while(0)
+#endif // #ifdef NATIVE_CODE
+
+#define DUMPROOTS(FORMAT, ...) \
+  do{ \
+    flockfile(stderr); \
+    DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ " FORMAT, ##__VA_ARGS__); \
+    DUMPROOTSNATIVE; \
+    DUMP("@@@ caml_signal_handlers is %p", (void*)(long)ctx->caml_signal_handlers); \
+    if(ctx->caml_signal_handlers != 0x1) \
+      DUMP("@@@ Field(caml_signal_handlers, 26) is %p", (void*)(long)(Field(ctx->caml_signal_handlers, 26))); \
+    struct caml__roots_block *__p = ctx->caml_local_roots; \
+    int __i = 0; \
+    DUMP("@@@ Printing caml_local_roots:"); \
+    while(__p != NULL) { \
+      DUMP("@@@ depth %i.  caml_local_roots d: %p", __i, __p); \
+      __p = __p->next; \
+      __i ++; \
+    } \
+    DUMP("@@@ No more roots: they were %i", __i); \
+    funlockfile(stderr); \
+  }while(0)
+
+#define FDUMPROOTS(FORMAT, ...) \
+  do{ \
+    flockfile(stderr); \
+    DUMPROOTS(FORMAT, ##__VA_ARGS__); \
+    DUMP("@@@ caml__frame:            %p", caml__frame); \
+    funlockfile(stderr); \
+  }while(0)
+
+
 #define DUMP(FORMAT, ...) \
   do{ \
     flockfile(stderr); \
     fprintf(stderr, \
-            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p" PURPLE" %i"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p" PURPLE" %2i"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self(), \
             (int)caml_systhreads_get_thread_no_r(ctx)); \

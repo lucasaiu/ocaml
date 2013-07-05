@@ -2,10 +2,10 @@
 (* #MYCFLAGS = -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -g3 -Og -fstack-check *)
 
 (* #MYCFLAGS += -fstack-check *)
-let mycflags  = " -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -Wno-error=strict-aliasing -g3 -O2";;
+let mycflags  = " -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -fno-strict-aliasing -g3 -O2";;
 (* #MYCFLAGS = -Ofast *)
 
-(* #MYCFLAGS = -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -g3 -O1 *)
+(* #MYCFLAGS = -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable  -Wno-error=strict-aliasing -g3 -O1 *)
 let mycc = "gcc-4.8 "^mycflags;;
 
 (* # CFLAGS += "^mycflags^" *)

@@ -392,7 +392,7 @@ DUMP("this is the tick thread");
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
-    DUMP("-- tick --");
+//    DUMP("-- tick --");
     /* DUMP("before caml_record_signal_r"); */
     caml_record_signal_r(ctx, SIGPREEMPTION);
     /* DUMP("after caml_record_signal_r"); */

@@ -124,15 +124,18 @@ static void (*prev_scan_roots_hook) (scanning_action);
 
 /*static*/ int caml_systhreads_get_thread_no_r(CAML_R); // !!!!!!!!!!!!!!
 
+// NEW EXPERIMENTAL VERSION, IN WHICH IS SCAN FROM all_threads TO NULL
+// INSTEAD OF FROM curr_thread TO curr_thread
 static void caml_thread_scan_roots(scanning_action action)
 {
   QB();
   INIT_CAML_R;
   caml_thread_t th;
-  int how_many = 0; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  int how_many_threads_are_there __attribute__((unused)) = caml_systhreads_get_thread_no_r(ctx);
+  volatile int how_many_threads_we_ran = 0; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //caml_acquire_contextual_lock(ctx);
 //DUMP("curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!
-  th = curr_thread;
+  th = all_threads;
   do {
     (*action)(ctx, th->descr, &th->descr);
     (*action)(ctx, th->backtrace_last_exn, &th->backtrace_last_exn);
@@ -146,10 +149,11 @@ static void caml_thread_scan_roots(scanning_action action)
 #else
       caml_do_local_roots_r(ctx, action, th->sp, th->stack_high, th->local_roots);
 #endif
-      how_many ++; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      how_many_threads_we_ran ++; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     }
     th = th->next;
-  } while (th != curr_thread);
+  } while (th != all_threads);
+  Assert(how_many_threads_are_there == how_many_thread_we_ran);
   //DUMP("scanned local roots for %i threads (of %i)", how_many, caml_systhreads_get_thread_no_r(ctx)); // !!!!!!!!!!!!
   //DUMP("Is there a prev_scan_roots_hook? %s", prev_scan_roots_hook ? "yes": "no"); // !!!!!!!!!!!!
   /* Hook */
@@ -157,6 +161,40 @@ static void caml_thread_scan_roots(scanning_action action)
 //caml_release_contextual_lock(ctx);
   QR();
 }
+// THIS IS THE PREVIOUS VERSION 2013-07-03 !!!!!!!!!!!!!!
+/* static void caml_thread_scan_roots(scanning_action action) */
+/* { */
+/*   QB(); */
+/*   INIT_CAML_R; */
+/*   caml_thread_t th; */
+/*   int how_many = 0; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/* //caml_acquire_contextual_lock(ctx); */
+/* //DUMP("curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!! */
+/*   th = curr_thread; */
+/*   do { */
+/*     (*action)(ctx, th->descr, &th->descr); */
+/*     (*action)(ctx, th->backtrace_last_exn, &th->backtrace_last_exn); */
+/*     /\* Don't rescan the stack of the current thread, it was done already *\/ */
+/*     if (th != curr_thread) { */
+/* #ifdef NATIVE_CODE */
+/*       if (th->bottom_of_stack != NULL) */
+/*         caml_do_local_roots_r(ctx, action, th->bottom_of_stack, th->last_retaddr, */
+/*                               th->gc_regs, th->local_roots); */
+/*       //DUMP("%p->gc_regs is %p", th, th->gc_regs); // !!!!!!!!!!!!!!!! */
+/* #else */
+/*       caml_do_local_roots_r(ctx, action, th->sp, th->stack_high, th->local_roots); */
+/* #endif */
+/*       how_many ++; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*     } */
+/*     th = th->next; */
+/*   } while (th != curr_thread); */
+/*   //DUMP("scanned local roots for %i threads (of %i)", how_many, caml_systhreads_get_thread_no_r(ctx)); // !!!!!!!!!!!! */
+/*   //DUMP("Is there a prev_scan_roots_hook? %s", prev_scan_roots_hook ? "yes": "no"); // !!!!!!!!!!!! */
+/*   /\* Hook *\/ */
+/*   if (prev_scan_roots_hook != NULL) (*prev_scan_roots_hook)(action); */
+/* //caml_release_contextual_lock(ctx); */
+/*   QR(); */
+/* } */
 
 /* Hooks for enter_blocking_section and leave_blocking_section */
 
@@ -442,7 +480,7 @@ if(0){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   // Luca Saiu REENTRANTRUNTIME (after a similar change by Fabrice): BEGIN
   if(curr_thread == th){
     QDUMP("[before setting to NULL] curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!!
-    curr_thread = NULL;
+    curr_thread = NULL; // @@@@@@@@@@@@@@@@@@@@@@@@@@@
     QDUMP("[after setting to NULL]  curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!!
   }
   // Luca Saiu REENTRANTRUNTIME (after a similar change by Fabrice): END
@@ -623,11 +661,11 @@ static void caml_thread_stop_r(CAML_R)
   caml_threadstatus_terminate_r(ctx, Terminated(curr_thread->descr));
   /* Remove th from the doubly-linked list of threads and free its info block */
   caml_thread_remove_info(curr_thread);
-//if(0){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+if(0){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   QDUMP("[before setting to NULL] curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!!
-  curr_thread = NULL; // Fabrice Le Fessant REENTRANTRUNTIME
+  curr_thread = NULL; // Fabrice Le Fessant REENTRANTRUNTIME @@@@@@@@@@@@@@@@@
   QDUMP("[after setting to NULL]  curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!!
-//}
+}
   QDUMP("this context has %i threads", (int)caml_systhreads_get_thread_no_r(ctx));
   /* OS-specific cleanups */
   st_thread_cleanup();
@@ -660,6 +698,8 @@ caml_release_contextual_lock(ctx);
   return result;
 }
 
+CAMLprim value unix_select_r(CAML_R, value readfds, value writefds, value exceptfds, value timeout); // !!!!!!!!!!!!!!!!!
+
 /* Create a thread */
 
 static ST_THREAD_FUNCTION caml_thread_start(void * arg)
@@ -674,6 +714,23 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 #endif
   /* associate the context to this thread */
   caml_set_thread_local_context(ctx);
+
+/* DUMPROOTS("before sleeping"); */
+/*  double time_in_seconds = 0.25; */
+/*  struct timespec time = { 0, (long)(time_in_seconds * 1000000000) }; */
+/*  while(nanosleep(&time, &time) != 0) */
+/*    ; */
+/* DUMPROOTS("after sleeping"); */
+  // EXPERIMENTAL: begin
+  //st_tls_set(thread_descriptor_key, (void *) th); // I want to do this before switching
+  //caml_leave_blocking_section_r(ctx);
+  //caml_enter_blocking_section_r(ctx);
+  // EXPERIMENTAL: end
+
+//DUMPROOTS("before resetting caml_local_roots");
+// I think this is correct: why should threads ever share stack roots?  They could, but it would be definitely wasteful.
+//th->local_roots = caml_local_roots = NULL; // [this was *not* there] Luca Saiu REENTRANTRUNTIME  [To be carefully tested]!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//DUMPROOTS("after resetting caml_local_roots");
 
   /* Associate the thread descriptor with the thread */
   st_tls_set(thread_descriptor_key, (void *) th);
@@ -692,14 +749,13 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
     DUMP("this context has %i threads", (int)caml_systhreads_get_thread_no_r(ctx));
     DUMP("calling the caml code");
     //DUMP("stack is [%p, ~%p]", caml_bottom_of_stack, &tos);
+DUMPROOTS("before calling the caml code");
     caml_callback_exn_r(ctx, clos, Val_unit); // !!!!!!!!!!!!!!!!!!!!!!!!!!!! This is the right version
     //caml_callback_r(ctx, clos, Val_unit); // Just for testing: I want to see the exception !!!!!!!!!!!!!!!!!!!!!!!!
     QR("exiting the native-code thread");
     caml_thread_stop_r(ctx);
 #ifdef NATIVE_CODE
   }
-  else
-    DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ sigsetjmp(termination_buf.buf, 0) yielded 0.  What does this entail?"); // !!!!!!!!!!!!!!!!!!!!!!!
 #endif
   /* The thread now stops running */
   QR();
@@ -746,6 +802,21 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 /*   //CAMLreturnT(void*, 0); */
 /* } */
 
+void do_black_magic(CAML_R){
+  //unix_select_r(ctx, Val_int(0), Val_int(0), Val_int(0), caml_copy_double_r(ctx, 0.0));
+
+  /// Distilled from the body of unix_select_r: BEGIN
+  //struct timeval tv;
+  //tv.tv_sec = 0;
+  //tv.tv_usec = 0;
+  /* caml_enter_blocking_section_r(ctx) and caml_leave_blocking_section_r(ctx) was the only important part */
+  caml_enter_blocking_section_r(ctx);
+  //select(0, NULL, NULL, NULL, &tv);
+  caml_leave_blocking_section_r(ctx);
+  /// Distilled from the body of unix_select_r: END
+}
+
+
 CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
 {
   QB();
@@ -775,6 +846,8 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
   curr_thread->next->prev = th;
   curr_thread->next = th;
   DUMP("after updating the contextual thread list: threads are now %i", caml_systhreads_get_thread_no_r(ctx));
+
+  do_black_magic(ctx); // !!!!!!!!!!!!!!
 
   /* Create the new thread */
   err = st_thread_create_r(ctx, NULL, caml_thread_start, (void *) th, "ordinary");

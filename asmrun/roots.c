@@ -223,6 +223,7 @@ void caml_oldify_local_roots_r (CAML_R)
   }
   /* Local C roots */
   for (lr = caml_local_roots; lr != NULL; lr = lr->next) {
+    //DUMP("lr is %p", lr);
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);
@@ -349,6 +350,7 @@ void caml_do_local_roots_r(CAML_R, scanning_action f, char * bottom_of_stack,
   }
   /* Local C roots */
   for (lr = local_roots; lr != NULL; lr = lr->next) {
+    //DUMP("lr is %p", lr);
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);

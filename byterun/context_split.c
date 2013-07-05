@@ -365,14 +365,14 @@ static int caml_run_function_this_thread_r(CAML_R, value function, int index)
 /* Return 0 on success and non-zero on failure. */
 static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_context, char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
 {
+  /* Make a new empty context, and use it to deserialize the blob into. */
   CAML_R = caml_make_empty_context(); // ctx also becomes the thread-local context
-  /* DUMP("sleeping %i seconds", index); */
-  /* sleep(index); */
-  /* DUMP("slept %i seconds", index); */
-  /* Make a new empty context, and use it to deserialize the blob
-     into. */
+  DUMPROOTS("splitting: from new thread");
   CAMLparam0();
   CAMLlocal1(function);
+
+  FDUMPROOTS("splitting: from new thread after GC-protecting locals");
+
   int did_we_fail;
 
   caml_initialize_context_thread_support_r(ctx);
@@ -495,8 +495,10 @@ caml_leave_blocking_section_r(ctx);
 
 CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
 {
+  DUMPROOTS("splitting: before GC-protecting locals");
   CAMLparam1(function);
   CAMLlocal2(result, open_channels);
+  DUMPROOTS("splitting: after GC-protecting locals");
 
   value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
   int can_split = caml_can_split_r(ctx);
@@ -538,6 +540,7 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
     caml_initialize_r(ctx, &Field(result, i), caml_value_of_context_descriptor(new_contexts[i]->descriptor));
   caml_stat_free(new_contexts);
   DUMP("destroyed the malloced buffer of pointers new_contexts");
+  DUMPROOTS("from parent, after splitting");
   CAMLreturn(result);
   //CAMLreturn(Val_unit);
 }
