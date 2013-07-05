@@ -238,6 +238,7 @@ static void caml_thread_leave_blocking_section_hook_default(void)
   INIT_CAML_R;
   /* Wait until the runtime is free */
   st_masterlock_acquire(&caml_master_lock);
+  //DUMP("######### uuuu ACQUIRED");
   /* Update curr_thread to point to the thread descriptor corresponding
      to the thread currently executing */
   QDUMP("[before setting] curr_thread is %p", curr_thread); // !!!!!!!!!!!!!!!!!!
@@ -548,6 +549,9 @@ caml_release_channel_lock();
 
 static void caml_thread_initialize_for_current_context_r(CAML_R){
   QB();
+  /* Initialize and acquire the master lock */
+  st_masterlock_init(&caml_master_lock);
+
   /* The thing is already initialized if ctx->curr_thread is NULL: */
   if(curr_thread != NULL){
     DUMP("trying to initialize the thread support *twice* for the current context");
@@ -600,8 +604,6 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
 
   /* OS-specific initialization */
   st_initialize();
-  /* Initialize and acquire the master lock */
-  st_masterlock_init(&caml_master_lock);
   /* Initialize the keys */
   st_tls_newkey(&thread_descriptor_key);
   st_tls_newkey(&last_channel_locked_key);
@@ -802,21 +804,6 @@ DUMPROOTS("before calling the caml code");
 /*   //CAMLreturnT(void*, 0); */
 /* } */
 
-void do_black_magic(CAML_R){
-  //unix_select_r(ctx, Val_int(0), Val_int(0), Val_int(0), caml_copy_double_r(ctx, 0.0));
-
-  /// Distilled from the body of unix_select_r: BEGIN
-  //struct timeval tv;
-  //tv.tv_sec = 0;
-  //tv.tv_usec = 0;
-  /* caml_enter_blocking_section_r(ctx) and caml_leave_blocking_section_r(ctx) was the only important part */
-  caml_enter_blocking_section_r(ctx);
-  //select(0, NULL, NULL, NULL, &tv);
-  caml_leave_blocking_section_r(ctx);
-  /// Distilled from the body of unix_select_r: END
-}
-
-
 CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
 {
   QB();
@@ -847,7 +834,7 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
   curr_thread->next = th;
   DUMP("after updating the contextual thread list: threads are now %i", caml_systhreads_get_thread_no_r(ctx));
 
-  do_black_magic(ctx); // !!!!!!!!!!!!!!
+  //do_black_magic(ctx); // !!!!!!!!!!!!!!
 
   /* Create the new thread */
   err = st_thread_create_r(ctx, NULL, caml_thread_start, (void *) th, "ordinary");
@@ -897,6 +884,7 @@ caml_release_contextual_lock(ctx);
   /* Take master lock to protect access to the chaining of threads */
 caml_acquire_contextual_lock(ctx);
   st_masterlock_acquire(&caml_master_lock);
+  //DUMP("######### uuuu ACQUIRED");
   /* Add thread info block to the list of threads */
   if (all_threads == NULL) {
     th->next = th;
@@ -940,6 +928,7 @@ CAMLexport int caml_c_thread_unregister_r(CAML_R)
   if (th == NULL) {QR(); return 0;}
   /* Wait until the runtime is available */
   st_masterlock_acquire(&caml_master_lock);
+  //DUMP("######### uuuu ACQUIRED");
   /* Forget the thread descriptor */
   st_tls_set(thread_descriptor_key, NULL);
   /* Remove thread info block from list of threads, and free it */
