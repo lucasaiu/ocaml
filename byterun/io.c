@@ -50,21 +50,21 @@
 
 /* Hooks for locking channels */
 
-/// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME
-static void caml_my_lock_channel(struct channel *currently_unused){
-  //fprintf(stderr, "io.c: [+] Locking %p\n", currently_unused);
-  caml_acquire_global_lock();
-}
-static void caml_my_unlock_channel(struct channel *currently_unused){
-  //fprintf(stderr, "io.c: [-] UNlocking %p\n", currently_unused);
-  caml_release_global_lock();
-}
-/// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME
+/* /// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME */
+/* static void caml_my_lock_channel(struct channel *currently_unused){ */
+/*   //fprintf(stderr, "io.c: [+] Locking %p\n", currently_unused); */
+/*   caml_acquire_global_lock(); */
+/* } */
+/* static void caml_my_unlock_channel(struct channel *currently_unused){ */
+/*   //fprintf(stderr, "io.c: [-] UNlocking %p\n", currently_unused); */
+/*   caml_release_global_lock(); */
+/* } */
+/* /// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME */
 
 
 CAMLexport void (*caml_channel_mutex_free) (struct channel *) = NULL;
-CAMLexport void (*caml_channel_mutex_lock) (struct channel *) = caml_my_lock_channel;//NULL;
-CAMLexport void (*caml_channel_mutex_unlock) (struct channel *) = caml_my_unlock_channel;//NULL;
+CAMLexport void (*caml_channel_mutex_lock) (struct channel *) = NULL;//caml_my_lock_channel;//NULL;
+CAMLexport void (*caml_channel_mutex_unlock) (struct channel *) = NULL;//caml_my_unlock_channel;//NULL;
 CAMLexport void (*caml_channel_mutex_unlock_exn) (void) = NULL;
 
 /* List of opened channels.  Access to this global structure has to be
@@ -130,19 +130,20 @@ caml_release_global_lock();
 
 CAMLexport void caml_close_channel(struct channel *channel)
 {
+  int old_fd = (int)channel->fd; // FIXME: remove!!!!!!!
   INIT_CAML_R;
   int greater_than_zero;
   close(channel->fd);
   Lock(channel);
   greater_than_zero = channel->refcount > 0;
-  if((channel->fd >= 0) && (channel->fd < 3))
-    DUMP("closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", channel, channel->fd, (int)channel->refcount);
+  if((channel->fd >= 0) && (channel->fd < 3))DUMP("closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", channel, channel->fd, (int)channel->refcount);
   //channel->already_closed = 1;
   Unlock(channel);
   if (greater_than_zero)
     return;
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(channel);
   unlink_channel(channel);
+  DUMP("Freeing the channel structure at %p (fd %i, refcount %i)", channel, old_fd, (int)channel->refcount);
   caml_stat_free(channel);
 }
 
@@ -475,12 +476,16 @@ CAMLexport void caml_finalize_channel(value vchan)
   int greater_than_zero;
   INIT_CAML_R;
   Lock(chan);
-  greater_than_zero = --chan->refcount > 0;
-  QDUMP("finalizing the channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
+  int old_refcount = chan->refcount, new_refcount = old_refcount - 1; // !!!!!!!!!!!!!!!!!!!!
+  //DUMP("SHOULD unpin the channel with struct channel* %p, fd %i, refcount %i->%i", chan, chan->fd, old_refcount, new_refcount);
+  greater_than_zero = --chan->refcount > 0; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   Unlock(chan);
+  //return; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  DUMP("unpinning the channel with struct channel* %p, fd %i, refcount %i->%i", chan, chan->fd, old_refcount, new_refcount);
   if (greater_than_zero)
     return;
-  QDUMP("destroying the channel with struct channel* %p, fd %i", chan, chan->fd);
+  ///*if(chan->fd == 2)*/{ DUMP("SHOULD destroy the channel with struct channel* %p, fd %i, refcount %i", chan, chan->fd, new_refcount); return; }// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! JUST A TEST, OF COURSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  DUMP("destroying the channel with struct channel* %p, fd %i", chan, chan->fd);
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(chan);
   unlink_channel(chan);
   caml_stat_free(chan);
@@ -537,7 +542,7 @@ static uintnat cross_context_deserialize_channel(void * dst){
      word, and pin it: */
   *((struct channel**)dst) = pointer;
   Lock(pointer);
-  pointer->refcount ++;
+  pointer->refcount ++; // FIXME: is this needed? !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   QDUMP("Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i", pointer, pointer->fd, pointer->refcount);
   Unlock(pointer);
 

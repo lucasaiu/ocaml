@@ -1,12 +1,13 @@
-(* #MYCC=gcc-4.8 *)
 (* #MYCFLAGS = -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -g3 -Og -fstack-check *)
-
+let mydebugflags  = " -g3";;
 (* #MYCFLAGS += -fstack-check *)
-let mycflags  = " -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -fno-strict-aliasing -g3 -O2";;
+(* #MYCFLAGS = -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -fno-strict-aliasing -g3 -O2 *)
+let mycflags  = " -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable -fno-strict-aliasing "^mydebugflags^" -O1";;
 (* #MYCFLAGS = -Ofast *)
 
 (* #MYCFLAGS = -Wall -Wno-unused-value -Wno-div-by-zero -Werror -Wno-error=unused-but-set-variable  -Wno-error=strict-aliasing -g3 -O1 *)
-let mycc = "gcc-4.8 "^mycflags;;
+(* #MYCC=gcc-4.8 "^mycflags^" *)
+let mycc = "gcc "^mycflags;;
 
 (* # CFLAGS += "^mycflags^" *)
 (* # MYCFLAGS += -g *)
@@ -86,7 +87,7 @@ let toolchain = mycc^" "^mycflags;;
 let natdynlink = true;;
 let cmxs = "cmxs";;
 let mkexe = bytecc;;
-let mkexedebugflag = "-g";;
+let mkexedebugflag = mydebugflags;;
 let mkdll = mycc^" "^mycflags^" -shared";;
 let mkmaindll = mycc^" "^mycflags^" -shared";;
 let runtimed = "runtimed";;

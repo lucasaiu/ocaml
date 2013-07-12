@@ -376,7 +376,6 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   int did_we_fail;
 
   caml_initialize_context_thread_support_r(ctx);
-  // !!!!!! NEW STUFF ADDED: BEGIN !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ctx->caml_start_code = parent_context->caml_start_code;
   ctx->caml_code_size = parent_context->caml_code_size;
   ctx->caml_saved_code = parent_context->caml_saved_code;
@@ -412,12 +411,10 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   ctx->caml_exe_name = parent_context->caml_exe_name;
   ctx->caml_main_argv = parent_context->caml_main_argv;
   DUMP();
-  // !!!!!! NEW STUFF ADDED: END !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   /* Now do the actual work, in a function which correctly GC-protects its locals: */
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
   if(did_we_fail){
-    fprintf(stderr, "caml_deserialize_and_run_in_this_thread [context %p] [thread %p] (index %i).  FAILED.\n", ctx, (void*)(pthread_self()), index); fflush(stderr);
     DUMP("the Caml code failed"); // !!!!!!!!!!!!!!!!!!!!!!!!!!! What shall we do in this case?
     volatile int a = 1; a /= 0; /*die horribly*/
   }
@@ -493,11 +490,63 @@ caml_leave_blocking_section_r(ctx);
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
 
+/* C____AMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function) */
+/* { */
+/*   CAMLparam1(function); */
+/*   CAMLlocal4(result, chan, tail, res); */
+/*   int thread_no = Int_val(thread_no_as_value); */
+
+/*   ///// */
+/* { */
+/*   struct channel * channel; */
+
+/*   res = Val_emptylist; */
+/* caml_acquire_global_lock(); */
+/*  int ii = 0, channel_index; */
+/* #define ROUND_NO 1//10000 */
+/*  for(ii = 0; ii < ROUND_NO; ii ++){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*   for (channel_index = 0, channel = caml_all_opened_channels; */
+/*        channel != NULL; */
+/*        channel = channel->next, channel_index ++) */
+/*     /\* Testing channel->fd >= 0 looks unnecessary, as */
+/*        caml_ml_close_channel changes max when setting fd to -1. *\/ */
+/*     { */
+/*       int old_refcount = channel->refcount; */
+/*       // !!!!!!!!!!!!! BEGIN */
+/*       /\* chan = *\/ caml_alloc_channel_r (ctx, channel); */
+/*       // !!!!!!!!!!!!! END */
+
+/*       DUMP("round %i, channel %p, fd %i, refcount %i->%i", ii, channel, (int)channel->fd, old_refcount, (int)channel->refcount); */
+
+/*       //chan = Val_unit;//caml_alloc_channel_r (ctx, channel); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*       //tail = res; */
+/*       /\* res = caml_alloc_small_r (ctx, 2, 0); *\/ */
+/*       /\* Field (res, 0) = chan; *\/ */
+/*       /\* Field (res, 1) = tail; *\/ */
+/*     } */
+/*   DUMP("End of round %i: there are %i channels alive", ii, channel_index); */
+/*  } */
+/* caml_release_global_lock(); */
+/* //sleep(2); */
+/*   //open_channels = Val_unit/\* res *\/; */
+/* //open_channels = res; */
+/* } */
+/*   /\* DUMP("Before GC'ing"); *\/ */
+/*   /\* caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@ *\/ */
+/*   /\* DUMP("After GC'ing"); *\/ */
+
+
+/*   ///// */
+/*   result = caml_alloc_r(ctx, thread_no, 0); */
+/*   CAMLreturn(result); */
+/* } */
+
 CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
 {
   DUMPROOTS("splitting: before GC-protecting locals");
   CAMLparam1(function);
-  CAMLlocal2(result, open_channels);
+  //CAMLlocal2(result, open_channels);
+  CAMLlocal5(result, open_channels, res, tail, chan);
   DUMPROOTS("splitting: after GC-protecting locals");
 
   value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
@@ -516,12 +565,68 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   /* Make sure that the currently-existing channels stay alive until
      after deserialization; we can't keep reference counts within the
      blob, so we pin all alive channels by keeping this list alive: */
-  open_channels = caml_ml_all_channels_list_r(ctx); // !!!!!!!!!!!!!!!!!!!! This can occasionally cause crashes related to channel picounts.  I certainly messed up something in io.c. //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//if(0){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  struct channel *channel;
+  struct channel **channels;
+  int channel_no = 0;
+  caml_acquire_global_lock();
+  for (channel = caml_all_opened_channels;
+       channel != NULL;
+       channel = channel->next)
+    channel_no ++;
+  channels = caml_stat_alloc(sizeof(struct channel*) * channel_no);
+  for (i = 0, channel = caml_all_opened_channels;
+       channel != NULL;
+       i ++, channel = channel->next){
+    channels[i] = channel;
+    DUMP("split-pinning channel %p, with fd %i, refcount %i->%i", channel, (int)channel->fd, channel->refcount, channel->refcount + 1);
+    channel->refcount ++;
+  }
+  caml_release_global_lock();
+
+  //open_channels = caml_ml_all_channels_list_r(ctx); // !!!!!!!!!!!!!!!!!!!! This can occasionally cause crashes related to channel picounts.  I certainly messed up something in io.c. //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//}//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/* //EXPERIMENTAL: BEGIN */
+/* { */
+/*   struct channel * channel; */
+
+/*   res = Val_emptylist; */
+/* caml_acquire_global_lock(); */
+/*  int ii, channel_index; */
+/*  for(ii = 0; ii < 100; ii ++){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*   for (channel_index = 0, channel = caml_all_opened_channels; */
+/*        channel != NULL; */
+/*        channel = channel->next, channel_index ++) */
+/*     /\* Testing channel->fd >= 0 looks unnecessary, as */
+/*        caml_ml_close_channel changes max when setting fd to -1. *\/ */
+/*     { */
+/*       DUMP("round %i, channel_index %i", ii, channel_index); */
+/*       // !!!!!!!!!!!!! BEGIN */
+/*       /\* chan = *\/ caml_alloc_channel_r (ctx, channel); */
+/*       // !!!!!!!!!!!!! END */
+/*       chan = Val_unit;//caml_alloc_channel_r (ctx, channel); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*       tail = res; */
+/*       res = caml_alloc_small_r (ctx, 2, 0); */
+/*       Field (res, 0) = chan; */
+/*       Field (res, 1) = tail; */
+/*     } */
+/*   DUMP("End of round %i: there are %i channels alive", ii, channel_index); */
+/*   DUMP("Before GC'ing"); */
+/*   caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@ */
+/*   DUMP("After GC'ing"); */
+/*  } */
+/* caml_release_global_lock(); */
+/*   //open_channels = Val_unit/\* res *\/; */
+/*   open_channels = res; */
+/* } */
+/* //EXPERIMENTAL: END */
 
   /* Serialize the context in the main thread, then create threads,
      and in each one of them deserialize it back in parallel:  */
   blob = caml_serialize_context(ctx, function);
+  //if(0){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   caml_split_and_wait_r(ctx, blob, new_contexts, thread_no, &semaphore);
+  //}//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   /* Now we're done with the blob: */
   DUMP("destroying the blob");
@@ -541,6 +646,14 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   caml_stat_free(new_contexts);
   DUMP("destroyed the malloced buffer of pointers new_contexts");
   DUMPROOTS("from parent, after splitting");
+
+  caml_acquire_global_lock();
+  for (i = 0; i < channel_no; i ++){
+    DUMP("split-unpinning channels[i] %p, with fd %i, refcount %i->%i", channels[i], (int)channels[i]->fd, channels[i]->refcount, channels[i]->refcount - 1);
+    channels[i]->refcount --;
+  }
+  caml_release_global_lock();
+
   CAMLreturn(result);
   //CAMLreturn(Val_unit);
 }
