@@ -802,6 +802,7 @@ void caml_context_initialize_global_stuff(void){
 
   /* Create the global lock: */
   caml_initialize_mutex(&caml_global_mutex);
+  caml_initialize_mutex(&caml_channel_mutex);
   caml_are_global_mutexes_initialized = 1;
 }
 
@@ -810,13 +811,13 @@ void caml_context_initialize_global_stuff(void){
 static void caml_call_on_global_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
   INIT_CAML_R;
   if(! caml_are_global_mutexes_initialized){
-    /* INIT_CAML_R; */ DUMP("global mutexes aren't initialized yet.  Bailing out");
+    /* INIT_CAML_R; */ fprintf(stderr, "global mutexes aren't initialized yet.  Bailing out"); fflush(stderr);
     exit(EXIT_FAILURE);
   }
   int result __attribute__((unused));
   result = function(mutex);
   if(result){
-    DUMP("the function %p failed on the mutex %p", function, mutex);
+    fprintf(stderr, "the function %p failed on the mutex %p", function, mutex); fflush(stderr);
     exit(EXIT_FAILURE);
   }
   //Assert(result == 0);
