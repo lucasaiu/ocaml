@@ -565,24 +565,24 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   /* Make sure that the currently-existing channels stay alive until
      after deserialization; we can't keep reference counts within the
      blob, so we pin all alive channels by keeping this list alive: */
-//if(0){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  struct channel *channel;
-  struct channel **channels;
-  int channel_no = 0;
-  caml_acquire_global_lock();
-  for (channel = caml_all_opened_channels;
-       channel != NULL;
-       channel = channel->next)
-    channel_no ++;
-  channels = caml_stat_alloc(sizeof(struct channel*) * channel_no);
-  for (i = 0, channel = caml_all_opened_channels;
-       channel != NULL;
-       i ++, channel = channel->next){
-    channels[i] = channel;
-    DUMP("split-pinning channel %p, with fd %i, refcount %i->%i", channel, (int)channel->fd, channel->refcount, channel->refcount + 1);
-    channel->refcount ++;
-  }
-  caml_release_global_lock();
+/* //if(0){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/*   struct channel *channel; */
+/*   struct channel **channels; */
+/*   int channel_no = 0; */
+/*   caml_acquire_global_lock(); */
+/*   for (channel = caml_all_opened_channels; */
+/*        channel != NULL; */
+/*        channel = channel->next) */
+/*     channel_no ++; */
+/*   channels = caml_stat_alloc(sizeof(struct channel*) * channel_no); */
+/*   for (i = 0, channel = caml_all_opened_channels; */
+/*        channel != NULL; */
+/*        i ++, channel = channel->next){ */
+/*     channels[i] = channel; */
+/*     DUMP("split-pinning channel %p, with fd %i, refcount %i->%i", channel, (int)channel->fd, channel->refcount, channel->refcount + 1); */
+/*     channel->refcount ++; */
+/*   } */
+/*   caml_release_global_lock(); */
 
   //open_channels = caml_ml_all_channels_list_r(ctx); // !!!!!!!!!!!!!!!!!!!! This can occasionally cause crashes related to channel picounts.  I certainly messed up something in io.c. //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //}//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -647,12 +647,12 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
   DUMP("destroyed the malloced buffer of pointers new_contexts");
   DUMPROOTS("from parent, after splitting");
 
-  caml_acquire_global_lock();
-  for (i = 0; i < channel_no; i ++){
-    DUMP("split-unpinning channels[i] %p, with fd %i, refcount %i->%i", channels[i], (int)channels[i]->fd, channels[i]->refcount, channels[i]->refcount - 1);
-    channels[i]->refcount --;
-  }
-  caml_release_global_lock();
+  /* caml_acquire_global_lock(); */
+  /* for (i = 0; i < channel_no; i ++){ */
+  /*   DUMP("split-unpinning channels[i] %p, with fd %i, refcount %i->%i", channels[i], (int)channels[i]->fd, channels[i]->refcount, channels[i]->refcount - 1); */
+  /*   channels[i]->refcount --; */
+  /* } */
+  /* caml_release_global_lock(); */
 
   CAMLreturn(result);
   //CAMLreturn(Val_unit);

@@ -41,15 +41,15 @@ let _ = [Resumed_wakeup; Resumed_delay; Resumed_join;
          Resumed_io; Resumed_select ([], [], []);
          Resumed_wait (0, WEXITED 0)]
 
-external thread_initialize : unit -> unit = "thread_initialize"
-external thread_wait_read : file_descr -> unit = "thread_wait_read"
-external thread_wait_write : file_descr -> unit = "thread_wait_write"
+external thread_initialize : unit -> unit = "thread_initialize_r" "reentrant"
+external thread_wait_read : file_descr -> unit = "thread_wait_read_r" "reentrant"
+external thread_wait_write : file_descr -> unit = "thread_wait_write_r" "reentrant"
 external thread_select :
   file_descr list * file_descr list * file_descr list * float
        -> resumption_status
-  = "thread_select"
-external thread_wait_pid : int -> resumption_status = "thread_wait_pid"
-external thread_delay : float -> unit = "thread_delay"
+  = "thread_select_r" "reentrant"
+external thread_wait_pid : int -> resumption_status = "thread_wait_pid_r" "reentrant"
+external thread_delay : float -> unit = "thread_delay_r" "reentrant"
 
 let wait_read fd = thread_wait_read fd
 let wait_write fd = thread_wait_write fd
@@ -139,7 +139,7 @@ exception Unix_error of error * string * string
 let _ = Callback.register_exception "Unix.Unix_error"
                                     (Unix_error(E2BIG, "", ""))
 
-external error_message : error -> string = "unix_error_message"
+external error_message : error -> string = "unix_error_message_r" "reentrant"
 
 let handle_unix_error f arg =
   try
@@ -158,9 +158,9 @@ let handle_unix_error f arg =
     prerr_endline (error_message err);
     exit 2
 
-external environment : unit -> string array = "unix_environment"
-external getenv: string -> string = "caml_sys_getenv"
-external putenv: string -> string -> unit = "unix_putenv"
+external environment : unit -> string array = "unix_environment_r" "reentrant"
+external getenv: string -> string = "caml_sys_getenv_r" "reentrant"
+external putenv: string -> string -> unit = "unix_putenv_r" "reentrant"
 
 type interval_timer =
     ITIMER_REAL
@@ -171,10 +171,10 @@ type interval_timer_status =
   { it_interval: float;                 (* Period *)
     it_value: float }                   (* Current value of the timer *)
 
-external getitimer: interval_timer -> interval_timer_status = "unix_getitimer"
+external getitimer: interval_timer -> interval_timer_status = "unix_getitimer_r" "reentrant"
 external setitimer:
   interval_timer -> interval_timer_status -> interval_timer_status
-  = "unix_setitimer"
+  = "unix_setitimer_r" "reentrant"
 
 type wait_flag =
     WNOHANG
@@ -203,14 +203,14 @@ type file_perm = int
 
 
 external openfile : string -> open_flag list -> file_perm -> file_descr
-           = "unix_open"
+           = "unix_open_r" "reentrant"
 
-external close : file_descr -> unit = "unix_close"
-external unsafe_read : file_descr -> string -> int -> int -> int = "unix_read"
+external close : file_descr -> unit = "unix_close_r" "reentrant"
+external unsafe_read : file_descr -> string -> int -> int -> int = "unix_read_r" "reentrant"
 external unsafe_write : file_descr -> string -> int -> int -> int
-    = "unix_write"
+    = "unix_write_r" "reentrant"
 external unsafe_single_write : file_descr -> string -> int -> int -> int
-    = "unix_single_write"
+    = "unix_single_write_r" "reentrant"
 
 let rec read fd buf ofs len =
   try
@@ -239,20 +239,20 @@ let rec single_write fd buf ofs len =
 external in_channel_of_descr : file_descr -> in_channel
                              = "caml_ml_open_descriptor_in_r" "reentrant"
 external out_channel_of_descr : file_descr -> out_channel
-                              = "caml_ml_open_descriptor_out"
+                              = "caml_ml_open_descriptor_out_r" "reentrant"
 external descr_of_in_channel : in_channel -> file_descr
-                             = "caml_channel_descriptor"
+                             = "caml_channel_descriptor_r" "reentrant"
 external descr_of_out_channel : out_channel -> file_descr
-                              = "caml_channel_descriptor"
+                              = "caml_channel_descriptor_r" "reentrant"
 
 type seek_command =
     SEEK_SET
   | SEEK_CUR
   | SEEK_END
 
-external lseek : file_descr -> int -> seek_command -> int = "unix_lseek"
-external truncate : string -> int -> unit = "unix_truncate"
-external ftruncate : file_descr -> int -> unit = "unix_ftruncate"
+external lseek : file_descr -> int -> seek_command -> int = "unix_lseek_r" "reentrant"
+external truncate : string -> int -> unit = "unix_truncate_r" "reentrant"
+external ftruncate : file_descr -> int -> unit = "unix_ftruncate_r" "reentrant"
 
 type file_kind =
     S_REG
@@ -277,20 +277,20 @@ type stats =
     st_mtime : float;
     st_ctime : float }
 
-external stat : string -> stats = "unix_stat"
-external lstat : string -> stats = "unix_lstat"
-external fstat : file_descr -> stats = "unix_fstat"
-external isatty : file_descr -> bool = "unix_isatty"
-external unlink : string -> unit = "unix_unlink"
-external rename : string -> string -> unit = "unix_rename"
-external link : string -> string -> unit = "unix_link"
+external stat : string -> stats = "unix_stat_r" "reentrant"
+external lstat : string -> stats = "unix_lstat_r" "reentrant"
+external fstat : file_descr -> stats = "unix_fstat_r" "reentrant"
+external isatty : file_descr -> bool = "unix_isatty_r" "reentrant"
+external unlink : string -> unit = "unix_unlink_r" "reentrant"
+external rename : string -> string -> unit = "unix_rename_r" "reentrant"
+external link : string -> string -> unit = "unix_link_r" "reentrant"
 
 module LargeFile =
   struct
     external lseek : file_descr -> int64 -> seek_command -> int64
-                   = "unix_lseek_64"
-    external truncate : string -> int64 -> unit = "unix_truncate_64"
-    external ftruncate : file_descr -> int64 -> unit = "unix_ftruncate_64"
+                   = "unix_lseek_64_r" "reentrant"
+    external truncate : string -> int64 -> unit = "unix_truncate_64_r" "reentrant"
+    external ftruncate : file_descr -> int64 -> unit = "unix_ftruncate_64_r" "reentrant"
     type stats =
       { st_dev : int;
         st_ino : int;
@@ -305,9 +305,9 @@ module LargeFile =
         st_mtime : float;
         st_ctime : float;
       }
-    external stat : string -> stats = "unix_stat_64"
-    external lstat : string -> stats = "unix_lstat_64"
-    external fstat : file_descr -> stats = "unix_fstat_64"
+    external stat : string -> stats = "unix_stat_64_r" "reentrant"
+    external lstat : string -> stats = "unix_lstat_64_r" "reentrant"
+    external fstat : file_descr -> stats = "unix_fstat_64_r" "reentrant"
   end
 
 type access_permission =
@@ -316,34 +316,34 @@ type access_permission =
   | X_OK
   | F_OK
 
-external chmod : string -> file_perm -> unit = "unix_chmod"
-external fchmod : file_descr -> file_perm -> unit = "unix_fchmod"
-external chown : string -> int -> int -> unit = "unix_chown"
-external fchown : file_descr -> int -> int -> unit = "unix_fchown"
-external umask : int -> int = "unix_umask"
-external access : string -> access_permission list -> unit = "unix_access"
+external chmod : string -> file_perm -> unit = "unix_chmod_r" "reentrant"
+external fchmod : file_descr -> file_perm -> unit = "unix_fchmod_r" "reentrant"
+external chown : string -> int -> int -> unit = "unix_chown_r" "reentrant"
+external fchown : file_descr -> int -> int -> unit = "unix_fchown_r" "reentrant"
+external umask : int -> int = "unix_umask_r" "reentrant"
+external access : string -> access_permission list -> unit = "unix_access_r" "reentrant"
 
-external dup : file_descr -> file_descr = "unix_dup"
-external dup2 : file_descr -> file_descr -> unit = "unix_dup2"
-external set_nonblock : file_descr -> unit = "unix_set_nonblock"
-external clear_nonblock : file_descr -> unit = "unix_clear_nonblock"
-external set_close_on_exec : file_descr -> unit = "unix_set_close_on_exec"
-external clear_close_on_exec : file_descr -> unit = "unix_clear_close_on_exec"
+external dup : file_descr -> file_descr = "unix_dup_r" "reentrant"
+external dup2 : file_descr -> file_descr -> unit = "unix_dup2_r" "reentrant"
+external set_nonblock : file_descr -> unit = "unix_set_nonblock_r" "reentrant"
+external clear_nonblock : file_descr -> unit = "unix_clear_nonblock_r" "reentrant"
+external set_close_on_exec : file_descr -> unit = "unix_set_close_on_exec_r" "reentrant"
+external clear_close_on_exec : file_descr -> unit = "unix_clear_close_on_exec_r" "reentrant"
 
-external mkdir : string -> file_perm -> unit = "unix_mkdir"
-external rmdir : string -> unit = "unix_rmdir"
-external chdir : string -> unit = "unix_chdir"
-external getcwd : unit -> string = "unix_getcwd"
-external chroot : string -> unit = "unix_chroot"
+external mkdir : string -> file_perm -> unit = "unix_mkdir_r" "reentrant"
+external rmdir : string -> unit = "unix_rmdir_r" "reentrant"
+external chdir : string -> unit = "unix_chdir_r" "reentrant"
+external getcwd : unit -> string = "unix_getcwd_r" "reentrant"
+external chroot : string -> unit = "unix_chroot_r" "reentrant"
 
 type dir_handle
 
-external opendir : string -> dir_handle = "unix_opendir"
-external readdir : dir_handle -> string = "unix_readdir"
-external rewinddir : dir_handle -> unit = "unix_rewinddir"
-external closedir : dir_handle -> unit = "unix_closedir"
+external opendir : string -> dir_handle = "unix_opendir_r" "reentrant"
+external readdir : dir_handle -> string = "unix_readdir_r" "reentrant"
+external rewinddir : dir_handle -> unit = "unix_rewinddir_r" "reentrant"
+external closedir : dir_handle -> unit = "unix_closedir_r" "reentrant"
 
-external _pipe : unit -> file_descr * file_descr = "unix_pipe"
+external _pipe : unit -> file_descr * file_descr = "unix_pipe_r" "reentrant"
 
 let pipe() =
   let (out_fd, in_fd as fd_pair) = _pipe() in
@@ -351,9 +351,9 @@ let pipe() =
   set_nonblock out_fd;
   fd_pair
 
-external symlink : string -> string -> unit = "unix_symlink"
-external readlink : string -> string = "unix_readlink"
-external mkfifo : string -> file_perm -> unit = "unix_mkfifo"
+external symlink : string -> string -> unit = "unix_symlink_r" "reentrant"
+external readlink : string -> string = "unix_readlink_r" "reentrant"
+external mkfifo : string -> file_perm -> unit = "unix_mkfifo_r" "reentrant"
 
 let select readfds writefds exceptfds delay =
   match select_aux (readfds, writefds, exceptfds, delay) with
@@ -368,13 +368,13 @@ type lock_command =
   | F_RLOCK
   | F_TRLOCK
 
-external lockf : file_descr -> lock_command -> int -> unit = "unix_lockf"
+external lockf : file_descr -> lock_command -> int -> unit = "unix_lockf_r" "reentrant"
 
-external _execv : string -> string array -> 'a = "unix_execv"
-external _execve : string -> string array -> string array -> 'a = "unix_execve"
-external _execvp : string -> string array -> 'a = "unix_execvp"
+external _execv : string -> string array -> 'a = "unix_execv_r" "reentrant"
+external _execve : string -> string array -> string array -> 'a = "unix_execve_r" "reentrant"
+external _execvp : string -> string array -> 'a = "unix_execvp_r" "reentrant"
 external _execvpe : string -> string array -> string array -> 'a
-                  = "unix_execvpe"
+                  = "unix_execvpe_r" "reentrant"
 
 (* Disable the timer interrupt before doing exec, because some OS
    keep sending timer interrupts to the exec'ed code.
@@ -413,9 +413,9 @@ let execvp proc args =
 let execvpe proc args =
   do_exec (fun () -> _execvpe proc args)
 
-external fork : unit -> int = "unix_fork"
+external fork : unit -> int = "unix_fork_r" "reentrant"
 external _waitpid : wait_flag list -> int -> int * process_status
-                  = "unix_waitpid"
+                  = "unix_waitpid_r" "reentrant"
 
 let wait_pid pid =
   match wait_pid_aux pid with
@@ -429,16 +429,16 @@ let waitpid flags pid =
   then _waitpid flags pid
   else wait_pid pid
 
-external getpid : unit -> int = "unix_getpid"
-external getppid : unit -> int = "unix_getppid"
-external nice : int -> int = "unix_nice"
+external getpid : unit -> int = "unix_getpid_r" "reentrant"
+external getppid : unit -> int = "unix_getppid_r" "reentrant"
+external nice : int -> int = "unix_nice_r" "reentrant"
 
-external kill : int -> int -> unit = "unix_kill"
+external kill : int -> int -> unit = "unix_kill_r" "reentrant"
 type sigprocmask_command = SIG_SETMASK | SIG_BLOCK | SIG_UNBLOCK
 external sigprocmask: sigprocmask_command -> int list -> int list
-        = "unix_sigprocmask"
-external sigpending: unit -> int list = "unix_sigpending"
-external sigsuspend: int list -> unit = "unix_sigsuspend"
+        = "unix_sigprocmask_r" "reentrant"
+external sigpending: unit -> int list = "unix_sigpending_r" "reentrant"
+external sigsuspend: int list -> unit = "unix_sigsuspend_r" "reentrant"
 
 let pause() =
   let sigs = sigprocmask SIG_BLOCK [] in sigsuspend sigs
@@ -460,27 +460,27 @@ type tm =
     tm_yday : int;
     tm_isdst : bool }
 
-external time : unit -> float = "unix_time"
-external gettimeofday : unit -> float = "unix_gettimeofday"
-external gmtime : float -> tm = "unix_gmtime"
-external localtime : float -> tm = "unix_localtime"
-external mktime : tm -> float * tm = "unix_mktime"
-external alarm : int -> int = "unix_alarm"
+external time : unit -> float = "unix_time_r" "reentrant"
+external gettimeofday : unit -> float = "unix_gettimeofday_r" "reentrant"
+external gmtime : float -> tm = "unix_gmtime_r" "reentrant"
+external localtime : float -> tm = "unix_localtime_r" "reentrant"
+external mktime : tm -> float * tm = "unix_mktime_r" "reentrant"
+external alarm : int -> int = "unix_alarm_r" "reentrant"
 
 let sleep secs = delay (float secs)
 
-external times : unit -> process_times = "unix_times"
-external utimes : string -> float -> float -> unit = "unix_utimes"
+external times : unit -> process_times = "unix_times_r" "reentrant"
+external utimes : string -> float -> float -> unit = "unix_utimes_r" "reentrant"
 
-external getuid : unit -> int = "unix_getuid"
-external geteuid : unit -> int = "unix_geteuid"
-external setuid : int -> unit = "unix_setuid"
-external getgid : unit -> int = "unix_getgid"
-external getegid : unit -> int = "unix_getegid"
-external setgid : int -> unit = "unix_setgid"
-external getgroups : unit -> int array = "unix_getgroups"
-external setgroups : int array -> unit = "unix_setgroups"
-external initgroups : string -> int -> unit = "unix_initgroups"
+external getuid : unit -> int = "unix_getuid_r" "reentrant"
+external geteuid : unit -> int = "unix_geteuid_r" "reentrant"
+external setuid : int -> unit = "unix_setuid_r" "reentrant"
+external getgid : unit -> int = "unix_getgid_r" "reentrant"
+external getegid : unit -> int = "unix_getegid_r" "reentrant"
+external setgid : int -> unit = "unix_setgid_r" "reentrant"
+external getgroups : unit -> int array = "unix_getgroups_r" "reentrant"
+external setgroups : int array -> unit = "unix_setgroups_r" "reentrant"
+external initgroups : string -> int -> unit = "unix_initgroups_r" "reentrant"
 
 type passwd_entry =
   { pw_name : string;
@@ -498,18 +498,18 @@ type group_entry =
     gr_mem : string array }
 
 
-external getlogin : unit -> string = "unix_getlogin"
-external getpwnam : string -> passwd_entry = "unix_getpwnam"
-external getgrnam : string -> group_entry = "unix_getgrnam"
-external getpwuid : int -> passwd_entry = "unix_getpwuid"
-external getgrgid : int -> group_entry = "unix_getgrgid"
+external getlogin : unit -> string = "unix_getlogin_r" "reentrant"
+external getpwnam : string -> passwd_entry = "unix_getpwnam_r" "reentrant"
+external getgrnam : string -> group_entry = "unix_getgrnam_r" "reentrant"
+external getpwuid : int -> passwd_entry = "unix_getpwuid_r" "reentrant"
+external getgrgid : int -> group_entry = "unix_getgrgid_r" "reentrant"
 
 type inet_addr = string
 
 external inet_addr_of_string : string -> inet_addr
-                                    = "unix_inet_addr_of_string"
+                                    = "unix_inet_addr_of_string_r" "reentrant"
 external string_of_inet_addr : inet_addr -> string
-                                    = "unix_string_of_inet_addr"
+                                    = "unix_string_of_inet_addr_r" "reentrant"
 
 let inet_addr_any = inet_addr_of_string "0.0.0.0"
 let inet_addr_loopback = inet_addr_of_string "127.0.0.1"
@@ -550,10 +550,10 @@ type msg_flag =
   | MSG_PEEK
 
 external _socket : socket_domain -> socket_type -> int -> file_descr
-                                  = "unix_socket"
+                                  = "unix_socket_r" "reentrant"
 external _socketpair :
         socket_domain -> socket_type -> int -> file_descr * file_descr
-                                  = "unix_socketpair"
+                                  = "unix_socketpair_r" "reentrant"
 
 let socket dom typ proto =
   let s = _socket dom typ proto in
@@ -565,7 +565,7 @@ let socketpair dom typ proto =
   set_nonblock s1; set_nonblock s2;
   spair
 
-external _accept : file_descr -> file_descr * sockaddr = "unix_accept"
+external _accept : file_descr -> file_descr * sockaddr = "unix_accept_r" "reentrant"
 
 let rec accept req =
   wait_read req;
@@ -575,13 +575,13 @@ let rec accept req =
     result
   with Unix_error((EAGAIN | EWOULDBLOCK), _, _) -> accept req
 
-external bind : file_descr -> sockaddr -> unit = "unix_bind"
-external listen : file_descr -> int -> unit = "unix_listen"
-external shutdown : file_descr -> shutdown_command -> unit = "unix_shutdown"
-external getsockname : file_descr -> sockaddr = "unix_getsockname"
-external getpeername : file_descr -> sockaddr = "unix_getpeername"
+external bind : file_descr -> sockaddr -> unit = "unix_bind_r" "reentrant"
+external listen : file_descr -> int -> unit = "unix_listen_r" "reentrant"
+external shutdown : file_descr -> shutdown_command -> unit = "unix_shutdown_r" "reentrant"
+external getsockname : file_descr -> sockaddr = "unix_getsockname_r" "reentrant"
+external getpeername : file_descr -> sockaddr = "unix_getpeername_r" "reentrant"
 
-external _connect : file_descr -> sockaddr -> unit = "unix_connect"
+external _connect : file_descr -> sockaddr -> unit = "unix_connect_r" "reentrant"
 
 let connect s addr =
   try
@@ -593,16 +593,16 @@ let connect s addr =
 
 external unsafe_recv :
   file_descr -> string -> int -> int -> msg_flag list -> int
-                                  = "unix_recv"
+                                  = "unix_recv_r" "reentrant"
 external unsafe_recvfrom :
   file_descr -> string -> int -> int -> msg_flag list -> int * sockaddr
-                                  = "unix_recvfrom"
+                                  = "unix_recvfrom_r" "reentrant"
 external unsafe_send :
   file_descr -> string -> int -> int -> msg_flag list -> int
-                                  = "unix_send"
+                                  = "unix_send_r" "reentrant"
 external unsafe_sendto :
   file_descr -> string -> int -> int -> msg_flag list -> sockaddr -> int
-                                  = "unix_sendto" "unix_sendto_native"
+                                  = "unix_sendto_r" "reentrant" "unix_sendto_native"
 
 let rec recv fd buf ofs len flags =
   try
@@ -684,9 +684,9 @@ end = struct
   let float = 3
   let error = 4
   external get: ('opt, 'v) t -> file_descr -> 'opt -> 'v
-              = "unix_getsockopt"
+              = "unix_getsockopt_r" "reentrant"
   external set: ('opt, 'v) t -> file_descr -> 'opt -> 'v -> unit
-              = "unix_setsockopt"
+              = "unix_setsockopt_r" "reentrant"
 end
 
 let getsockopt fd opt = SO.get SO.bool fd opt
@@ -720,17 +720,17 @@ type service_entry =
     s_port : int;
     s_proto : string }
 
-external gethostname : unit -> string = "unix_gethostname"
-external gethostbyname : string -> host_entry = "unix_gethostbyname"
-external gethostbyaddr : inet_addr -> host_entry = "unix_gethostbyaddr"
+external gethostname : unit -> string = "unix_gethostname_r" "reentrant"
+external gethostbyname : string -> host_entry = "unix_gethostbyname_r" "reentrant"
+external gethostbyaddr : inet_addr -> host_entry = "unix_gethostbyaddr_r" "reentrant"
 external getprotobyname : string -> protocol_entry
-                                         = "unix_getprotobyname"
+                                         = "unix_getprotobyname_r" "reentrant"
 external getprotobynumber : int -> protocol_entry
-                                         = "unix_getprotobynumber"
+                                         = "unix_getprotobynumber_r" "reentrant"
 external getservbyname : string -> string -> service_entry
-                                         = "unix_getservbyname"
+                                         = "unix_getservbyname_r" "reentrant"
 external getservbyport : int -> string -> service_entry
-                                         = "unix_getservbyport"
+                                         = "unix_getservbyport_r" "reentrant"
 type addr_info =
   { ai_family : socket_domain;
     ai_socktype : socket_type;
@@ -748,7 +748,7 @@ type getaddrinfo_option =
 
 external getaddrinfo_system
   : string -> string -> getaddrinfo_option list -> addr_info list
-  = "unix_getaddrinfo"
+  = "unix_getaddrinfo_r" "reentrant"
 
 let getaddrinfo_emulation node service opts =
   (* Parse options *)
@@ -831,7 +831,7 @@ type getnameinfo_option =
 
 external getnameinfo_system
   : sockaddr -> getnameinfo_option list -> name_info
-  = "unix_getnameinfo"
+  = "unix_getnameinfo_r" "reentrant"
 
 let getnameinfo_emulation addr opts =
   match addr with
@@ -901,24 +901,24 @@ type terminal_io = {
     mutable c_vstop: char
   }
 
-external tcgetattr: file_descr -> terminal_io = "unix_tcgetattr"
+external tcgetattr: file_descr -> terminal_io = "unix_tcgetattr_r" "reentrant"
 
 type setattr_when = TCSANOW | TCSADRAIN | TCSAFLUSH
 
 external tcsetattr: file_descr -> setattr_when -> terminal_io -> unit
-                  = "unix_tcsetattr"
-external tcsendbreak: file_descr -> int -> unit = "unix_tcsendbreak"
-external tcdrain: file_descr -> unit = "unix_tcdrain"
+                  = "unix_tcsetattr_r" "reentrant"
+external tcsendbreak: file_descr -> int -> unit = "unix_tcsendbreak_r" "reentrant"
+external tcdrain: file_descr -> unit = "unix_tcdrain_r" "reentrant"
 
 type flush_queue = TCIFLUSH | TCOFLUSH | TCIOFLUSH
 
-external tcflush: file_descr -> flush_queue -> unit = "unix_tcflush"
+external tcflush: file_descr -> flush_queue -> unit = "unix_tcflush_r" "reentrant"
 
 type flow_action = TCOOFF | TCOON | TCIOFF | TCION
 
-external tcflow: file_descr -> flow_action -> unit = "unix_tcflow"
+external tcflow: file_descr -> flow_action -> unit = "unix_tcflow_r" "reentrant"
 
-external setsid : unit -> int = "unix_setsid"
+external setsid : unit -> int = "unix_setsid_r" "reentrant"
 
 (* High-level process management (system, popen) *)
 

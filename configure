@@ -1181,10 +1181,19 @@ echo "BNG_ASM_LEVEL=$bng_asm_level" >> Makefile
 
 # Determine if multi-context is supported
 
+multicontext_support=false
 case "$arch,$system" in
   amd64,linux)
     echo "Multi-context is supported."
-    echo "#define HAS_MULTI_CONTEXT" >> s.h;;
+    multicontext_support=true
+    echo "#define HAS_MULTI_CONTEXT" >> s.h
+    # FIXME: all of this should probably be printed only once
+    pthread_link="-lpthread"
+    pthread_caml_link="-cclib -lpthread"
+    bytecccompopts="$bytecccompopts -D_REENTRANT"
+    nativecccompopts="$nativecccompopts -D_REENTRANT"
+    echo "#define HAS_PTHREAD" >> s.h
+    ;;
   *)
     echo "Multi-context is not supported";;
 esac
@@ -1208,8 +1217,10 @@ if test "$pthread_wanted" = "yes"; then
     echo "POSIX threads library supported."
     systhread_support=true
     otherlibraries="$otherlibraries systhreads"
-    bytecccompopts="$bytecccompopts -D_REENTRANT"
-    nativecccompopts="$nativecccompopts -D_REENTRANT"
+#    if test "$multicontext_support" != "1"; then
+        bytecccompopts="$bytecccompopts -D_REENTRANT"
+        nativecccompopts="$nativecccompopts -D_REENTRANT"
+#    fi
     echo "#define HAS_PTHREAD" >> s.h
     case "$host" in
       *-*-freebsd*)
@@ -1236,16 +1247,15 @@ echo "PTHREAD_LINK=$pthread_caml_link" >> Makefile
 
 # Determine if the bytecode thread library is supported
 
-# FIXME: fix and re-enable --Luca Saiu REENTRANTRUNTIME
-# if test "$has_select" = "yes" \
-# && test "$has_setitimer" = "yes" \
-# && test "$has_gettimeofday" = "yes" \
-# && test "$has_wait" = "yes"; then
-#   echo "Bytecode threads library supported."
-#   otherlibraries="$otherlibraries threads"
-# else
+if test "$has_select" = "yes" \
+&& test "$has_setitimer" = "yes" \
+&& test "$has_gettimeofday" = "yes" \
+&& test "$has_wait" = "yes"; then
+  echo "Bytecode threads library supported."
+  otherlibraries="$otherlibraries threads"
+else
   echo "Bytecode threads library not supported (missing system calls)"
-# fi
+fi
 
 # Determine the location of X include files and libraries
 
