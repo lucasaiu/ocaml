@@ -37,6 +37,7 @@
 #include "alloc.h"
 #include "intext.h"
 #include <pthread.h>
+#include <errno.h> // for EBUSY.  FIXME: ensure this is still needed at the end --Luca Saiu REENTRANTRUNTIME
 
 static __thread caml_global_context *the_thread_local_caml_context = NULL;
 
@@ -62,10 +63,12 @@ extern int caml_try_leave_blocking_section_default(void);
 extern char caml_globals_map[];
 #endif
 
+/* static */ /* !!!!!!!!!!!!!!! */ int already_initialized = 0;
+
 /* The global lock: */
 static pthread_mutex_t caml_global_mutex;
-static pthread_mutex_t caml_channel_mutex __attribute__((unused));
-static int caml_are_global_mutexes_initialized = 0; // FIXME: will this be needed in the end?
+static pthread_mutex_t caml_channel_mutex /* __attribute__((unused)) */;
+//static int caml_are_global_mutexes_initialized = 0; // FIXME: will this be needed in the end?
 
 void caml_initialize_mutex(pthread_mutex_t *mutex){
   pthread_mutexattr_t attributes;
@@ -442,6 +445,12 @@ section.  */
   /* ctx->caml_tick_thread_id; */
   ctx->caml_thread_next_ident = 0;
 
+  /* From scheduler.c: */
+  ctx->curr_vmthread = NULL;
+  ctx->next_ident = Val_int(0);
+  ctx->last_locked_channel = NULL;
+
+
   /* Global context-local OCaml variables */
 #ifdef NATIVE_CODE
   ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE;
@@ -788,7 +797,6 @@ void caml_context_initialize_global_stuff(void){
   /* Attempt to prevent multiple initialization.  This will not always
      work, because of missing synchronization: we can't use the global
      mutex, since we're gonna initialize it here. */
-  static int already_initialized = 0;
   if(already_initialized){
     fprintf(stderr, "caml_initialize_global_stuff: called more than once\n");
     fflush(stderr);
@@ -800,17 +808,17 @@ void caml_context_initialize_global_stuff(void){
   caml_leave_blocking_section_hook = &caml_leave_blocking_section_default;
   caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default;
 
-  /* Create the global lock: */
+  /* Create global locks: */
   caml_initialize_mutex(&caml_global_mutex);
   caml_initialize_mutex(&caml_channel_mutex);
-  caml_are_global_mutexes_initialized = 1;
+  //caml_are_global_mutexes_initialized = 1;
 }
 
 
 /* This is a thin wrapper over pthread_mutex_lock and pthread_mutex_unlock: */
-static void caml_call_on_global_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
+static void caml_call_on_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
   INIT_CAML_R;
-  if(! caml_are_global_mutexes_initialized){
+  if(! already_initialized){
     /* INIT_CAML_R; */ fprintf(stderr, "global mutexes aren't initialized yet.  Bailing out"); fflush(stderr);
     exit(EXIT_FAILURE);
   }
@@ -825,7 +833,7 @@ static void caml_call_on_global_mutex(int(*function)(pthread_mutex_t *), pthread
 
 /* void caml_acquire_global_lock(void){ */
 /*   INIT_CAML_R; */
-/*   if(! caml_are_global_mutexes_initialized){ */
+/*   if(! already_initialized){ */
 /*     /\* INIT_CAML_R; *\/ DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ caml_global_mutex is not yet initialized"); */
 /*     return; */
 /*   } */
@@ -847,7 +855,7 @@ static void caml_call_on_global_mutex(int(*function)(pthread_mutex_t *), pthread
 /* } */
 
 /* void caml_release_global_lock(void){ */
-/*   if(! caml_are_global_mutexes_initialized){ */
+/*   if(! already_initialized){ */
 /*     INIT_CAML_R; DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ caml_global_mutex is not yet initialized"); */
 /*     return; */
 /*   } */
@@ -870,26 +878,51 @@ static void caml_call_on_global_mutex(int(*function)(pthread_mutex_t *), pthread
 
 
 void caml_acquire_global_lock(void){
-  caml_call_on_global_mutex(pthread_mutex_lock, &caml_global_mutex);
+  caml_call_on_mutex(pthread_mutex_lock, &caml_global_mutex);
 }
 void caml_release_global_lock(void){
-  caml_call_on_global_mutex(pthread_mutex_unlock, &caml_global_mutex);
+  caml_call_on_mutex(pthread_mutex_unlock, &caml_global_mutex);
 }
 
+// TEMPORARY SCREWUP: BEGIN !!!!!!!!!!!!!!!!!!!!!!!!!
+static pthread_t *current_owner = NULL;
 void caml_acquire_channel_lock(void){
-  caml_call_on_global_mutex(pthread_mutex_lock, &caml_channel_mutex);
+  /* INIT_CAML_R; */
+  /* int trylock_result = */
+  /*   pthread_mutex_trylock(&caml_channel_mutex); */
+  /* if(trylock_result == EBUSY){ */
+  /*   DUMP("pthread_mutex_trylock: got EBUSY"); */
+  /*   caml_enter_blocking_section_r(ctx); */
+  /*   DUMP("after entering blocking section"); */
+    caml_call_on_mutex(pthread_mutex_lock, &caml_channel_mutex);
+  /*   DUMP("pthread_mutex_lock'ed, after getting EBUSY from pthread_mutex_trylock"); */
+  /*   caml_leave_blocking_section_r(ctx); */
+  /*   DUMP("after leaving blocking section"); */
+  /* } */
+  /* else{ */
+  /*   DUMP("pthread_mutex_trylock: locked"); */
+  /* } */
+  /* Assert(trylock_result != EINVAL); */
+  /* current_owner = pthread_self(); */
+  //INIT_CAML_R; caml_enter_blocking_section_r(ctx);
+  //  caml_call_on_mutex(pthread_mutex_lock, &caml_channel_mutex);
+  //caml_leave_blocking_section_r(ctx);
 }
 void caml_release_channel_lock(void){
-  caml_call_on_global_mutex(pthread_mutex_unlock, &caml_channel_mutex);
+  /* current_owner = NULL; */
+  /* INIT_CAML_R; DUMP("pthread_mutex_trylock: unlocking"); */
+  caml_call_on_mutex(pthread_mutex_unlock, &caml_channel_mutex);
+  /* DUMP("pthread_mutex_trylock: unlocked"); */
 }
+// TEMPORARY SCREWUP: END !!!!!!!!!!!!!!!!!!!!!!!!!
 
 void caml_acquire_contextual_lock(CAML_R){
-  caml_call_on_global_mutex(pthread_mutex_lock, &ctx->mutex);
+  caml_call_on_mutex(pthread_mutex_lock, &ctx->mutex);
   //int result = pthread_mutex_lock(&ctx->mutex);
   //assert(result == 0);
 }
 void caml_release_contextual_lock(CAML_R){
-  caml_call_on_global_mutex(pthread_mutex_unlock, &ctx->mutex);
+  caml_call_on_mutex(pthread_mutex_unlock, &ctx->mutex);
   //int result = pthread_mutex_unlock(&ctx->mutex);
   //assert(result == 0);
 }

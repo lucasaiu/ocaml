@@ -612,6 +612,13 @@ struct caml_global_context {
   /* Identifier for next thread creation */
   intnat caml_thread_next_ident /* = 0 */;
 
+  /* From scheduler.c: */
+  /* The thread currently active */
+  struct caml_thread_struct *curr_vmthread /* = NULL */;
+  /* Identifier for next thread creation */
+  value next_ident /* = Val_int(0) */;
+  struct channel *last_locked_channel /*= NULL*/; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+
   /* Context-local "global" C variables: */
 #define INITIAL_C_GLOBALS_ALLOCATED_SIZE 16
   struct caml_extensible_buffer c_globals; /* = {INITIAL_C_GLOBALS_ALLOCATED_SIZE, 0, dynamic} */
@@ -1014,6 +1021,12 @@ extern library_context *caml_get_library_context_r(
 #define caml_thread_next_ident ctx->caml_thread_next_ident
 #endif /* #ifdef CAML_ST_POSIX_CODE */
 
+#ifdef CAML_CONTEXT_VMTHREADS
+#define curr_vmthread ctx->curr_vmthread
+#define next_ident ctx->next_ident
+//#define last_locked_channel ctx->last_locked_channel
+#endif /* #ifdef CAML_CONTEXT_VMTHREADS */
+
 /* OCaml context-local "globals" */
 
 /* /\* Reserve space for the given number of globals, resizing the global */
@@ -1078,8 +1091,8 @@ void caml_finalize_semaphore(sem_t *semaphore);
 #define LIGHTPURPLE   NOATTR "\033[1m\033[35m"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-/* #define flockfile(Q) /\* nothing *\/ */
-/* #define funlockfile(Q) /\* nothing *\/ */
+#define flockfile(Q) /* nothing */
+#define funlockfile(Q) /* nothing */
 
 int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
 
@@ -1132,7 +1145,7 @@ int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
             __FILE__, __LINE__, __FUNCTION__, ctx, \
             (void*)pthread_self(), \
             (int)caml_systhreads_get_thread_no_r(ctx)); \
-    fflush(stderr); \
+    /* fflush(stderr); */ \
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \
     fflush(stderr); \

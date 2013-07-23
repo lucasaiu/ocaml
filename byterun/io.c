@@ -50,16 +50,27 @@
 
 /* Hooks for locking channels */
 
-/* /// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME */
-/* static void caml_my_lock_channel(struct channel *currently_unused){ */
-/*   //fprintf(stderr, "io.c: [+] Locking %p\n", currently_unused); */
-/*   caml_acquire_global_lock(); */
-/* } */
-/* static void caml_my_unlock_channel(struct channel *currently_unused){ */
-/*   //fprintf(stderr, "io.c: [-] UNlocking %p\n", currently_unused); */
-/*   caml_release_global_lock(); */
-/* } */
-/* /// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME */
+/// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME
+static void caml_default_mutex_free(struct channel *c){
+  
+}
+static void caml_default_mutex_lock(struct channel *c){
+  caml_acquire_channel_lock();
+}
+static void caml_default_mutex_unlock(struct channel *c){
+  caml_release_channel_lock();
+  //extern int already_initialized; if(already_initialized){ INIT_CAML_R; DUMP(); }
+}
+static void caml_default_mutex_unlock_exn(void){
+  
+}
+void caml_initialize_default_channel_mutex_functions(void){
+  caml_channel_mutex_free = caml_default_mutex_free;
+  caml_channel_mutex_lock = caml_default_mutex_lock;
+  caml_channel_mutex_unlock = caml_default_mutex_unlock;
+  caml_channel_mutex_unlock_exn = caml_default_mutex_unlock_exn;
+}
+/// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME
 
 
 CAMLexport void (*caml_channel_mutex_free) (struct channel *) = NULL;
@@ -223,13 +234,6 @@ CAMLexport int caml_flush_partial_r(CAML_R, struct channel *channel)
 {
   int towrite, written;
 
-/*   Lock(channel); */
-/*   if(channel->already_closed){ */
-/*     Unlock(channel); */
-/* caml_release_global_lock(); */
-/*     return 1; */
-/*   } */
-/*   Unlock(channel); */
   towrite = channel->curr - channel->buff;
   if (towrite > 0) {
     written = do_write_r(ctx, channel->fd, channel->buff, towrite);
@@ -245,12 +249,6 @@ CAMLexport int caml_flush_partial_r(CAML_R, struct channel *channel)
 
 CAMLexport void caml_flush_r(CAML_R, struct channel *channel)
 {
-  /* Lock(channel); */
-  /* if(channel->already_closed){ */
-  /*   Unlock(channel); */
-  /*   return; */
-  /* } */
-  /* Unlock(channel); */
   while (! caml_flush_partial_r(ctx, channel)) /*nothing*/;
 }
 
@@ -751,7 +749,7 @@ CAMLprim value caml_ml_output_int_r(CAML_R, value vchannel, value w)
 }
 
 CAMLprim value caml_ml_output_partial_r(CAML_R, value vchannel, value buff, value start,
-                                      value length)
+                                        value length)
 {
   CAMLparam4 (vchannel, buff, start, length);
   struct channel * channel = Channel(vchannel);

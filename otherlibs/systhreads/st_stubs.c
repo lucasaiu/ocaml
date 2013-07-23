@@ -295,18 +295,20 @@ static void caml_io_mutex_lock(struct channel *chan)
 {
   QB();
   INIT_CAML_R;
-  st_mutex mutex = chan->mutex;
+  st_mutex mutex;
+caml_acquire_channel_lock();
+  mutex = chan->mutex;
 
   if (mutex == NULL) {
-caml_acquire_channel_lock();
     st_mutex_create(&mutex);
     chan->mutex = mutex;
-caml_release_channel_lock();
   }
+caml_release_channel_lock();
   /* PR#4351: first try to acquire mutex without releasing the master lock */
   if (st_mutex_trylock(mutex) == PREVIOUSLY_UNLOCKED) {
     st_tls_set(last_channel_locked_key, (void *) chan);
     QR();
+//caml_acquire_channel_lock();// !!!!!!!!!!!!!!!!!!!!!!!!
     return;
   }
   /* If unsuccessful, block on mutex */
@@ -318,6 +320,7 @@ caml_release_channel_lock();
      before locking the mutex is also incorrect, since we could
      then unlock a mutex that is unlocked or locked by someone else. */
   st_tls_set(last_channel_locked_key, (void *) chan);
+//caml_acquire_channel_lock();// !!!!!!!!!!!!!!!!!!!!!!!!
   caml_leave_blocking_section_r(ctx);
   QR();
 }
@@ -326,6 +329,7 @@ static void caml_io_mutex_unlock(struct channel *chan)
 {
   QB();
   st_mutex_unlock(chan->mutex);
+//caml_release_channel_lock();// !!!!!!!!!!!!!!!!!!!!!!!!
   st_tls_set(last_channel_locked_key, NULL);
   QR();
 }
@@ -591,7 +595,7 @@ caml_release_contextual_lock(ctx);
 
 CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
 {
-  DUMP();
+  DUMP("!!!!!!!!@@@@@@@########$$$$$$$$$%%%%%%%%%%%");
   QB();
   /* Protect against repeated initialization (PR#1325) */
   static int already_initialized = 0;

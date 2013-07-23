@@ -75,6 +75,8 @@ enum {
    ? caml_refill_r(ctx, channel)						\
    : (unsigned char) *((channel)->curr)++)
 
+CAMLextern void caml_initialize_default_channel_mutex_functions(void);
+
 CAMLextern struct channel * caml_open_descriptor_in_r (CAML_R, int);
 CAMLextern struct channel * caml_open_descriptor_out_r (CAML_R, int);
 CAMLextern void caml_close_channel (struct channel *);
@@ -108,11 +110,17 @@ CAMLextern void (*caml_channel_mutex_unlock_exn) (void);
 CAMLextern struct channel * caml_all_opened_channels;
 
 #define Lock(channel) \
-  do{if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel); else caml_acquire_channel_lock();}while(0)
+  do{if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel);}while(0)
 #define Unlock(channel) \
-  do{if (caml_channel_mutex_unlock != NULL) (*caml_channel_mutex_unlock)(channel); else caml_release_channel_lock();}while(0)
+  do{if (caml_channel_mutex_unlock != NULL) (*caml_channel_mutex_unlock)(channel);}while(0)
 #define Unlock_exn() \
-  do{if (caml_channel_mutex_unlock_exn != NULL) (*caml_channel_mutex_unlock_exn)()/*!!!!!!!!!!!!!!!!!!!!*//* ;else DUMP("caml_channel_mutex_unlock_exn is dummy") *//*!!!!!!!!!!!!!!!!!!!!*/;}while(0)
+  do{if (caml_channel_mutex_unlock_exn != NULL) (*caml_channel_mutex_unlock_exn)();}while(0)
+/* #define Lock(channel) \ */
+/*   do{if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel); else caml_acquire_channel_lock();}while(0) */
+/* #define Unlock(channel) \ */
+/*   do{if (caml_channel_mutex_unlock != NULL) (*caml_channel_mutex_unlock)(channel); else caml_release_channel_lock();}while(0) */
+/* #define Unlock_exn() \ */
+/*   do{if (caml_channel_mutex_unlock_exn != NULL) (*caml_channel_mutex_unlock_exn)()/\*!!!!!!!!!!!!!!!!!!!!*\//\* ;else DUMP("caml_channel_mutex_unlock_exn is dummy") *\//\*!!!!!!!!!!!!!!!!!!!!*\/;}while(0) */
 
 /* Conversion between file_offset and int64 */
 

@@ -15,6 +15,7 @@
 
 /* The thread scheduler */
 
+#include <assert.h> // !!!!!!!!!!!!!!!!!
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,6 +25,7 @@
 #define CAML_CONTEXT_BACKTRACE
 #define CAML_CONTEXT_CALLBACK
 #define CAML_CONTEXT_SIGNALS_BYT
+#define CAML_CONTEXT_VMTHREADS
 #include "context.h"
 
 
@@ -41,6 +43,8 @@
 #include "signals.h"
 #include "stacks.h"
 #include "sys.h"
+
+#define curr_thread curr_vmthread
 
 #if ! (defined(HAS_SELECT) && \
        defined(HAS_SETITIMER) && \
@@ -100,6 +104,7 @@ struct caml_thread_struct {
   value joining;                /* Thread we're trying to join */
   value waitpid;                /* PID of process we're waiting for */
   value retval;                 /* Value to return when thread resumes */
+  struct channel *last_locked_channel; /* The channel to unlock in case an exception is raised */ // !!!!!!!!!!!!!!!
 };
 
 typedef struct caml_thread_struct * caml_thread_t;
@@ -130,9 +135,9 @@ typedef struct caml_thread_struct * caml_thread_t;
 #define DELAY_INFTY 1E30        /* +infty, for this purpose */
 
 /* The thread currently active */
-static caml_thread_t curr_thread = NULL;
+//static caml_thread_t curr_thread = NULL;
 /* Identifier for next thread creation */
-static value next_ident = Val_int(0);
+//static value next_ident = Val_int(0);
 
 #define Assign(dst,src) caml_modify_r(ctx, (value *)&(dst), (value)(src))
 
@@ -157,17 +162,60 @@ static void thread_scan_roots(scanning_action action)
   if (prev_scan_roots_hook != NULL) (*prev_scan_roots_hook)(action);
 }
 
+/// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME
+static void caml_vmthreads_mutex_free(struct channel *c){
+  free(c->mutex);
+}
+value thread_yield_r(CAML_R, value unit);
+static void caml_vmthreads_mutex_lock(struct channel *c){
+  pthread_mutex_t *mutex_pointer;
+caml_acquire_channel_lock();
+  mutex_pointer = c->mutex;
+  if (mutex_pointer == NULL) {
+    mutex_pointer = caml_stat_alloc(sizeof(pthread_mutex_t));
+    caml_initialize_mutex(mutex_pointer);
+    c->mutex = mutex_pointer;
+  }
+caml_release_channel_lock();
+  INIT_CAML_R;
+  int iteration_no = 0;
+  while(pthread_mutex_trylock(mutex_pointer) != 0){
+    iteration_no ++;
+    //DUMP("Waiting for fd %i...", (int)c->fd);
+    thread_yield_r(ctx, Val_unit);
+  }
+  ctx->last_locked_channel = c;
+  if(iteration_no > 0)
+    DUMP("Got the channel with fd %i after %i attempts...", (int)c->fd, iteration_no);
+  //caml_acquire_channel_lock();
+}
+static void caml_vmthreads_mutex_unlock(struct channel *c){
+  INIT_CAML_R;
+  ctx->last_locked_channel = NULL;
+  pthread_mutex_unlock(c->mutex);
+  //caml_release_channel_lock();
+  //extern int already_initialized; if(already_initialized){ INIT_CAML_R; DUMP(); }
+}
+static void caml_vmthreads_mutex_unlock_exn(void){
+  INIT_CAML_R;
+  struct channel *the_channel_to_unlock = ctx->last_locked_channel;
+  DUMP("I have to unlock %p", the_channel_to_unlock);
+  if(the_channel_to_unlock != NULL)
+    caml_vmthreads_mutex_unlock(the_channel_to_unlock);
+}
+/// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME
+
 /* Forward declarations for async I/O handling */
 
 static int stdin_initial_status, stdout_initial_status, stderr_initial_status;
 static void thread_restore_std_descr(void);
 
-/* Initialize the thread machinery */
+/* Initialize the thread machinery for the current context: */
 
-value thread_initialize_r(CAML_R, value unit)       /* ML */
-{
+static void caml_thread_initialize_for_current_context_r(CAML_R){
   /* Protect against repeated initialization (PR#1325) */
-  if (curr_thread != NULL) return Val_unit;
+  if (curr_thread != NULL) return;
+
   /* Create a descriptor for the current thread */
   curr_thread =
     (caml_thread_t) caml_alloc_shr_r(ctx, sizeof(struct caml_thread_struct) / sizeof(value), 0);
@@ -192,9 +240,31 @@ value thread_initialize_r(CAML_R, value unit)       /* ML */
   curr_thread->joining = NO_JOINING;
   curr_thread->waitpid = NO_WAITPID;
   curr_thread->retval = Val_unit;
+  curr_thread->last_locked_channel = ctx->last_locked_channel;
+}
+
+/* Initialize the global thread machinery; this has to be called once,
+   and not for each context. */
+value thread_initialize_r(CAML_R, value unit)       /* ML */
+{
+  DUMP("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INITIALIZED VMTHREADS");
+  /* It's not inconceivable that C libraries attempt to initialize
+     threads more than once: */
+  static int already_initialized = 0;
+  if(already_initialized){
+    caml_initialize_context_thread_support_r(ctx);
+    return Val_unit;
+  }
+  else
+    already_initialized = 1;
+
+  /* Define the way of initializing per-context thread support: */
+  caml_set_caml_initialize_context_thread_support_r(caml_thread_initialize_for_current_context_r);
+
   /* Initialize GC */
   prev_scan_roots_hook = scan_roots_hook;
   caml_scan_roots_hook = thread_scan_roots;
+
   /* Set standard file descriptors to non-blocking mode */
   stdin_initial_status = fcntl(0, F_GETFL);
   stdout_initial_status = fcntl(1, F_GETFL);
@@ -207,6 +277,16 @@ value thread_initialize_r(CAML_R, value unit)       /* ML */
     fcntl(2, F_SETFL, stderr_initial_status | O_NONBLOCK);
   /* Register an at-exit function to restore the standard file descriptors */
   atexit(thread_restore_std_descr);
+
+  /* Add channel locking functions suitable for vmthreads: */
+  caml_channel_mutex_free = caml_vmthreads_mutex_free;
+  caml_channel_mutex_lock = caml_vmthreads_mutex_lock;
+  caml_channel_mutex_unlock = caml_vmthreads_mutex_unlock;
+  caml_channel_mutex_unlock_exn = caml_vmthreads_mutex_unlock_exn;
+
+  /* Now also initialize per-context support for the current context, which
+     is presumably the main one: */
+  caml_initialize_context_thread_support_r(ctx);
   return Val_unit;
 }
 
@@ -268,6 +348,7 @@ value thread_new_r(CAML_R, value clos)          /* ML */
   /* Insert thread in doubly linked list of threads */
   th->prev = curr_thread->prev;
   th->next = curr_thread;
+  th->last_locked_channel = ctx->last_locked_channel;
   Assign(curr_thread->prev->next, th);
   Assign(curr_thread->prev, th);
   /* Return thread */
@@ -320,6 +401,7 @@ static value schedule_thread_r(CAML_R)
   curr_thread->backtrace_pos = Val_int(caml_backtrace_pos);
   curr_thread->backtrace_buffer = caml_backtrace_buffer;
   caml_modify_r (ctx, &curr_thread->backtrace_last_exn, caml_backtrace_last_exn);
+  curr_thread->last_locked_channel = ctx->last_locked_channel;
 
 try_again:
   /* Find if a thread is runnable.
@@ -513,6 +595,7 @@ try_again:
   caml_backtrace_pos = Int_val(curr_thread->backtrace_pos);
   caml_backtrace_buffer = curr_thread->backtrace_buffer;
   caml_backtrace_last_exn = curr_thread->backtrace_last_exn;
+  ctx->last_locked_channel = curr_thread->last_locked_channel;
   return curr_thread->retval;
 }
 
@@ -768,6 +851,7 @@ value thread_kill_r(CAML_R, value thread)       /* ML */
     free(th->backtrace_buffer);
     th->backtrace_buffer = NULL;
   }
+  th->last_locked_channel = NULL; // just to ease debugging: there's nothing to free here
   return retval;
 }
 
