@@ -4,6 +4,8 @@
 #include <string.h>
 #include <limits.h> // FIXME: remove if not used in the end
 #include <assert.h> // FIXME: remove if not used in the end
+#include <pthread.h> // FIXME: remove if not used in the end
+#include <errno.h> // FIXME: remove if not used in the end
 
 #define CAML_CONTEXT_ROOTS /* GC-protection macros */
 #include "mlvalues.h"
@@ -394,12 +396,13 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
 
   *to_context = ctx;
   caml_install_globals_and_data_as_c_byte_array_r(ctx, blob, &function);
+  DUMP("Done with the blob: index=%i\n", index);
 
-  /* We're done with the blob: unpin it via the semaphore, so that it
-     can be destroyed when all split threads have deserialized. */
-//fprintf(stderr, "W5.5context %p] [thread %p] (index %i) EEEEEEEEEEEEEEEEEEEEEEEEEE\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_release_global_lock();
-  DUMP("About to V the semaphore.  index=%i\n", index);
-  sem_post(semaphore);
+/*   /\* We're done with the blob: unpin it via the semaphore, so that it */
+/*      can be destroyed when all split threads have deserialized. *\/ */
+/* //fprintf(stderr, "W5.5context %p] [thread %p] (index %i) EEEEEEEEEEEEEEEEEEEEEEEEEE\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_release_global_lock(); */
+/*   DUMP("About to V the semaphore.  index=%i\n", index); */
+/*   sem_post(semaphore); */
 
 #ifndef NATIVE_CODE
   DUMP();
@@ -411,6 +414,15 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   ctx->caml_exe_name = parent_context->caml_exe_name;
   ctx->caml_main_argv = parent_context->caml_main_argv;
   DUMP();
+
+  /* We're done with the blob: unpin it via the semaphore, so that it
+     can be destroyed when all split threads have deserialized. */
+//fprintf(stderr, "W5.5context %p] [thread %p] (index %i) EEEEEEEEEEEEEEEEEEEEEEEEEE\n", ctx, (void*)(pthread_self()), index); fflush(stderr); caml_release_global_lock();
+  USLEEP("before V'ing the semaphore.", 3);
+  DUMP("Slept.  About to V the semaphore.  index=%i\n", index);
+  //int sem_post_result = sem_post(semaphore);
+  //assert(sem_post_result == 0);
+  caml_v_semaphore(semaphore);
 
   /* Now do the actual work, in a function which correctly GC-protects its locals: */
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
@@ -470,13 +482,20 @@ static void caml_split_and_wait_r(CAML_R, char *blob, caml_global_context **spli
       caml_failwith_r(ctx, "pthread_create failed"); // FIXME: blob is leaked is this case.  Maybe we should just make this a fatal error
   } /* for */
   /* Wait for the last thread to use the blob: */
-  //DUMP("waiting for every thread to deserialize");
+  DUMP("waiting for all %i threads to deserialize", (int)how_many);
   for(i = 0; i < how_many; i ++){
     DUMP("about to P");
 caml_enter_blocking_section_r(ctx);
-    sem_wait(semaphore);
+    caml_p_semaphore(semaphore);
+    //int sem_wait_result = sem_wait(semaphore);
 caml_leave_blocking_section_r(ctx);
-    DUMP("one child finished; waiting for %i more", (int)(how_many - i - 1));
+    /* DUMP("right after P: sem_wait returned %i, errno is %i", sem_wait_result, (int)errno); */
+    /* DUMP("is errno EINTR? %i", errno == EINTR); */
+    /* DUMP("is errno EINVAL? %i", errno == EINVAL); */
+    /* DUMP("is errno EAGAIN? %i", errno == EAGAIN); */
+    /* DUMP("is errno ETIMEDOUT? %i", errno == ETIMEDOUT); */
+    /* assert(sem_wait_result == 0); // !!!!!!!!!!!!!!!!!!!!!!!!!!! */
+    DUMP("one child finished with the blob; waiting for %i more", (int)(how_many - i - 1));
   }
   DUMP("every thread has deserialized");
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -733,7 +752,9 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-40 BEFORE UNLOCK; message_no is now %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   pthread_mutex_unlock(&receiver_mailbox->mutex);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-50 AFTER UNLOCK BEFORE V\n", ctx, receiver_mailbox); fflush(stderr);
-  sem_post(&receiver_mailbox->message_no_semaphore);
+  //int sem_post_result = sem_post(&receiver_mailbox->message_no_semaphore);
+  //assert(sem_post_result == 0);
+  caml_v_semaphore(&receiver_mailbox->message_no_semaphore);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-60 AFTER V\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r    [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
@@ -758,7 +779,9 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-10 BEFORE P, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   /* Wait until there is a message: */
   caml_enter_blocking_section_r(ctx);
-  sem_wait(&receiver_mailbox->message_no_semaphore);
+  //int sem_wait_result = sem_wait(&receiver_mailbox->message_no_semaphore);
+  //assert(sem_wait_result == 0);
+  caml_p_semaphore(&receiver_mailbox->message_no_semaphore);
   caml_leave_blocking_section_r(ctx);
 
   //fprintf(stderr, "RECEIVE: OK-2\n"); fflush(stderr);

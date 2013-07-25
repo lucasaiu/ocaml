@@ -165,6 +165,7 @@ static void thread_scan_roots(scanning_action action)
 /// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME
 static void caml_vmthreads_mutex_free(struct channel *c){
   free(c->mutex);
+  INIT_CAML_R; DDUMP("destroying the channel at %p, with fd %i", c, c->fd);
 }
 value thread_yield_r(CAML_R, value unit);
 static void caml_vmthreads_mutex_lock(struct channel *c){
@@ -178,30 +179,30 @@ caml_acquire_channel_lock();
   }
 caml_release_channel_lock();
   INIT_CAML_R;
+  DDUMP("trying to lock channel %p with fd %i", c, c->fd);
   int iteration_no = 0;
   while(pthread_mutex_trylock(mutex_pointer) != 0){
     iteration_no ++;
-    //DUMP("Waiting for fd %i...", (int)c->fd);
     thread_yield_r(ctx, Val_unit);
   }
   ctx->last_locked_channel = c;
-  if(iteration_no > 0)
-    DUMP("Got the channel with fd %i after %i attempts...", (int)c->fd, iteration_no);
-  //caml_acquire_channel_lock();
+  //if(iteration_no > 0)
+    DDUMP("Got the channel with fd %i after %i failed attempts...", (int)c->fd, iteration_no);
 }
 static void caml_vmthreads_mutex_unlock(struct channel *c){
   INIT_CAML_R;
   ctx->last_locked_channel = NULL;
   pthread_mutex_unlock(c->mutex);
-  //caml_release_channel_lock();
-  //extern int already_initialized; if(already_initialized){ INIT_CAML_R; DUMP(); }
+  DDUMP("unlocked channel %p with fd %i", c, c->fd);
 }
 static void caml_vmthreads_mutex_unlock_exn(void){
   INIT_CAML_R;
   struct channel *the_channel_to_unlock = ctx->last_locked_channel;
-  DUMP("I have to unlock %p", the_channel_to_unlock);
-  if(the_channel_to_unlock != NULL)
+  DDUMP("I have to unlock %p", the_channel_to_unlock);
+  if(the_channel_to_unlock != NULL){
     caml_vmthreads_mutex_unlock(the_channel_to_unlock);
+    ctx->last_locked_channel = NULL;
+  }
 }
 /// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME
 

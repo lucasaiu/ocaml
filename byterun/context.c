@@ -63,7 +63,7 @@ extern int caml_try_leave_blocking_section_default(void);
 extern char caml_globals_map[];
 #endif
 
-/* static */ /* !!!!!!!!!!!!!!! */ int already_initialized = 0;
+/* static */ /* !!!!!!!!!!!!!!! */ int caml_are_mutexes_already_initialized = 0;
 
 /* The global lock: */
 static pthread_mutex_t caml_global_mutex;
@@ -99,6 +99,20 @@ void caml_finalize_semaphore(sem_t *semaphore){
   sem_destroy(semaphore);
 }
 
+void caml_p_semaphore(sem_t* semaphore){
+  int sem_wait_result;
+  while((sem_wait_result = sem_wait(semaphore)) != 0){
+    assert(errno == EINTR);
+    INIT_CAML_R; DUMP("\a!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! sem_wait was interrupted by a signal");
+    errno = 0;
+  }
+  assert(sem_wait_result == 0);
+}
+void caml_v_semaphore(sem_t* semaphore){
+  int sem_post_result = sem_post(semaphore);
+  assert(sem_post_result == 0);
+}
+
 caml_global_context *caml_initialize_first_global_context(void)
 {
   /* Maybe we should use partial contexts for specific tasks, that
@@ -106,7 +120,7 @@ will probably not be used by all threads.  We should check the size of
 each part of the context, to allocate only what is probably required
 by all threads, and then allocate other sub-contexts on demand. */
 
-  caml_global_context* ctx = (caml_global_context*)malloc( sizeof(caml_global_context) );
+  caml_global_context* ctx = (caml_global_context*)caml_stat_alloc( sizeof(caml_global_context) );
   /*
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT  --Luca Saiu REENTRANTRUNTIME: BEGIN
 FIXME: This is a pretty bad symptom.  If I replace the 0 with a 1, the
@@ -788,21 +802,26 @@ CAMLprim value caml_context_is_remote_r(CAML_R, value descriptor)
 CAMLprim value caml_cpu_no_r(CAML_R, value unit){
   /* FIXME: this is a GNU extension.  What should we do on non-GNU systems? */
   int cpu_no =
-    //get_nprocs_conf(); 
+    //get_nprocs_conf();
     sysconf(_SC_NPROCESSORS_ONLN);
   return Val_int(cpu_no);
+}
+
+CAMLprim value caml_set_debugging(value bool){
+  caml_debugging = Int_val(bool);
+  return Val_unit;
 }
 
 void caml_context_initialize_global_stuff(void){
   /* Attempt to prevent multiple initialization.  This will not always
      work, because of missing synchronization: we can't use the global
      mutex, since we're gonna initialize it here. */
-  if(already_initialized){
+  if(caml_are_mutexes_already_initialized){
     fprintf(stderr, "caml_initialize_global_stuff: called more than once\n");
     fflush(stderr);
     exit(EXIT_FAILURE);
   }
-  already_initialized = 1;
+  caml_are_mutexes_already_initialized = 1;
 
   caml_enter_blocking_section_hook = &caml_enter_blocking_section_default;
   caml_leave_blocking_section_hook = &caml_leave_blocking_section_default;
@@ -818,7 +837,7 @@ void caml_context_initialize_global_stuff(void){
 /* This is a thin wrapper over pthread_mutex_lock and pthread_mutex_unlock: */
 static void caml_call_on_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
   INIT_CAML_R;
-  if(! already_initialized){
+  if(! caml_are_mutexes_already_initialized){
     /* INIT_CAML_R; */ fprintf(stderr, "global mutexes aren't initialized yet.  Bailing out"); fflush(stderr);
     exit(EXIT_FAILURE);
   }
@@ -833,7 +852,7 @@ static void caml_call_on_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_
 
 /* void caml_acquire_global_lock(void){ */
 /*   INIT_CAML_R; */
-/*   if(! already_initialized){ */
+/*   if(! caml_are_mutexes_already_initialized){ */
 /*     /\* INIT_CAML_R; *\/ DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ caml_global_mutex is not yet initialized"); */
 /*     return; */
 /*   } */
@@ -855,7 +874,7 @@ static void caml_call_on_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_
 /* } */
 
 /* void caml_release_global_lock(void){ */
-/*   if(! already_initialized){ */
+/*   if(! caml_are_mutexes_already_initialized){ */
 /*     INIT_CAML_R; DUMP("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ caml_global_mutex is not yet initialized"); */
 /*     return; */
 /*   } */
@@ -979,3 +998,5 @@ int TRIVIAL_caml_systhreads_get_thread_no_r(CAML_R){
   return 0;
 }
 int caml_systhreads_get_thread_no_r (CAML_R) __attribute__ ((weak, alias ("TRIVIAL_caml_systhreads_get_thread_no_r")));
+
+int caml_debugging = 0; // !!!!!!!!!!!!!!!!!!!!!!!

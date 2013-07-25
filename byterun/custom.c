@@ -111,9 +111,9 @@ extern struct custom_operations caml_int32_ops,
 
 void caml_init_custom_operations(void)
 {
-  INIT_CAML_R; DUMP("Initializing file locking functions");
+  //INIT_CAML_R; DUMP("Initializing file locking functions");
   caml_initialize_default_channel_mutex_functions();
-  DUMP("Initializing custom operations, including channels");
+  //DUMP("Initializing custom operations, including channels");
   caml_register_custom_operations(&caml_int32_ops);
   caml_register_custom_operations(&caml_nativeint_ops);
   caml_register_custom_operations(&caml_int64_ops);

@@ -151,3 +151,6 @@ let split1 f =
 
 (* FIXME: remove after debugging *)
 external dump : string -> unit = "caml_dump_r" "reentrant"
+
+(* FIXME: remove after debugging *)
+external set_debugging : bool -> unit = "caml_set_debugging"

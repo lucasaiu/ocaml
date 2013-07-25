@@ -34,6 +34,9 @@
 
 CAMLexport void caml_raise_r(CAML_R, value v)
 {
+  char *printed_exception = caml_format_exception_r(ctx, v);
+  DDUMP("raising an exception %s", printed_exception);
+  free(printed_exception);
   Unlock_exn();
   caml_exn_bucket = v;
   if (caml_external_raise == NULL) caml_fatal_uncaught_exception_r(ctx, v);

@@ -1071,7 +1071,6 @@ void caml_release_channel_lock(void);
 void caml_acquire_contextual_lock(CAML_R);
 void caml_release_contextual_lock(CAML_R);
 
-
 // FIXME: remove this after debugging
 void caml_dump_global_mutex(void);
 
@@ -1080,6 +1079,8 @@ void caml_initialize_mutex(pthread_mutex_t *mutex);
 void caml_finalize_mutex(pthread_mutex_t *mutex);
 void caml_initialize_semaphore(sem_t *semaphore, int initial_value);
 void caml_finalize_semaphore(sem_t *semaphore);
+void caml_p_semaphore(sem_t* semaphore); // signal-safe, differently from POSIX semaphores
+void caml_v_semaphore(sem_t* semaphore); // signal-safe, differently from POSIX semaphores
 
 
 #define NOATTR        "\033[0m"
@@ -1219,6 +1220,12 @@ extern __thread int caml_indentation_level;
 #define QR(FORMAT, ...) /* nothing */
 #define QBR(FORMAT, ...) /* nothing */
 
+#define DDUMP(FORMAT, ...) \
+  do{ \
+    if(caml_debugging) \
+      DUMP(FORMAT, ##__VA_ARGS__); \
+  } while(0)
+
 #define DUMPUNLESSMAIN(FORMAT, ...) \
   do{ \
     if(ctx->descriptor->kind != caml_global_context_main) \
@@ -1227,7 +1234,20 @@ extern __thread int caml_indentation_level;
 
 #define USLEEP(LABEL, FLOAT_SECONDS) \
   do { \
-    DUMP("before usleep'ing for %.2f seconds (%s)", (double)(FLOAT_SECONDS), LABEL); usleep((long)(FLOAT_SECONDS * 1000.0 * 1000.0)); DUMP("after usleep'ing for %.2f seconds (%s)", (double)(FLOAT_SECONDS), LABEL); \
+    double __float_seconds = FLOAT_SECONDS; \
+    long __float_seconds_integer_part = (long)__float_seconds ; \
+    double __float_seconds_frational_part = __float_seconds - __float_seconds_integer_part; \
+    long __float_seconds_nanoSECOndS_only = (long)(__float_seconds_frational_part * 1e9); \
+    struct timespec __time_spEC_ = { (time_t)__float_seconds_integer_part, __float_seconds_nanoSECOndS_only }; \
+    struct timespec __remainINg_; \
+    DUMP("before nanosleep'ing for %li.%li seconds (%s)", (long)(__float_seconds_integer_part), (long)(__float_seconds_nanoSECOndS_only), LABEL); \
+    while(nanosleep(&__time_spEC_, &__remainINg_) != 0){ \
+      assert(errno == EINTR); \
+      errno = 0; \
+      DUMP("nanosleep was interrupted by a signal"); \
+      __time_spEC_ = __remainINg_; \
+    }; \
+    DUMP("after nanosleep'ing (%s)", LABEL); \
   } while(0)
 
 /* int caml_get_thread_no_r(CAML_R); */
@@ -1245,4 +1265,5 @@ void caml_set_caml_can_split_r(CAML_R, int (*caml_can_split_r)(CAML_R));
 /* The one and only main context: */
 CAMLextern caml_global_context *the_main_context;
 
+extern int caml_debugging; // !!!!!!!!!!!!!!!!!!!!!!!
 #endif

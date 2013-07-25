@@ -17,6 +17,7 @@
 
 /* Buffered input/output. */
 
+#include <assert.h> // !!!!!!!!!!!!!!
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -51,18 +52,24 @@
 /* Hooks for locking channels */
 
 /// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME
+static struct channel *the_currently_locked_channel = NULL;
 static void caml_default_mutex_free(struct channel *c){
   
 }
 static void caml_default_mutex_lock(struct channel *c){
   caml_acquire_channel_lock();
+  the_currently_locked_channel = c;
 }
 static void caml_default_mutex_unlock(struct channel *c){
+  the_currently_locked_channel = NULL;
   caml_release_channel_lock();
   //extern int already_initialized; if(already_initialized){ INIT_CAML_R; DUMP(); }
 }
 static void caml_default_mutex_unlock_exn(void){
-  
+  if(the_currently_locked_channel != NULL){
+    INIT_CAML_R; DUMP("I have to unlock %p", the_currently_locked_channel);
+    caml_default_mutex_unlock(the_currently_locked_channel);
+  }
 }
 void caml_initialize_default_channel_mutex_functions(void){
   caml_channel_mutex_free = caml_default_mutex_free;

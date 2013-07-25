@@ -86,3 +86,7 @@ val global_index : 'a -> int
 
 (* FIXME: remove after debugging *)
 val dump : string -> unit
+
+(* FIXME: remove after debugging *)
+val set_debugging : bool -> unit
+
