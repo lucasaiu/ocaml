@@ -67,7 +67,7 @@ static void caml_default_mutex_unlock(struct channel *c){
 }
 static void caml_default_mutex_unlock_exn(void){
   if(the_currently_locked_channel != NULL){
-    INIT_CAML_R; DUMP("I have to unlock %p", the_currently_locked_channel);
+    //INIT_CAML_R; DUMP("I have to unlock %p", the_currently_locked_channel);
     caml_default_mutex_unlock(the_currently_locked_channel);
   }
 }
@@ -154,14 +154,14 @@ CAMLexport void caml_close_channel(struct channel *channel)
   close(channel->fd);
   Lock(channel);
   greater_than_zero = channel->refcount > 0;
-  if((channel->fd >= 0) && (channel->fd < 3))QDUMP("closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", channel, channel->fd, (int)channel->refcount);
+  if((channel->fd >= 0) && (channel->fd < 3))DDUMP("closing the channel with struct channel* %p, fd %i: its refcount is now %i\n", channel, channel->fd, (int)channel->refcount);
   //channel->already_closed = 1;
   Unlock(channel);
   if (greater_than_zero)
     return;
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(channel);
   unlink_channel(channel);
-  QDUMP("Freeing the channel structure at %p (fd %i, refcount %i)", channel, old_fd, (int)channel->refcount);
+  DDUMP("Freeing the channel structure at %p (fd %i, refcount %i)", channel, old_fd, (int)channel->refcount);
   caml_stat_free(channel);
 }
 
@@ -486,11 +486,11 @@ CAMLexport void caml_finalize_channel(value vchan)
   greater_than_zero = --chan->refcount > 0; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   Unlock(chan);
   //return; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  QDUMP("unpinning the channel with struct channel* %p, fd %i, refcount %i->%i", chan, chan->fd, old_refcount, new_refcount);
+  DDUMP("unpinning the channel with struct channel* %p, fd %i, refcount %i->%i", chan, chan->fd, old_refcount, new_refcount);
   if (greater_than_zero)
     return;
   ///*if(chan->fd == 2)*/{ QDUMP("SHOULD destroy the channel with struct channel* %p, fd %i, refcount %i", chan, chan->fd, new_refcount); return; }// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! JUST A TEST, OF COURSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  QDUMP("destroying the channel with struct channel* %p, fd %i", chan, chan->fd);
+  DDUMP("destroying the channel with struct channel* %p, fd %i", chan, chan->fd);
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(chan);
   unlink_channel(chan);
   caml_stat_free(chan);
@@ -548,7 +548,7 @@ static uintnat cross_context_deserialize_channel(void * dst){
   *((struct channel**)dst) = pointer;
   Lock(pointer);
   pointer->refcount ++;
-  QDUMP("Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i", pointer, pointer->fd, pointer->refcount);
+  DDUMP("Cross-context-deserializing the channel with struct channel* %p, fd %i: its refcount is now %i", pointer, pointer->fd, pointer->refcount);
   Unlock(pointer);
 
   //fprintf(stderr, "Deserializing the channel at %p, fd %i: still alive at the end\n", pointer, pointer->fd); fflush(stderr);
@@ -574,7 +574,7 @@ CAMLexport value caml_alloc_channel_r(CAML_R, struct channel *chan)
   value res;
   Lock(chan);
   chan->refcount++;             /* prevent finalization during next alloc */
-  QDUMP("allocating a channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
+  DDUMP("allocating a channel with struct channel* %p, fd %i: its refcount is now %i", chan, chan->fd, chan->refcount);
   Unlock(chan);
 
   res = caml_alloc_custom(&caml_channel_operations, sizeof(struct channel *),
@@ -644,7 +644,7 @@ CAMLprim value caml_ml_close_channel_r(CAML_R, value vchannel)
   struct channel * channel = Channel(vchannel);
   if (channel->fd != -1){
     fd = channel->fd;
-    QDUMP("closing a channel with struct channel* %p, fd %i [now -1]: its refcount is %i", channel, channel->fd, channel->refcount);
+    DDUMP("closing a channel with struct channel* %p, fd %i [now -1]: its refcount is %i", channel, channel->fd, channel->refcount);
     channel->fd = -1;
     do_syscall = 1;
   }else{

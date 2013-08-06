@@ -20,10 +20,12 @@
 #define CAML_CONTEXT_ROOTS
 #define CAML_CONTEXT_FIX_CODE
 
+#include <stdio.h> // !!!!!!!!!!!!!!!!!!!!!!!!!
 #include <string.h>
 #include "callback.h"
 #include "fail.h"
 #include "memory.h"
+#include "alloc.h"
 #include "mlvalues.h"
 
 #ifndef NATIVE_CODE
@@ -235,4 +237,58 @@ CAMLexport value * caml_named_value_r(CAML_R, char const *name)
     if (strcmp(name, nv->name) == 0) return &nv->val;
   }
   return NULL;
+}
+
+/* Helper function for caml_named_value_table_as_caml_value_r */
+static value caml_named_value_table_bucket_as_caml_value_r(CAML_R, struct named_value *bucket){
+  CAMLparam0();
+  CAMLlocal1(result);
+  result = Val_emptylist;
+
+  if(bucket != NULL){
+    result = caml_alloc_r(ctx, 3, 0);
+    caml_modify_r(ctx, &Field(result, 0), caml_copy_string_r(ctx, bucket->name));
+    caml_modify_r(ctx, &Field(result, 1), bucket->val);
+    caml_modify_r(ctx, &Field(result, 2), caml_named_value_table_bucket_as_caml_value_r(ctx, bucket->next));
+  }
+  CAMLreturn(result);
+}
+
+CAMLexport value caml_named_value_table_as_caml_value_r(CAML_R){
+  CAMLparam0();
+  CAMLlocal3(result, bucket, bucket_item);
+  int i;
+  result = caml_alloc_r(ctx, Named_value_size, 0);
+  for(i = 0; i < Named_value_size; i ++){
+    bucket = caml_named_value_table_bucket_as_caml_value_r(ctx, named_value_table[i]);
+    caml_modify_r(ctx, &Field(result, i), bucket);
+  }
+  DUMP("result is %p", (void*)(long)result);
+  CAMLreturn(result);
+}
+
+/* Helper function for caml_install_named_value_table_as_caml_value_r */
+static struct named_value* caml_named_value_table_bucket_from_caml_value_r(CAML_R, value caml_bucket){
+  struct named_value *result = NULL;
+  CAMLparam0();
+  CAMLlocal1(caml_name);
+  result = NULL;
+  if(caml_bucket != Val_emptylist){
+    caml_name = Field(caml_bucket, 0);
+    result = caml_stat_alloc(sizeof(struct named_value) + caml_string_length(caml_name));
+    result->val = Field(caml_bucket, 1);
+    caml_register_global_root_r(ctx, &result->val);
+    strcpy(result->name, String_val(caml_name));
+    result->next = caml_named_value_table_bucket_from_caml_value_r(ctx, Field(caml_bucket, 2));
+  }
+  CAMLreturnT(struct named_value*, result);
+}
+
+CAMLexport void caml_install_named_value_table_as_caml_value_r(CAML_R, value encoded_named_value_table){
+  CAMLparam1(encoded_named_value_table);
+  int i;
+  for(i = 0; i < Named_value_size; i ++)
+    named_value_table[i] =
+      caml_named_value_table_bucket_from_caml_value_r(ctx, Field(encoded_named_value_table, i));
+  CAMLreturn0;
 }

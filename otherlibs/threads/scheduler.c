@@ -163,12 +163,12 @@ static void thread_scan_roots(scanning_action action)
 }
 
 /// Ugly and experimental: BEGIN --Luca Saiu REENTRANTRUNTIME
-static void caml_vmthreads_mutex_free(struct channel *c){
+static void caml_vmthreads_channel_mutex_free(struct channel *c){
   free(c->mutex);
   INIT_CAML_R; DDUMP("destroying the channel at %p, with fd %i", c, c->fd);
 }
 value thread_yield_r(CAML_R, value unit);
-static void caml_vmthreads_mutex_lock(struct channel *c){
+static void caml_vmthreads_channel_mutex_lock(struct channel *c){
   pthread_mutex_t *mutex_pointer;
 caml_acquire_channel_lock();
   mutex_pointer = c->mutex;
@@ -179,29 +179,29 @@ caml_acquire_channel_lock();
   }
 caml_release_channel_lock();
   INIT_CAML_R;
-  DDUMP("trying to lock channel %p with fd %i", c, c->fd);
+  QDUMP("trying to lock channel %p with fd %i", c, c->fd);
   int iteration_no = 0;
   while(pthread_mutex_trylock(mutex_pointer) != 0){
     iteration_no ++;
     thread_yield_r(ctx, Val_unit);
   }
   ctx->last_locked_channel = c;
-  //if(iteration_no > 0)
-    DDUMP("Got the channel with fd %i after %i failed attempts...", (int)c->fd, iteration_no);
+  if(iteration_no > 0)
+    QDUMP("Got the channel with fd %i after %i failed attempts...", (int)c->fd, iteration_no);
 }
-static void caml_vmthreads_mutex_unlock(struct channel *c){
+static void caml_vmthreads_channel_mutex_unlock(struct channel *c){
   INIT_CAML_R;
   ctx->last_locked_channel = NULL;
   pthread_mutex_unlock(c->mutex);
-  DDUMP("unlocked channel %p with fd %i", c, c->fd);
+  QDUMP("unlocked channel %p with fd %i", c, c->fd);
 }
-static void caml_vmthreads_mutex_unlock_exn(void){
+static void caml_vmthreads_channel_mutex_unlock_exn(void){
   INIT_CAML_R;
   struct channel *the_channel_to_unlock = ctx->last_locked_channel;
-  DDUMP("I have to unlock %p", the_channel_to_unlock);
+  DUMP("I have to unlock %p", the_channel_to_unlock);
   if(the_channel_to_unlock != NULL){
-    caml_vmthreads_mutex_unlock(the_channel_to_unlock);
     ctx->last_locked_channel = NULL;
+    caml_vmthreads_channel_mutex_unlock(the_channel_to_unlock);
   }
 }
 /// Ugly and experimental: END --Luca Saiu REENTRANTRUNTIME
@@ -280,10 +280,10 @@ value thread_initialize_r(CAML_R, value unit)       /* ML */
   atexit(thread_restore_std_descr);
 
   /* Add channel locking functions suitable for vmthreads: */
-  caml_channel_mutex_free = caml_vmthreads_mutex_free;
-  caml_channel_mutex_lock = caml_vmthreads_mutex_lock;
-  caml_channel_mutex_unlock = caml_vmthreads_mutex_unlock;
-  caml_channel_mutex_unlock_exn = caml_vmthreads_mutex_unlock_exn;
+  caml_channel_mutex_free = caml_vmthreads_channel_mutex_free;
+  caml_channel_mutex_lock = caml_vmthreads_channel_mutex_lock;
+  caml_channel_mutex_unlock = caml_vmthreads_channel_mutex_unlock;
+  caml_channel_mutex_unlock_exn = caml_vmthreads_channel_mutex_unlock_exn;
 
   /* Now also initialize per-context support for the current context, which
      is presumably the main one: */
@@ -309,6 +309,10 @@ value thread_initialize_preemption_r(CAML_R, value unit)     /* ML */
 value thread_new_r(CAML_R, value clos)          /* ML */
 {
   caml_thread_t th;
+
+  /* The context will have one more user: */
+  caml_pin_context_r(ctx);
+
   /* Allocate the thread and its stack */
   Begin_root(clos);
   th = (caml_thread_t) caml_alloc_shr_r(ctx, sizeof(struct caml_thread_struct)
@@ -853,6 +857,10 @@ value thread_kill_r(CAML_R, value thread)       /* ML */
     th->backtrace_buffer = NULL;
   }
   th->last_locked_channel = NULL; // just to ease debugging: there's nothing to free here
+
+  /* There's one less user for this context: */
+  caml_unpin_context_r(ctx);
+
   return retval;
 }
 

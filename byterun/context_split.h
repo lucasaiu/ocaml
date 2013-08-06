@@ -29,4 +29,7 @@ void caml_split_context_r(CAML_R,
 struct caml_mailbox* caml_make_local_mailbox_r(CAML_R);
 void caml_destroy_local_mailbox_r(CAML_R, struct caml_mailbox *mailbox);
 
+/* Run the context finalization functions registered with Context.at_exit */
+void caml_run_at_context_exit_functions_r(CAML_R);
+
 #endif /* #ifndef CAML_CONTEXT_SPLIT_H */

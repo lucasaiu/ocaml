@@ -61,6 +61,16 @@ CAMLextern value * caml_named_value_r (CAML_R, char const * name);
 CAMLextern caml_global_context * caml_main_rr (char ** argv);
 CAMLextern void caml_startup (char ** argv);
 
+/* Return a Caml encoding of the current named_value_table.  This is
+   needed to copy the table at split time, sharing correctly. */
+CAMLextern value caml_named_value_table_as_caml_value_r(CAML_R);
+
+/* Given a Caml encoding of named_value_table, install it in the given
+   context, setting up roots as needed.  The contained Caml values
+   have to refer the given context heap, so this is intended to be
+   used on an encoding obtained from deserializing a blob. */
+CAMLextern void caml_install_named_value_table_as_caml_value_r(CAML_R, value encoded_named_value_table);
+
 /* CAMLextern int caml_callback_depth; */
 
 #ifdef __cplusplus

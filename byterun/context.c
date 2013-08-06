@@ -103,7 +103,7 @@ void caml_p_semaphore(sem_t* semaphore){
   int sem_wait_result;
   while((sem_wait_result = sem_wait(semaphore)) != 0){
     assert(errno == EINTR);
-    INIT_CAML_R; DUMP("\a!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! sem_wait was interrupted by a signal");
+    INIT_CAML_R; DUMP("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! sem_wait was interrupted by a signal");
     errno = 0;
   }
   assert(sem_wait_result == 0);
@@ -113,6 +113,21 @@ void caml_v_semaphore(sem_t* semaphore){
   assert(sem_post_result == 0);
 }
 
+void* caml_destructor_thread_function(void *ctx_as_void_star){
+  CAML_R = ctx_as_void_star;
+
+  /* Block until notified by a V: */
+  DUMP("waiting to be notified before destroying the context");
+  caml_p_semaphore(&ctx->destruction_semaphore);
+
+  /* We were notified; run at_exit callbacks and destroy the context: */
+  caml_run_at_context_exit_functions_r(ctx);
+  DUMP("about to destroy the context");
+  caml_destroy_context_r(ctx);
+  fprintf(stderr, "Destroyed the context %p: exiting the destructor thread %p as well.\n", ctx, (void*)pthread_self());  fflush(stderr);
+  return NULL; // unused
+}
+
 caml_global_context *caml_initialize_first_global_context(void)
 {
   /* Maybe we should use partial contexts for specific tasks, that
@@ -120,7 +135,7 @@ will probably not be used by all threads.  We should check the size of
 each part of the context, to allocate only what is probably required
 by all threads, and then allocate other sub-contexts on demand. */
 
-  caml_global_context* ctx = (caml_global_context*)caml_stat_alloc( sizeof(caml_global_context) );
+  caml_global_context* ctx = (caml_global_context*)caml_stat_alloc(sizeof(caml_global_context));
   /*
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT  --Luca Saiu REENTRANTRUNTIME: BEGIN
 FIXME: This is a pretty bad symptom.  If I replace the 0 with a 1, the
@@ -405,7 +420,9 @@ section.  */
   /* from callback.c */
   ctx->caml_callback_depth = 0;
   ctx->callback_code_threaded = 0;
-  ctx->named_value_table[0] = NULL;
+  int i;
+  for(i = 0; i < Named_value_size; i ++)
+    ctx->named_value_table[i] = NULL;
 
   /* from debugger.c */
   ctx->caml_debugger_in_use = 0;
@@ -493,8 +510,18 @@ section.  */
   /* We can split in the present state: */
   ctx->can_split = 1;
 
+  /* Context-destructor structures: */
+  ctx->reference_count = 0;
+  caml_initialize_semaphore(&ctx->destruction_semaphore, 0);
+  int pthread_create_result = pthread_create(&ctx->destructor_thread, NULL, caml_destructor_thread_function, ctx);
+  assert(pthread_create_result == 0);
+  //caml_initialize_mutex(&ctx->reference_count_mutex);
+
   /* The kludgish self-pointer: */
   ctx->ctx = ctx;
+
+  /* The main thread is already a user for this context: */
+  caml_pin_context_r(ctx);
 
   return ctx;
 }
@@ -658,8 +685,8 @@ library_context *caml_get_library_context_r(CAML_R,
   return uctx;
 }
 
-extern void caml_destroy_context(CAML_R){
-  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
+extern void caml_destroy_context_r(CAML_R){
+  //fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
   caml_remove_global_root_r(ctx, &ctx->caml_signal_handlers);
 
@@ -673,7 +700,7 @@ extern void caml_destroy_context(CAML_R){
   /* No global variables are live any more; destroy everything in the Caml heap: */
 #ifdef NATIVE_CODE
   caml_shrink_extensible_buffer(&ctx->caml_globals, ctx->caml_globals.used_size);
-  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
   caml_stat_free(ctx->caml_globals.array);
 #endif /* #ifdef NATIVE_CODE */
 
@@ -682,14 +709,14 @@ extern void caml_destroy_context(CAML_R){
   ctx->descriptor->kind = caml_global_context_dead;
   ctx->descriptor->content.local_context.context = NULL;
 
-  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-3\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: OK-3\n", ctx, (void*)(pthread_self())); fflush(stderr);
   // Free every dynamically-allocated object which is pointed by the context data structure [FIXME: really do it]:
-  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
-  //fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
+  //fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
   /* Free the context data structure ifself: */
   caml_stat_free(ctx);
-  fprintf(stderr, "caml_destroy_context [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
+  fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: OK-5: destroyed %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
   // FIXME: really destroy stuff
 }
 
@@ -981,6 +1008,31 @@ void caml_initialize_context_thread_support_r(CAML_R){
 int caml_can_split_r(CAML_R){
   return ctx->can_split;
 }
+
+void caml_pin_context_r(CAML_R){
+  Assert(ctx->reference_count > 0);
+  ctx->reference_count ++;
+  DUMP("  PIN %i -> %i", ctx->reference_count - 1, ctx->reference_count);
+}
+
+void caml_unpin_context_r(CAML_R){
+  Assert(ctx->reference_count > 0);
+  ctx->reference_count --;
+  DUMP("UNpin %i -> %i", ctx->reference_count + 1, ctx->reference_count);
+  if(ctx->reference_count == 0){
+    DUMP("removed the last pin");
+    caml_v_semaphore(&ctx->destruction_semaphore);
+    /* if(caml_remove_last_pin_from_context_hook != NULL) */
+    /*   caml_remove_last_pin_from_context_hook(ctx); */
+  }
+}
+
+/* static void caml_default_remove_last_pin_from_context_hook_r(CAML_R){ */
+/*   caml_destroy_context_r(ctx); */
+/* } */
+/* void (*caml_remove_last_pin_from_context_hook)(CAML_R) = caml_default_remove_last_pin_from_context_hook_r; */
+
+
 
 /* CAMLprim int caml_multi_context_implemented(value unit){ */
 /* #if HAS_MULTI_CONTEXT */

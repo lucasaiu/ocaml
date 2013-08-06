@@ -149,8 +149,26 @@ let split_into_array context_no f =
 let split1 f =
   List.hd (split 1 (fun _ mailbox -> f mailbox))
 
-(* FIXME: remove after debugging *)
-external dump : string -> unit = "caml_dump_r" "reentrant"
+let at_context_exit_functions : (unit -> unit) list ref =
+  ref []
 
 (* FIXME: remove after debugging *)
+external dump : string -> unit = "caml_dump_r" "reentrant"
+(* FIXME: remove after debugging *)
 external set_debugging : bool -> unit = "caml_set_debugging"
+
+(* This is to be called from C: *)
+let run_at_context_exit_functions () =
+  dump "Executing \"contextual\" at_exit functions";
+  List.iter
+    (fun f -> f ())
+    (List.rev !at_context_exit_functions);
+  dump "Executed \"contextual\" at_exit functions"
+let () =
+  Callback.register "Context.run_at_context_exit_functions" run_at_context_exit_functions
+
+let at_exit f =
+  at_context_exit_functions := f :: !at_context_exit_functions
+
+let _ =
+  at_exit (fun () -> dump "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE  about to exit the context")

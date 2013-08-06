@@ -66,18 +66,22 @@ Context.dump "* INITIALIZING systhreads\n%!";
   Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
   (* Sys.set_signal preempt_signal (Sys.Signal_handle (fun s -> prerr_string "**************{got signal "; prerr_int s; prerr_string " [FIXME: call preempt instead]}\n"; flush stderr)); *)
   thread_initialize();
-  at_exit
+  Context.at_exit
     (fun () ->
-Context.dump "* BEFORE thread_cleanup\n%!";
-        thread_cleanup();
-Context.dump "* AFTER thread_cleanup\n%!";
-        (* In case of DLL-embedded OCaml the preempt_signal handler
-           will point to nowhere after DLL unloading and an accidental
-           preempt_signal will crash the main program. So restore the
-           default handler. *)
-Context.dump "thread.ml: ABOUT TO EXIT\n%!";
-        Sys.set_signal preempt_signal Sys.Signal_default
-    );
+Context.dump "Executing the Context.at_exit function registered by systhreads: killing the tick thread";
+      thread_cleanup ();
+      Sys.set_signal preempt_signal Sys.Signal_default;
+Context.dump "Executed the Context.at_exit function registered by systhreads";
+);
+  (* I moved these to the Context.at_exit part --L.S. *)
+  (* at_exit *)
+  (*   (fun () -> *)
+  (*       thread_cleanup(); *)
+  (*       (\* In case of DLL-embedded OCaml the preempt_signal handler *)
+  (*          will point to nowhere after DLL unloading and an accidental *)
+  (*          preempt_signal will crash the main program. So restore the *)
+  (*          default handler. *\) *)
+  (*       Sys.set_signal preempt_signal Sys.Signal_default); *)
 Context.dump "* INITIALIZED systhreads\n%!"
 
 

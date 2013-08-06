@@ -40,12 +40,16 @@ val send : mailbox -> 'a -> unit
 val receive : mailbox -> 'a
 
 
-(* Wait until the context local to the given mailbox or mailboxes terminates: *)
-(* FIXME: fix the multi-thread case [FIXME: is it already fixed?]*)
-val join_context : t -> unit 
-val join_contexts : t list -> unit
-val join1 : mailbox -> unit
-val join : mailbox list -> unit
+(* (\* Wait until the context local to the given mailbox or mailboxes terminates: *\) *)
+(* (\* FIXME: fix the multi-thread case [FIXME: is it already fixed?]*\) *)
+(* val join_context : t -> unit  *)
+(* val join_contexts : t list -> unit *)
+(* val join1 : mailbox -> unit *)
+(* val join : mailbox list -> unit *)
+
+
+(* Register functions to be run before context destruction: *)
+val at_exit : (unit -> unit) -> unit
 
 
 (* Handlers -- an event interface *)
@@ -89,4 +93,3 @@ val dump : string -> unit
 
 (* FIXME: remove after debugging *)
 val set_debugging : bool -> unit
-

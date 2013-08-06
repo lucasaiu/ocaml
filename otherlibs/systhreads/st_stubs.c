@@ -595,7 +595,7 @@ caml_release_contextual_lock(ctx);
 
 CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
 {
-  DUMP("!!!!!!!!@@@@@@@########$$$$$$$$$%%%%%%%%%%%");
+  DUMP("!!!!!!!!@@@@@@@########$$$$$$$$$%%%%%%%%%%");
   QB();
   /* Protect against repeated initialization (PR#1325) */
   static int already_initialized = 0;
@@ -677,6 +677,9 @@ if(0){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   st_thread_cleanup();
 //caml_release_contextual_lock(ctx);
 
+  /* The context has one user less: */
+  caml_unpin_context_r(ctx);
+
   /* Release the runtime system */
   st_masterlock_release(&caml_master_lock);
   QR();
@@ -755,7 +758,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
     DUMP("this context has %i threads", (int)caml_systhreads_get_thread_no_r(ctx));
     DUMP("calling the caml code");
     //DUMP("stack is [%p, ~%p]", caml_bottom_of_stack, &tos);
-DUMPROOTS("before calling the caml code");
+    //DUMPROOTS("before calling the caml code");
     caml_callback_exn_r(ctx, clos, Val_unit); // !!!!!!!!!!!!!!!!!!!!!!!!!!!! This is the right version
     //caml_callback_r(ctx, clos, Val_unit); // Just for testing: I want to see the exception !!!!!!!!!!!!!!!!!!!!!!!!
     QR("exiting the native-code thread");
@@ -840,6 +843,11 @@ CAMLprim value caml_thread_new_r(CAML_R, value clos)          /* ML */
 
   //do_black_magic(ctx); // !!!!!!!!!!!!!!
 
+  /* The current context is about to have one more user (we need to
+     pin *before* creation to ensure the pincount doesn't drop to zero
+     just because of scheduling): */
+  caml_pin_context_r(ctx);
+
   /* Create the new thread */
   err = st_thread_create_r(ctx, NULL, caml_thread_start, (void *) th, "ordinary");
   if (err != 0) {
@@ -874,6 +882,9 @@ caml_acquire_contextual_lock(ctx);
   if (st_tls_get(thread_descriptor_key) != NULL) {QR();
 caml_release_contextual_lock(ctx);
                                                   return 0;}
+
+  /* The context has a new user: */
+  caml_pin_context_r(ctx);
 
   /* Create a thread info block */
   th = caml_thread_new_info_r(ctx);
@@ -939,6 +950,10 @@ CAMLexport int caml_c_thread_unregister_r(CAML_R)
   caml_thread_remove_info(th);
   /* Release the runtime */
   st_masterlock_release(&caml_master_lock);
+
+  /* The context has one user less: */
+  caml_unpin_context_r(ctx);
+
   QR();
   return 1;
 }
@@ -996,7 +1011,13 @@ CAMLprim value caml_thread_exit_r(CAML_R, value unit)   /* ML */
   exit_buf = curr_thread->exit_buf;
 #endif
   caml_thread_stop_r(ctx);
+
+  /* The context has one user less: */
+  DUMP("*************************** exit_buf is %p", exit_buf);
+  caml_unpin_context_r(ctx);
+
   if (exit_buf != NULL) {
+    DUMP("*************************** IS THIS THE MESS LOCATION?");
     /* Native-code and (main thread or thread created by OCaml) */
     siglongjmp(exit_buf->buf, 1);
   } else {

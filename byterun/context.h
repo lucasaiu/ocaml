@@ -643,6 +643,13 @@ struct caml_global_context {
   /* Can we still split?  If threads have already been created, it's too late. */
   int can_split;
 
+  /* Context-destructor structures: */
+  int reference_count;
+  //pthread_mutex_t reference_count_mutex; // NO: I'll just use the contextual mutex // Actually I don't need *any* mutex: caml threads on the same context are not parallel!!!!
+  //pthread_cond_t reference_count_condition;
+  sem_t destruction_semaphore;
+  pthread_t destructor_thread;
+
   /* The "kludigsh self-pointer"; this is handy for compatibility
      macros translating X to ctx->X.  This field points to the
      structure itself, so that the expressions ctx->X and
@@ -693,7 +700,12 @@ struct caml_mailbox* caml_mailbox_of_value(value v);
 
 extern caml_global_context *caml_initialize_first_global_context(void);
 extern caml_global_context *caml_make_empty_context(void); /* defined in startup.c */
-extern void caml_destroy_context(caml_global_context *c);
+extern void caml_destroy_context_r(caml_global_context *c);
+
+/* FIXME: document */
+extern void caml_pin_context_r(CAML_R);
+extern void caml_unpin_context_r(CAML_R);
+/* extern void (*caml_remove_last_pin_from_context_hook)(CAML_R); */
 
 /* Access a thread-local context pointer */
 extern caml_global_context *caml_get_thread_local_context(void);
@@ -1092,8 +1104,8 @@ void caml_v_semaphore(sem_t* semaphore); // signal-safe, differently from POSIX 
 #define LIGHTPURPLE   NOATTR "\033[1m\033[35m"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#define flockfile(Q) /* nothing */
-#define funlockfile(Q) /* nothing */
+//#define flockfile(Q) /* nothing */
+//#define funlockfile(Q) /* nothing */
 
 int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
 
@@ -1232,7 +1244,7 @@ extern __thread int caml_indentation_level;
       DUMP(FORMAT, ##__VA_ARGS__); \
   } while(0)
 
-#define USLEEP(LABEL, FLOAT_SECONDS) \
+#define SLEEP(LABEL, FLOAT_SECONDS) \
   do { \
     double __float_seconds = FLOAT_SECONDS; \
     long __float_seconds_integer_part = (long)__float_seconds ; \
