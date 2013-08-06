@@ -21,6 +21,7 @@
 #define CAML_CONTEXT_FIX_CODE
 
 #include <stdio.h> // !!!!!!!!!!!!!!!!!!!!!!!!!
+#include <assert.h> // !!!!!!!!!!!!!!!!!!!!!!!!!
 #include <string.h>
 #include "callback.h"
 #include "fail.h"
@@ -291,4 +292,23 @@ CAMLexport void caml_install_named_value_table_as_caml_value_r(CAML_R, value enc
     named_value_table[i] =
       caml_named_value_table_bucket_from_caml_value_r(ctx, Field(encoded_named_value_table, i));
   CAMLreturn0;
+}
+
+/* Helper for caml_destroy_named_value_table_r */
+static void caml_destroy_named_value_table_bucket_r(CAML_R, struct named_value *bucket){
+  //DUMP("Destroying the bucket at %p", bucket);
+  while(bucket != NULL){
+    void *next = bucket->next;
+    //DUMP("Destroying the bbucket at %p", bucket);
+    free(bucket);
+    bucket = next;
+    //DUMP("The bucket rest is now %p", bucket);
+  }
+}
+CAMLexport void caml_destroy_named_value_table_r(CAML_R){
+  int i;
+  for(i = 0; i < Named_value_size; i ++){
+    //DUMP("Destroying the %i-th bucket", i);
+    caml_destroy_named_value_table_bucket_r(ctx, named_value_table[i]);
+  }
 }

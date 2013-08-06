@@ -603,8 +603,12 @@ struct caml_global_context {
   /* The master lock protecting the OCaml runtime system */
   st_masterlock caml_master_lock;
 
-  /* Whether the ``tick'' thread is already running */
-  int caml_tick_thread_running /* = 0 */;
+  /* /\* Whether the ``tick'' thread is already running *\/ */
+  /* int caml_tick_thread_running /\* = 0 *\/; */
+  /* Whether the ``tick'' thread is already running.  "-1" means that
+     the tick thread is being requested to exit, after resetting the
+     field to 0 */
+  volatile int caml_tick_thread_running /* = 0 */;
 
   /* The thread identifier of the ``tick'' thread */
   st_thread_id caml_tick_thread_id;
@@ -1107,7 +1111,7 @@ void caml_v_semaphore(sem_t* semaphore); // signal-safe, differently from POSIX 
 //#define flockfile(Q) /* nothing */
 //#define funlockfile(Q) /* nothing */
 
-int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
+//int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
 
 
 #ifdef NATIVE_CODE
@@ -1154,10 +1158,9 @@ int caml_systhreads_get_thread_no_r(CAML_R); // FIXME: remove this declaration
   do{ \
     flockfile(stderr); \
     fprintf(stderr, \
-            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p" PURPLE" %2i"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
+            "%s:%i(" RED  "%s" NOATTR ") C%p T" CYAN "%p"/* " AP" PURPLE"%p"NOATTR"/"PURPLE"%p" */NOATTR" ", \
             __FILE__, __LINE__, __FUNCTION__, ctx, \
-            (void*)pthread_self(), \
-            (int)caml_systhreads_get_thread_no_r(ctx)); \
+            (void*)pthread_self()); \
     /* fflush(stderr); */ \
     fprintf(stderr, " " GREEN FORMAT, ##__VA_ARGS__); \
     fprintf(stderr, NOATTR "\n"); \

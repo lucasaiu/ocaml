@@ -71,6 +71,9 @@ CAMLextern value caml_named_value_table_as_caml_value_r(CAML_R);
    used on an encoding obtained from deserializing a blob. */
 CAMLextern void caml_install_named_value_table_as_caml_value_r(CAML_R, value encoded_named_value_table);
 
+/* Destroy dynamically-allocated structures */
+CAMLextern void caml_destroy_named_value_table_r(CAML_R);
+
 /* CAMLextern int caml_callback_depth; */
 
 #ifdef __cplusplus

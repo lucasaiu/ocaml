@@ -378,7 +378,8 @@ DUMP("this is the tick thread");
   pthread_sigmask(SIG_BLOCK, &mask, NULL);
   /* Allow async cancellation */
   pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-  while(1) {
+  while(caml_tick_thread_running != -1) {
+  //while(1) {
     /* select() seems to be the most efficient way to suspend the
        thread for sub-second intervals */
     timeout.tv_sec = /*1*/0;//timeout.tv_sec = 0; // FIXME: this of course should be reset to 0 after debugging
@@ -392,14 +393,19 @@ DUMP("this is the tick thread");
      go through caml_handle_signal(), just record signal delivery via
      caml_record_signal(). */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticking.\n", ctx, (void*)pthread_self()); fflush(stderr);
-    DDUMP("-- tick -- Busy:%s, waiters: %i", (ctx->caml_master_lock.busy?"YES":" no"), ctx->caml_master_lock.waiters);
+    //DDUMP("-- tick -- Busy:%s, waiters: %i", (ctx->caml_master_lock.busy?"YES":" no"), ctx->caml_master_lock.waiters);
     /* DUMP("before caml_record_signal_r"); */
     caml_record_signal_r(ctx, SIGPREEMPTION);
     /* DUMP("after caml_record_signal_r"); */
 //fprintf(stderr, "Context %p: st_thread_tick: thread %p ticked.\n", ctx, (void*)pthread_self()); fflush(stderr);
   }
+  DUMP("~~~~~~~~~~~~~~~~~~~~~~~~~~~~ the tick thread is exiting");
+  /* This authorizes the destructor thread to destroy the context;
+     from now on we can't use any longer: */
+  caml_tick_thread_running = 0;
   QR();
-  return NULL;                  /* prevents compiler warning */
+  //return NULL;                  /* prevents compiler warning */
+  return NULL;
 }
 
 /* "At fork" processing */

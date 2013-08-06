@@ -162,7 +162,7 @@ let run_at_context_exit_functions () =
   dump "Executing \"contextual\" at_exit functions";
   List.iter
     (fun f -> f ())
-    (List.rev !at_context_exit_functions);
+    ((* List.rev *) !at_context_exit_functions);
   dump "Executed \"contextual\" at_exit functions"
 let () =
   Callback.register "Context.run_at_context_exit_functions" run_at_context_exit_functions

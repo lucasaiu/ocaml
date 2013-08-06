@@ -646,10 +646,35 @@ CAMLprim value caml_thread_initialize_r(CAML_R, value unit)   /* ML */
 
 CAMLprim value caml_thread_cleanup_r(CAML_R, value unit)   /* ML */
 {
+  //if (caml_tick_thread_running) st_thread_kill(caml_tick_thread_id); // ORIGINAL VERSION --L.S
+  //return Val_unit; // ORIGINAL VERSION --L.S
   QB();
-  if (caml_tick_thread_running) st_thread_kill(caml_tick_thread_id);
+
+  /* Ask the tick thread to exit, and wait until we're sure it stopped
+     using the context: */
+  switch (caml_tick_thread_running){
+  case 0:
+    /* Do nothing: the tick thread was never started. */
+    break;
+  case -1:
+    /* This shouldn't happen: the tick thread has been killed more than once */
+    assert(0);
+  default:{
+    /* Ask the tick thread to exit... */
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = Thread_timeout * 1000;
+    caml_tick_thread_running = -1;
+    /* ...and wait until it does: */
+    do {
+      DUMP("????????????????? waiting for the tick thread to exit");
+      select(0, NULL, NULL, NULL, &timeout);
+    } while(caml_tick_thread_running == -1);
+    DUMP("!!!!!!!!!!!!!!!!! the tick thread has sais it's exiting");
+  }
+  } // switch
   QR();
-  return Val_unit;
+  return Val_unit; // FROM THE ORIGINAL VERSION --L.S
 }
 
 /* Thread cleanup at termination */

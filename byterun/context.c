@@ -688,6 +688,7 @@ library_context *caml_get_library_context_r(CAML_R,
 extern void caml_destroy_context_r(CAML_R){
   //fprintf(stderr, "caml_destroy_context_r [context %p] [thread %p]: OK-1\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
+  caml_destroy_named_value_table_r(ctx);
   caml_remove_global_root_r(ctx, &ctx->caml_signal_handlers);
 
   //caml_gc_compaction_r(ctx, Val_unit); //!!!!!@@@@@@@@@@@@@@??????????????????
