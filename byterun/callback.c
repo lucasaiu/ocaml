@@ -310,5 +310,6 @@ CAMLexport void caml_destroy_named_value_table_r(CAML_R){
   for(i = 0; i < Named_value_size; i ++){
     //DUMP("Destroying the %i-th bucket", i);
     caml_destroy_named_value_table_bucket_r(ctx, named_value_table[i]);
+    named_value_table[i] = NULL; // just to catch bugs
   }
 }

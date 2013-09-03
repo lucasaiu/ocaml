@@ -34,6 +34,7 @@ x11_lib_dir=''
 graph_wanted=yes
 tk_wanted=yes
 pthread_wanted=yes
+multicontext_wanted=yes
 tk_defs=''
 tk_libs=''
 tk_x11=yes
@@ -97,6 +98,8 @@ while : ; do
         ;; # Ignored for backward compatibility
     -no-pthread*|--no-pthread*)
         pthread_wanted=no;;
+    -no-multicontext*|--no-multicontext*|-no-multi-context*|--no-multi-context*)
+        multicontext_wanted=no;;
     -no-tk|--no-tk)
         tk_wanted=no;;
     -partialld|--partialld)
@@ -1179,25 +1182,6 @@ esac
 echo "BNG_ARCH=$bng_arch" >> Makefile
 echo "BNG_ASM_LEVEL=$bng_asm_level" >> Makefile
 
-# Determine if multi-context is supported
-
-multicontext_support=false
-case "$arch,$system" in
-  amd64,linux)
-    echo "Multi-context is supported."
-    multicontext_support=true
-    echo "#define HAS_MULTI_CONTEXT" >> s.h
-    # FIXME: all of this should probably be printed only once
-    pthread_link="-lpthread"
-    pthread_caml_link="-cclib -lpthread"
-    bytecccompopts="$bytecccompopts -D_REENTRANT"
-    nativecccompopts="$nativecccompopts -D_REENTRANT"
-    echo "#define HAS_PTHREAD" >> s.h
-    ;;
-  *)
-    echo "Multi-context is not supported";;
-esac
-
 # Determine if the POSIX threads library is supported
 
 systhread_support=false
@@ -1217,10 +1201,8 @@ if test "$pthread_wanted" = "yes"; then
     echo "POSIX threads library supported."
     systhread_support=true
     otherlibraries="$otherlibraries systhreads"
-#    if test "$multicontext_support" != "1"; then
-        bytecccompopts="$bytecccompopts -D_REENTRANT"
-        nativecccompopts="$nativecccompopts -D_REENTRANT"
-#    fi
+    bytecccompopts="$bytecccompopts -D_REENTRANT"
+    nativecccompopts="$nativecccompopts -D_REENTRANT"
     echo "#define HAS_PTHREAD" >> s.h
     case "$host" in
       *-*-freebsd*)
@@ -1255,6 +1237,31 @@ if test "$has_select" = "yes" \
   otherlibraries="$otherlibraries threads"
 else
   echo "Bytecode threads library not supported (missing system calls)"
+fi
+
+# Determine if multi-context is supported
+
+multicontext_support=false
+if test "$multicontext_wanted" = "yes"; then
+    case "$arch,$system" in
+        amd64,linux)
+            if test "$systhread_support" != "true"; then
+                echo "No pthreads on GNU/Linux amd64.  This should not happen" 1>&2
+                exit 2 # Why 2?  Just a local convention?  --L.S. !!!!!!!!!!!!!!!!!!!
+            fi
+            echo "Multi-context is supported."
+            multicontext_support=true
+            echo "#define HAS_MULTICONTEXT" >> s.h
+            ;;
+        *)
+            echo "Multi-context is not supported"
+            echo '// #define HAS_MULTICONTEXT /* not supported */' >> s.h
+            ;;
+    esac
+## FIXME: disable the next else branch, for uniformity !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+else
+            echo "You disabled multi-context"
+            echo '// #define HAS_MULTICONTEXT /* disabled at configuration time */' >> s.h
 fi
 
 # Determine the location of X include files and libraries
@@ -1718,6 +1725,12 @@ else
   else
   echo "        profiling with gprof ..... not supported"
   fi
+fi
+
+if test "$multicontext_support" = "true"; then
+  echo "Multi-context: enabled"
+else
+  echo "Multi-context: disabled or not supported"
 fi
 
 if test "$debugger" = "ocamldebugger"; then

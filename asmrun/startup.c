@@ -148,6 +148,7 @@ static void parse_camlrunparam_r(CAML_R)
 
 //extern __thread caml_global_context *caml_context; // in context.c // FIXME: remove this: it's now a thread-local static variable
 
+#ifdef HAS_MULTICONTEXT
 /* FIXME: refactor: call this from caml_main_rr --Luca Saiu REENTRANTRUNTIME */
 caml_global_context* caml_make_empty_context(void)
 {
@@ -155,26 +156,27 @@ caml_global_context* caml_make_empty_context(void)
   /* Make a new context in which to unmarshal back the byte array back
      into a big data structure, copying whatever's needed: */
   //caml_global_context *old_thread_local_context = caml_get_thread_local_context();
-  caml_global_context *ctx = caml_initialize_first_global_context();
-  ctx->descriptor->kind = caml_global_context_nonmain_local;
-  //caml_set_thread_local_context(old_thread_local_context); // undo caml_initialize_first_global_context's trashing of the __thread variable
+  caml_global_context *this_ctx = caml_make_first_global_context();
+  this_ctx->descriptor->kind = caml_global_context_nonmain_local;
+  //caml_set_thread_local_context(old_thread_local_context); // undo caml_make_first_global_context's trashing of the __thread variable
   // FIXME: unlock
 
   /* Initialize the abstract machine */
-  caml_init_gc_r (ctx, minor_heap_init, heap_size_init, heap_chunk_init,
+  caml_init_gc_r (this_ctx, minor_heap_init, heap_size_init, heap_chunk_init,
                   percent_free_init, max_percent_free_init);
   //caml_init_stack_r (ctx, max_stack_init); // Not for native code
-  init_atoms_r(ctx);
+  init_atoms_r(this_ctx);
 
   /* No need to call caml_init_signals for each context: its
      initialization only needs to be performed once */
-  caml_debugger_init_r (ctx); /* force debugger.o stub to be linked */
+  caml_debugger_init_r (this_ctx); /* force debugger.o stub to be linked */
 
   /* Make the new context be the thread-local context for this thread: */
-  caml_set_thread_local_context(ctx);
+  caml_set_thread_local_context(this_ctx);
 
-  return ctx;
+  return this_ctx;
 }
+#endif // #ifdef HAS_MULTICONTEXT
 
 extern value caml_start_program_r (CAML_R);
 extern void caml_init_ieee_floats (void);
@@ -190,7 +192,7 @@ caml_global_context* caml_main_rr(char **argv)
   value res;
   char tos;
   caml_context_initialize_global_stuff();
-  CAML_R = caml_initialize_first_global_context();
+  CAML_R = caml_make_first_global_context();
   the_main_context = ctx;
 
   caml_init_ieee_floats();

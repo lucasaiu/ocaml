@@ -278,6 +278,8 @@ value caml_deserialize_blob_r(CAML_R, char *blob){
   CAMLreturn(result);
 }
 
+#ifdef HAS_MULTICONTEXT
+
 /* Of course the result is malloc'ed. */
 static char* caml_globals_and_data_as_c_byte_array_r(CAML_R, value function){
   /* Make a big structure holding all globals and user-specified data, and marshal it into a blob: */
@@ -403,6 +405,7 @@ static int caml_run_function_this_thread_r(CAML_R, value function, int index)
 /* Return 0 on success and non-zero on failure. */
 static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_context, char *blob, int index, sem_t *semaphore, /*out*/caml_global_context **to_context)
 {
+#ifdef HAS_MULTICONTEXT
   /* Make a new empty context, and use it to deserialize the blob into. */
   CAML_R = caml_make_empty_context(); // ctx also becomes the thread-local context
   //DUMPROOTS("splitting: from new thread");
@@ -463,8 +466,10 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   did_we_fail = caml_run_function_this_thread_r(ctx, function, index);
   DUMP("$$$$$$$$$$$$$$$ ran the Caml code in a child context");
   if(did_we_fail){
-    DUMP("the Caml code failed"); // !!!!!!!!!!!!!!!!!!!!!!!!!!! What shall we do in this case?
-    volatile int a = 1; a /= 0; /*die horribly*/
+    //DUMP("the Caml code failed"); // !!!!!!!!!!!!!!!!!!!!!!!!!!! What shall we do in this case?
+    //volatile int a = 1; a /= 0; /*die horribly*/
+    DUMP("the Caml code failed");
+    assert(0); // What shall we do in this case?
   }
 
   /* One less user for this context; the main thread is done: */
@@ -475,6 +480,8 @@ static int caml_deserialize_and_run_in_this_thread(caml_global_context *parent_c
   /*    joined: the object must remain visibile to the OCaml code, and */
   /*    for accessing the pthread_t objecet from the C join code. *\/ */
   /* CAMLreturnT(int, did_we_fail); */
+#endif // #ifdef HAS_MULTICONTEXT
+  assert(0); // this must be unreachable if multi-context is disabled
 }
 
 struct caml_thread_arguments{
@@ -606,19 +613,34 @@ caml_leave_blocking_section_r(ctx);
 /*   result = caml_alloc_r(ctx, thread_no, 0); */
 /*   CAMLreturn(result); */
 /* } */
+#endif // #ifdef HAS_MULTICONTEXT
+
+static void caml_raise_registered_r(CAML_R, char *registered_name){
+  caml_raise_constant_r(ctx, *caml_named_value_r(ctx, registered_name));
+}
+
+static void caml_raise_cannot_split_r(CAML_R) __attribute__((unused));
+static void caml_raise_cannot_split_r(CAML_R){
+  caml_raise_registered_r(ctx, "Context.CannotSplit");
+}
+
+static void caml_raise_unimplemented_r(CAML_R){
+  caml_raise_registered_r(ctx, "Context.Unimplemented");
+}
 
 CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
 {
+#if defined(HAS_MULTICONTEXT) && defined(NATIVE_CODE)
+
   //DUMPROOTS("splitting: before GC-protecting locals");
   CAMLparam1(function);
   //CAMLlocal2(result, open_channels);
   CAMLlocal5(result, open_channels, res, tail, chan);
   //DUMPROOTS("splitting: after GC-protecting locals");
 
-  value *exception_closure = caml_named_value_r(ctx, "CannotSplit");
   int can_split = caml_can_split_r(ctx);
   if (! can_split)
-    caml_raise_constant_r(ctx, *exception_closure);
+    caml_raise_cannot_split_r(ctx);
 
   int thread_no = Int_val(thread_no_as_value);
   caml_global_context **new_contexts = caml_stat_alloc(sizeof(caml_global_context*) * thread_no);
@@ -722,6 +744,10 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
 
   CAMLreturn(result);
   //CAMLreturn(Val_unit);
+#else
+  caml_raise_unimplemented_r(ctx);
+  return Val_unit; // unreachable
+#endif // #if defined(HAS_MULTICONTEXT) && defined(NATIVE_CODE)
 }
 
 // FIXME: is this useful? I'd like to kill it
@@ -767,6 +793,7 @@ CAMLprim value caml_context_join_r(CAML_R, value context_as_value){
 CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, value message){
   //fprintf(stderr, "SEND: OK-1\n"); fflush(stderr);
   CAMLparam2(receiver_mailbox_as_value, message);
+#ifdef HAS_MULTICONTEXT
   struct caml_mailbox *receiver_mailbox;
   char *message_blob;
   receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
@@ -809,13 +836,16 @@ CAMLprim value caml_context_send_r(CAML_R, value receiver_mailbox_as_value, valu
   //fprintf(stderr, "caml_context_send_r [%p, m %p]: OK-100\n", ctx, receiver_mailbox); fflush(stderr);
   //fprintf(stderr, "caml_context_send_r    [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   //fprintf(stderr, "SEND: OK-4\n"); fflush(stderr);
-
+#else
+  caml_raise_unimplemented_r(ctx);
+#endif // #ifdef HAS_MULTICONTEXT
   CAMLreturn(Val_unit);
 }
 
 CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
-  //fprintf(stderr, "RECEIVE: OK-1\n"); fflush(stderr);
   CAMLparam1(receiver_mailbox_as_value);
+#ifdef HAS_MULTICONTEXT
+  //fprintf(stderr, "RECEIVE: OK-1\n"); fflush(stderr);
   CAMLlocal1(message);
   struct caml_mailbox *receiver_mailbox = caml_mailbox_of_value(receiver_mailbox_as_value);
   char *message_blob;
@@ -860,11 +890,14 @@ CAMLprim value caml_context_receive_r(CAML_R, value receiver_mailbox_as_value){
 
   message = caml_deserialize_blob_r(ctx, message_blob);
   free(message_blob);
+  CAMLreturn(message);
 
   //fprintf(stderr, "caml_context_receive_r [%p, m %p]: OK-100 END, message_no is %i\n", ctx, receiver_mailbox, (int)receiver_mailbox->message_no); fflush(stderr);
   //fprintf(stderr, "RECEIVE: OK-4\n"); fflush(stderr);
-
-  CAMLreturn(message);
+#else
+  caml_raise_unimplemented_r(ctx);
+  CAMLreturn(Val_unit); // unreachable
+#endif // #ifdef HAS_MULTICONTEXT
 }
 
 CAMLprim value caml_dump_r(CAML_R, value string){

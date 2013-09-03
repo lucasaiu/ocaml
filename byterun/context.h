@@ -638,11 +638,13 @@ struct caml_global_context {
   struct caml_global_context *after_longjmp_context;
   char *after_longjmp_serialized_blob;
 
+#ifdef HAS_PTHREAD
   /* The (POSIX) thread associated to this context: */
   pthread_t thread;
 
   /* Protect context fields from concurrent accesses: */
   pthread_mutex_t mutex;
+#endif // #ifdef HAS_PTHREAD
 
   /* Can we still split?  If threads have already been created, it's too late. */
   int can_split;
@@ -651,14 +653,18 @@ struct caml_global_context {
   int reference_count;
   //pthread_mutex_t reference_count_mutex; // NO: I'll just use the contextual mutex // Actually I don't need *any* mutex: caml threads on the same context are not parallel!!!!
   //pthread_cond_t reference_count_condition;
+#ifdef HAS_MULTICONTEXT
   sem_t destruction_semaphore;
   pthread_t destructor_thread;
+#endif // #ifdef HAS_MULTICONTEXT
 
+#ifdef HAS_MULTICONTEXT
   /* The "kludigsh self-pointer"; this is handy for compatibility
      macros translating X to ctx->X.  This field points to the
      structure itself, so that the expressions ctx->X and
      ctx->ctx->X refer the same value -- also as l-values. */
   struct caml_global_context *ctx;
+#endif // #ifdef HAS_MULTICONTEXT
 }; /* struct caml_global_context */
 
 /* Context descriptors may be either local or remote: */
@@ -699,10 +705,49 @@ struct caml_global_context_descriptor* caml_global_context_descriptor_of_value(v
 value caml_value_of_mailbox(struct caml_mailbox *m);
 struct caml_mailbox* caml_mailbox_of_value(value v);
 
-#define CAML_R caml_global_context * /* volatile */ ctx // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#define INIT_CAML_R CAML_R __attribute__((unused)) = caml_get_thread_local_context() // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-extern caml_global_context *caml_initialize_first_global_context(void);
+/* Preprocessor magic for multi-context support */
+#ifdef HAS_MULTICONTEXT
+
+  #define CAML_CURRENT_CONTEXT \
+    ctx
+
+  #define CAML_R \
+    caml_global_context *CAML_CURRENT_CONTEXT
+  #define INIT_CAML_R \
+    CAML_R /* __attribute__((unused)) */ = caml_get_thread_local_context()
+
+#else // no mulitcontext
+
+  /* The one and only context */
+  extern caml_global_context the_one_and_only_context_struct;
+  //extern caml_global_context * const ctx;
+  #define ctx (&the_one_and_only_context_struct)
+
+  //#define CAML_CURRENT_CONTEXT ctx//(&the_one_and_only_context_struct)
+
+  #define CAML_R \
+    caml_global_context *usElESs__ __attribute__((unused))
+  #define INIT_CAML_R \
+    /* nothing */
+
+  /* Some useless constant easy to load into a register, to be passed
+     around and then NOT used: */
+//  #define ctx 0
+#endif // #ifdef HAS_MULTICONTEXT
+
+/* FIXME: use this everywhere instead of ctx->NAME.  This lets us keep
+   ctx distinct from the_one_and_only_ctx; ctx is just a useless
+   parameter, and it must be easy to generate as a constant.  0 is a
+   good value. */
+/* #define CAML_CONTEXTUAL(name) \ */
+/*   CAML_CURRENT_CONTEXT->name */
+
+
+/* Initialize the given context structure, which has already been allocated elsewhere: */
+extern void caml_initialize_first_global_context(caml_global_context *);
+
+extern caml_global_context *caml_make_first_global_context(void);
 extern caml_global_context *caml_make_empty_context(void); /* defined in startup.c */
 extern void caml_destroy_context_r(caml_global_context *c);
 
@@ -1124,6 +1169,10 @@ void caml_v_semaphore(sem_t* semaphore); // signal-safe, differently from POSIX 
 #define DUMPROOTSNATIVE \
   do{}while(0)
 #endif // #ifdef NATIVE_CODE
+
+#ifndef HAS_PTHREAD
+#define pthread_self() 0 // DUMP and friends use this
+#endif // #ifndef HAS_PTHREAD
 
 #define DUMPROOTS(FORMAT, ...) \
   do{ \

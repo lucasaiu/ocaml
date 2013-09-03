@@ -765,7 +765,7 @@ value thread_outchan_ready(value vchan, value vsize) /* ML */
 
 /* Suspend the current thread for some time */
 
-value thread_delay_r(CAML_R, value time)          /* ML */
+CAMLprim value thread_delay_r(CAML_R, value time)          /* ML */ // FIXME: remove CAMLprim after testing
 {
   double date = timeofday() + Double_val(time);
   Assert(curr_thread != NULL);

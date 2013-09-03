@@ -97,7 +97,7 @@ struct caml_thread_struct {
   int backtrace_pos;            /* Saved backtrace_pos */
   code_t * backtrace_buffer;    /* Saved backtrace_buffer */
   value backtrace_last_exn;     /* Saved backtrace_last_exn (root) */
-  CAML_R;                       /* the context to which this thread belongs */
+  caml_global_context *this_ctx;//CAML_R;                       /* the context to which this thread belongs */
 };
 
 /* The key used for storing the thread descriptor in the specific data
@@ -439,7 +439,7 @@ static caml_thread_t caml_thread_new_info_r(CAML_R)
   th->backtrace_pos = 0;
   th->backtrace_buffer = NULL;
   th->backtrace_last_exn = Val_unit;
-  th->ctx = ctx;
+  th->this_ctx = ctx;
   //th->posix_thread = (pthread_t)(void*)0xbadbadbad; /* an intentionally invalid value, to aid debugging */
   //th->id = (int)-2;
   QR();
@@ -477,7 +477,7 @@ static void caml_thread_remove_info(caml_thread_t th)
   //QBR("############################################################# \"virtually\" removing %p from the thread list", th); return; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   QB();
-  CAML_R = th->ctx;
+  CAML_R = th->this_ctx;
 caml_acquire_contextual_lock(ctx);
 
 if(0){ // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -581,7 +581,7 @@ caml_acquire_contextual_lock(ctx);
 #ifdef NATIVE_CODE
   curr_thread->exit_buf = &caml_termination_jmpbuf;
 #endif
-  curr_thread->ctx = ctx;
+  curr_thread->this_ctx = ctx;
 
   /* The stack-related fields will be filled in at the next
      enter_blocking_section */
@@ -670,7 +670,7 @@ CAMLprim value caml_thread_cleanup_r(CAML_R, value unit)   /* ML */
       DUMP("????????????????? waiting for the tick thread to exit");
       select(0, NULL, NULL, NULL, &timeout);
     } while(caml_tick_thread_running == -1);
-    DUMP("!!!!!!!!!!!!!!!!! the tick thread has sais it's exiting");
+    DUMP("!!!!!!!!!!!!!!!!! the tick thread has said it's about to exit");
   }
   } // switch
   QR();
@@ -740,7 +740,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 {
   QB();
   caml_thread_t th = (caml_thread_t) arg;
-  CAML_R = th->ctx;
+  CAML_R = th->this_ctx;
   value clos;
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;
@@ -800,7 +800,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 /* { */
 /*   QB(); */
 /*   caml_thread_t th = (caml_thread_t) arg; */
-/*   CAML_R = th->ctx; */
+/*   CAML_R = th->this_ctx; */
 /*   value clos; */
 /* #ifdef NATIVE_CODE */
 /*   struct longjmp_buffer termination_buf; */
@@ -919,8 +919,8 @@ caml_release_contextual_lock(ctx);
 #ifdef NATIVE_CODE
   th->top_of_stack = (char *) &err;
 #endif
-  assert(th->ctx == (void*)0xdead);
-  th->ctx = ctx;
+  assert(th->this_ctx == (void*)0xdead);
+  th->this_ctx = ctx;
   /* Take master lock to protect access to the chaining of threads */
 caml_acquire_contextual_lock(ctx);
   st_masterlock_acquire(&caml_master_lock);
@@ -962,7 +962,7 @@ CAMLexport int caml_c_thread_unregister_r(CAML_R)
 {
   //QBR("############################################################# \"virtually\" calling caml_c_thread_unregister_r"); return; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   caml_thread_t th = st_tls_get(thread_descriptor_key);
-  assert(ctx == th->ctx);// FIXME: remove
+  assert(ctx == th->this_ctx);// FIXME: remove
 
   /* Not registered? */
   if (th == NULL) {QR(); return 0;}

@@ -21,7 +21,8 @@ let iota n =
   range 0 (n - 1);;
 
 exception CannotSplit
-let _ = Callback.register_exception "CannotSplit" CannotSplit
+let _ = Callback.register_exception "Context.CannotSplit" CannotSplit
+let _ = Callback.register_exception "Context.Unimplemented" Unimplemented
 
 (* FIXME: use a custom type instead *)
 type t =
@@ -151,6 +152,9 @@ let split1 f =
 
 let at_context_exit_functions : (unit -> unit) list ref =
   ref []
+
+(* This is UNSAFE and shouldn't be exposed to the user.  FIXME: is it really needed? *)
+external unpin_this_context : unit -> unit = "caml_unpin_context_primitive_r" "reentrant"
 
 (* FIXME: remove after debugging *)
 external dump : string -> unit = "caml_dump_r" "reentrant"

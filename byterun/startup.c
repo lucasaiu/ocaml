@@ -344,6 +344,7 @@ extern void caml_signal_thread(void * lpParam);
 
 //extern __thread caml_global_context *caml_context; // in context.c // FIXME: remove: it's now a thread-local static
 
+#ifdef HAS_MULTICONTEXT
 /* FIXME: refactor: call this from caml_main_rr --Luca Saiu REENTRANTRUNTIME */
 caml_global_context* caml_make_empty_context(void)
 {
@@ -352,9 +353,9 @@ caml_global_context* caml_make_empty_context(void)
      into a big data structure, copying whatever's needed: */
   caml_acquire_global_lock(); // FIXME: is this critical section needed?
   //caml_global_context *old_thread_local_context = caml_get_thread_local_context();
-  caml_global_context *ctx = caml_initialize_first_global_context();
+  caml_global_context *ctx = caml_make_first_global_context();
   ctx->descriptor->kind = caml_global_context_nonmain_local;
-  //caml_set_thread_local_context(old_thread_local_context); // undo caml_initialize_first_global_context's trashing of the __thread variable
+  //caml_set_thread_local_context(old_thread_local_context); // undo caml_make_first_global_context's trashing of the __thread variable
   caml_release_global_lock();
   // FIXME: unlock
 
@@ -373,6 +374,7 @@ caml_global_context* caml_make_empty_context(void)
 
   return ctx;
 }
+#endif // #ifdef HAS_MULTICONTEXT
 
 /* Main entry point when loading code from a file */
 
@@ -389,7 +391,7 @@ CAMLexport caml_global_context* caml_main_rr(char **argv)
 #endif
 
   caml_context_initialize_global_stuff();
-  CAML_R = caml_initialize_first_global_context();
+  CAML_R = caml_make_first_global_context();
   the_main_context = ctx;
 
   /* Machine-dependent initialization of the floating-point hardware
@@ -505,7 +507,7 @@ CAMLexport void caml_startup_code(
 #endif
 
   caml_context_initialize_global_stuff();
-  CAML_R = caml_initialize_first_global_context();
+  CAML_R = caml_make_first_global_context();
   the_main_context = ctx;
 
   caml_init_ieee_floats();

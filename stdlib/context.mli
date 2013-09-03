@@ -1,6 +1,7 @@
 (* Luca Saiu, REENTRANTRUNTIME *)
 
-(* The context support unimplemented on this architecture: *)
+(* The context support is unimplemented on this architecture, or
+   disabled at configuration time: *)
 exception Unimplemented
 
 (* Return true iff multi-context support is implemented: *)
@@ -26,7 +27,7 @@ val make_mailbox : unit -> mailbox
 val context_of_mailbox : mailbox -> t
 val is_mailbox_local : mailbox -> bool
 
-(* These may raise CannotSplit *)
+(* These may raise CannotSplit and Unimplemented *)
 val split1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
 val split : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
 val split_into_array : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox array)
