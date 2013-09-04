@@ -28,16 +28,19 @@
 #include <signal.h>
 #include <setjmp.h> // FIXME: remove if not needed in the end --Luca Saiu REENTRANTRUNTIME
 
+#include "config.h"
+#include "mlvalues.h"
+#include "misc.h"
+#include "memory.h"
+#include "extensible_buffer.h"
+
+#ifdef HAS_PTHREAD
 #ifndef __USE_UNIX98
 #define __USE_UNIX98
 #endif
 #include <pthread.h>
 #include <semaphore.h>
-
-#include "config.h"
-#include "mlvalues.h"
-#include "misc.h"
-#include "extensible_buffer.h"
+#endif // #ifdef HAS_PTHREAD
 
 /* An initialization function to be called at startup, once and only once: */
 void caml_context_initialize_global_stuff(void);
@@ -355,7 +358,7 @@ struct caml_global_context {
   unsigned long minor_gc_counter /* = 0 */;
 //#endif
 
-  /* from memory.h */
+/* from memory.h */
 #ifdef ARCH_SIXTYFOUR
   struct page_table caml_page_table;
 #else
@@ -731,8 +734,8 @@ struct caml_mailbox* caml_mailbox_of_value(value v);
   #define INIT_CAML_R \
     /* nothing */
 
-  /* Some useless constant easy to load into a register, to be passed
-     around and then NOT used: */
+//  /* Some useless constant easy to load into a register, to be passed
+//     around and then NOT used: */
 //  #define ctx 0
 #endif // #ifdef HAS_MULTICONTEXT
 

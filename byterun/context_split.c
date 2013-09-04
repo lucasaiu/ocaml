@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <limits.h> // FIXME: remove if not used in the end
-#include <assert.h> // FIXME: remove if not used in the end
-#include <pthread.h> // FIXME: remove if not used in the end
-#include <errno.h> // FIXME: remove if not used in the end
 
 #define CAML_CONTEXT_ROOTS /* GC-protection macros */
 #include "mlvalues.h"
@@ -23,6 +19,10 @@
 
 #include "gc_ctrl.h" // FIXME: remove after debugging, if possible
 #include "compact.h" // FIXME: remove after debugging, if possible
+
+#include <limits.h> // FIXME: remove if not used in the end
+#include <assert.h> // FIXME: remove if not used in the end
+#include <errno.h> // FIXME: remove if not used in the end
 
 struct caml_mailbox* caml_make_mailbox_r(CAML_R){
   struct caml_mailbox *m = caml_stat_alloc(sizeof(struct caml_mailbox));

@@ -36,7 +36,9 @@
 #include "callback.h" // for caml_callback_r
 #include "alloc.h"
 #include "intext.h"
+#ifdef HAS_PTHREAD
 #include <pthread.h>
+#endif // #ifdef HAS_PTHREAD
 #include <errno.h> // for EBUSY.  FIXME: ensure this is still needed at the end --Luca Saiu REENTRANTRUNTIME
 
 #ifndef HAS_MULTICONTEXT
@@ -130,7 +132,7 @@ void caml_v_semaphore(sem_t* semaphore){
 #endif // #ifdef HAS_PTHREAD
 }
 
-#ifdef HAS_MULTICONTEXT
+#ifdef HAS_PTHREAD
 void* caml_destructor_thread_function(void *ctx_as_void_star){
   CAML_R = ctx_as_void_star;
   DUMP("Hello from the destructor thread for context %p (ctx is %p)", ctx_as_void_star, ctx);
@@ -146,7 +148,7 @@ void* caml_destructor_thread_function(void *ctx_as_void_star){
   fprintf(stderr, "Destroyed the context %p: exiting the destructor thread %p as well.\n", ctx, (void*)pthread_self());  fflush(stderr);
   return NULL; // unused
 }
-#endif // #ifdef HAS_MULTICONTEXT
+#endif // #ifdef HAS_PTHREAD
 
 /* Initialize the given context structure, which has already been allocated elsewhere: */
 void caml_initialize_first_global_context(/* CAML_R */caml_global_context *this_ctx)
@@ -546,13 +548,13 @@ section.  */
   /* Context-destructor structures: */
   this_ctx->reference_count = 1; // there is one user thread: the main one
   {CAML_R = this_ctx; DUMP("added the initial pin to the context %p", this_ctx);}
-#ifdef HAS_MULTICONTEXT
+#ifdef HAS_PTHREAD
   caml_initialize_semaphore(&this_ctx->destruction_semaphore, 0);
   int pthread_create_result =
     pthread_create(&this_ctx->destructor_thread, NULL, caml_destructor_thread_function, this_ctx);
   assert(pthread_create_result == 0);
   //caml_initialize_mutex(&this_ctx->reference_count_mutex);
-#endif // #ifdef HAS_MULTICONTEXT
+#endif // #ifdef HAS_PTHREAD
 
   /* The kludgish self-pointer: */
 #ifdef HAS_MULTICONTEXT

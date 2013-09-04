@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mlvalues.h"
+#include "context.h"
 #include "memory.h"
 #include "extensible_buffer.h"
 
