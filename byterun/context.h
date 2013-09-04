@@ -31,7 +31,7 @@
 #include "config.h"
 #include "mlvalues.h"
 #include "misc.h"
-#include "memory.h"
+//#include "memory.h"
 #include "extensible_buffer.h"
 
 #ifdef HAS_PTHREAD
@@ -224,8 +224,7 @@ typedef struct {
 } st_masterlock;
 
 
-// ??????
-typedef struct caml_thread_struct * caml_thread_t; /* from st_posix.h */
+typedef struct caml_thread_struct * caml_thread_t; /* from scheduler.c and st_posix.h */
 typedef pthread_t st_thread_id; /* from st_posix.h */
 // ??????
 
@@ -362,6 +361,11 @@ struct caml_global_context {
 #ifdef ARCH_SIXTYFOUR
   struct page_table caml_page_table;
 #else
+/* 32 bits: Represent page table as a 2-level array */
+#define Pagetable2_log 11
+#define Pagetable2_size (1 << Pagetable2_log)
+#define Pagetable1_log (Page_log + Pagetable2_log)
+#define Pagetable1_size (1 << (32 - Pagetable1_log))
   unsigned char * caml_page_table[Pagetable1_size];
   unsigned char caml_page_table_empty[Pagetable2_size]; /* = { 0, }; */
 #endif
@@ -758,10 +762,6 @@ extern void caml_destroy_context_r(caml_global_context *c);
 extern void caml_pin_context_r(CAML_R);
 extern void caml_unpin_context_r(CAML_R);
 /* extern void (*caml_remove_last_pin_from_context_hook)(CAML_R); */
-
-/* Access a thread-local context pointer */
-extern caml_global_context *caml_get_thread_local_context(void);
-extern void caml_set_thread_local_context(caml_global_context *new_global_context);
 
 extern void (*caml_enter_blocking_section_hook)(void);
 extern void (*caml_leave_blocking_section_hook)(void);
@@ -1333,4 +1333,25 @@ void caml_set_caml_can_split_r(CAML_R, int (*caml_can_split_r)(CAML_R));
 CAMLextern caml_global_context *the_main_context;
 
 extern int caml_debugging; // !!!!!!!!!!!!!!!!!!!!!!!
+
+/* Access a thread-local context pointer */
+#ifdef HAS_MULTICONTEXT
+extern caml_global_context *caml_get_thread_local_context(void);
+#else
+/* If we don't have multicontext we don't really need to call
+   caml_get_thread_local_context at runtime: we can just use a known
+   pointer instead of calling a trivial constant function. */
+#define caml_get_thread_local_context() \
+  (&the_one_and_only_context_struct)
+#endif // #ifdef HAS_MULTICONTEXT
+
+extern void caml_set_thread_local_context(caml_global_context *new_global_context);
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// scratch
+#define CAMLFUNCTION1(TYPE, NAME, ARG1TYPE, ARG1NAME) \
+  TYPE NAME(ARG1TYPE ARG1NAME){ return NAME##_r(caml_get_thread_local_context(), ARG1NAME); } \
+  TYPE NAME##_r(CAML_R, ARG1TYPE, ARG1NAME)
+
+
 #endif

@@ -14,7 +14,7 @@
 
 (* Specific operations for the PowerPC processor *)
 
-open Misc
+(* open Misc *) (* removed because it was unused, and this is compiled with Error-enabled warnings *)
 open Format
 
 (* Machine-specific command-line options *)

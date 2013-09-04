@@ -107,7 +107,7 @@ struct caml_thread_struct {
   struct channel *last_locked_channel; /* The channel to unlock in case an exception is raised */ // !!!!!!!!!!!!!!!
 };
 
-typedef struct caml_thread_struct * caml_thread_t;
+//typedef struct caml_thread_struct * caml_thread_t;
 
 #define RUNNABLE Val_int(0)
 #define KILLED Val_int(1)

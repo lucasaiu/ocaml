@@ -18,6 +18,7 @@
 #define CAML_CONTEXT_MINOR_GC
 #define CAML_CONTEXT_SIGNALS
 #define CAML_CONTEXT_GC_CTRL
+#define CAML_CONTEXT_MEMORY
 
 #include <stdio.h> // FIXME: remove after debugging
 #include <string.h>

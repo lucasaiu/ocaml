@@ -14,6 +14,7 @@
 /* $Id$ */
 
 #define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_MEMORY
 
 #include <stdio.h> // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <string.h>
@@ -200,7 +201,7 @@ CAMLexport void caml_MD5Final(unsigned char *digest, struct MD5Context *md5_ctx)
     if (count < 8) {
         /* Two lots of padding:  Pad the first block to 64 bytes */
         memset(p, 0, count);
-        byteReverse(ctx->in, 16);
+        byteReverse(md5_ctx->in, 16);
         caml_MD5Transform(md5_ctx->buf, (uint32 *) md5_ctx->in);
 
         /* Now fill the next block with 56 bytes */
@@ -209,7 +210,7 @@ CAMLexport void caml_MD5Final(unsigned char *digest, struct MD5Context *md5_ctx)
         /* Pad block to 56 bytes */
         memset(p, 0, count - 8);
     }
-    byteReverse(ctx->in, 14);
+    byteReverse(md5_ctx->in, 14);
 
     /* Append length in bits and transform */
     ((uint32 *) md5_ctx->in)[14] = md5_ctx->bits[0];

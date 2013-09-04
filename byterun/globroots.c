@@ -17,6 +17,7 @@
 
 #define CAML_CONTEXT_GLOBROOTS
 #define CAML_CONTEXT_MINOR_GC
+#define CAML_CONTEXT_MEMORY
 
 #include "memory.h"
 #include "misc.h"

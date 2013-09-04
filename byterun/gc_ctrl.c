@@ -17,7 +17,9 @@
 #define CAML_CONTEXT_MINOR_GC
 #define CAML_CONTEXT_ROOTS
 #define CAML_CONTEXT_FREELIST
+#define CAML_MEMORY
 
+#include "memory.h"
 #include "alloc.h"
 #include "compact.h"
 #include "custom.h"
@@ -226,12 +228,12 @@ static value heap_stats_r (CAML_R, int returnstats)
   }
 }
 
-#ifdef DEBUG
+//#ifdef DEBUG
 void caml_heap_check_r (CAML_R)
 {
   heap_stats_r (ctx, 0);
 }
-#endif
+//#endif
 
 CAMLprim value caml_gc_stat_r(CAML_R)
 {

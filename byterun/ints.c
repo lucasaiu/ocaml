@@ -808,6 +808,9 @@ CAMLprim value caml_nativeint_of_int_r(CAML_R, value v)
 CAMLprim value caml_nativeint_to_int(value v)
 { return Val_long(Nativeint_val(v)); }
 
+CAMLprim value caml_nativeint_to_int_r(CAML_R, value v)
+{ return Val_long(Nativeint_val(v)); }
+
 CAMLprim value caml_nativeint_of_float_r(CAML_R, value v)
 { return caml_copy_nativeint_r(ctx,(intnat)(Double_val(v))); }
 

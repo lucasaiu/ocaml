@@ -61,7 +61,7 @@ void caml_load_code_r(CAML_R, int fd, asize_t len)
   caml_init_code_fragments_r(ctx);
   /* Prepare the code for execution */
 #ifdef ARCH_BIG_ENDIAN
-  caml_fixup_endianness(caml_start_code, caml_code_size);
+  caml_fixup_endianness_r(ctx, caml_start_code, caml_code_size);
 #endif
   if (caml_debugger_in_use) {
     len /= sizeof(opcode_t);

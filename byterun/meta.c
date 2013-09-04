@@ -57,7 +57,7 @@ CAMLprim value caml_reify_bytecode_r(CAML_R, value prog, value len)
 {
   value clos;
 #ifdef ARCH_BIG_ENDIAN
-  caml_fixup_endianness((code_t) prog, (asize_t) Long_val(len));
+  caml_fixup_endianness_r(ctx, (code_t) prog, (asize_t) Long_val(len));
 #endif
 #ifdef THREADED_CODE
   caml_thread_code_r(ctx, (code_t) prog, (asize_t) Long_val(len));

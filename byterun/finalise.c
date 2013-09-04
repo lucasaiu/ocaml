@@ -16,6 +16,7 @@
 /* Handling of finalised values. */
 
 #define CAML_CONTEXT_FINALISE
+#define CAML_CONTEXT_MEMORY
 
 #include "callback.h"
 #include "fail.h"

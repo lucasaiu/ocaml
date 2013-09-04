@@ -18,6 +18,8 @@
 /* The interface of this file is in "mlvalues.h" (for [caml_hash_variant])
    and in "hash.h" (for the other exported functions). */
 
+#define CAML_CONTEXT_MEMORY
+
 #include "mlvalues.h"
 #include "custom.h"
 #include "memory.h"

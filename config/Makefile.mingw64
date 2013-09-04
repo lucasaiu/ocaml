@@ -163,3 +163,6 @@ TK_LINK=
 
 MAKEREC=$(MAKE) -f Makefile.nt
 MAKECMD=$(MAKE)
+
+## Multicontext isn't supported on this architecture
+MULTICONTEXT=false

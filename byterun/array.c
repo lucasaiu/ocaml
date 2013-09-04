@@ -19,6 +19,7 @@
 #define CAML_CONTEXT_ROOTS
 #define CAML_CONTEXT_MINOR_GC
 #define CAML_CONTEXT_MAJOR_GC
+#define CAML_CONTEXT_MEMORY
 
 #include <string.h>
 #include "alloc.h"

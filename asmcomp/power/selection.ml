@@ -14,9 +14,9 @@
 
 (* Instruction selection for the Power PC processor *)
 
-open Misc
+(* open Misc *) (* removed because it was unused, and this is compiled with Error-enabled warnings *)
 open Cmm
-open Reg
+(* open Reg *) (* removed because it was unused, and this is compiled with Error-enabled warnings *)
 open Arch
 open Mach
 
@@ -28,7 +28,7 @@ type addressing_expr =
   | Aadd of expression * expression
 
 let rec select_addr = function
-    Cconst_symbol s ->
+    Cconst_symbol (s, _) ->
       (Asymbol s, 0)
   | Cop((Caddi | Cadda), [arg; Cconst_int m]) ->
       let (a, n) = select_addr arg in (a, n + m)

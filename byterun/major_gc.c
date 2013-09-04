@@ -17,6 +17,7 @@
 #define CAML_CONTEXT_FREELIST
 #define CAML_CONTEXT_MAJOR_GC
 #define CAML_CONTEXT_GC_CTRL
+#define CAML_CONTEXT_MEMORY
 
 #include <stdio.h> // FIXME: remove after debugging
 #include <limits.h>

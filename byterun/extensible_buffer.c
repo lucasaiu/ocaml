@@ -6,6 +6,8 @@
 #include "mlvalues.h"
 #include "context.h"
 #include "memory.h"
+#include "context.h"
+#include "mlvalues.h"
 #include "extensible_buffer.h"
 
 static void caml_reallocate_extensible_buffer(struct caml_extensible_buffer *b, size_t new_allocated_size){
