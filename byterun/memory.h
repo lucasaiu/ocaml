@@ -68,12 +68,12 @@ int caml_page_table_lookup_r(CAML_R, void * addr);
 
 #else
 
-/* 32 bits: Represent page table as a 2-level array */
-#define Pagetable2_log 11
-#define Pagetable2_size (1 << Pagetable2_log)
-#define Pagetable1_log (Page_log + Pagetable2_log)
-#define Pagetable1_size (1 << (32 - Pagetable1_log))
-CAMLextern unsigned char * caml_page_table[Pagetable1_size];
+/* /\* 32 bits: Represent page table as a 2-level array *\/ */
+/* #define Pagetable2_log 11 */
+/* #define Pagetable2_size (1 << Pagetable2_log) */
+/* #define Pagetable1_log (Page_log + Pagetable2_log) */
+/* #define Pagetable1_size (1 << (32 - Pagetable1_log)) */
+/* CAMLextern unsigned char * caml_page_table[Pagetable1_size]; */
 
 #define Pagetable_index1(a) (((uintnat)(a)) >> Pagetable1_log)
 #define Pagetable_index2(a) \

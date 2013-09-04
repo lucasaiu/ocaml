@@ -14,6 +14,7 @@
 /* $Id$ */
 
 #define CAML_CONTEXT_COMPARE
+#define CAML_CONTEXT_MEMORY
 
 #include <string.h>
 #include <stdlib.h>

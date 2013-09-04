@@ -103,6 +103,8 @@ val asm: string
 
 val asm_cfi_supported: bool
         (* Whether assembler understands CFI directives *)
+val multicontext: bool
+        (* Whether multicontext is enabled / supported *)
 
 val ext_obj: string
         (* Extension for object files, e.g. [.o] under Unix. *)

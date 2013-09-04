@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <limits.h> // FIXME: remove if not used in the end
-#include <assert.h> // FIXME: remove if not used in the end
-#include <pthread.h> // FIXME: remove if not used in the end
-#include <errno.h> // FIXME: remove if not used in the end
 
 #define CAML_CONTEXT_ROOTS /* GC-protection macros */
 #include "mlvalues.h"
@@ -23,6 +19,10 @@
 
 #include "gc_ctrl.h" // FIXME: remove after debugging, if possible
 #include "compact.h" // FIXME: remove after debugging, if possible
+
+#include <limits.h> // FIXME: remove if not used in the end
+#include <assert.h> // FIXME: remove if not used in the end
+#include <errno.h> // FIXME: remove if not used in the end
 
 struct caml_mailbox* caml_make_mailbox_r(CAML_R){
   struct caml_mailbox *m = caml_stat_alloc(sizeof(struct caml_mailbox));
@@ -86,12 +86,18 @@ void caml_destroy_local_mailbox_r(CAML_R, struct caml_mailbox *mailbox){
 void caml_run_at_context_exit_functions_r(CAML_R){
   CAMLparam0();
   CAMLlocal1(run_at_context_exit_functions);
-  volatile value *run_at_context_exit_functions_pointer;
+  value *run_at_context_exit_functions_pointer;
   run_at_context_exit_functions_pointer = caml_named_value_r(ctx, "Context.run_at_context_exit_functions");
-  assert(run_at_context_exit_functions_pointer != NULL);
-  run_at_context_exit_functions = *run_at_context_exit_functions_pointer;
-  DUMP("Context.run_at_context_exit_functions is %p", (void*)(long)run_at_context_exit_functions);
-  caml_callback_exn_r(ctx, run_at_context_exit_functions, Val_unit);
+  /* Normally Context.run_at_context_exit_functions should have been
+     register at initialization time from OCaml in the Context module;
+     however run_at_context_exit_functions_pointer is allowed to be
+     NULL, if the standard library has been disabled.  In that case
+     we simply won't run cleanup functions. */
+  if(run_at_context_exit_functions_pointer != NULL){
+    run_at_context_exit_functions = *run_at_context_exit_functions_pointer;
+    DUMP("Context.run_at_context_exit_functions is %p", (void*)(long)run_at_context_exit_functions);
+    caml_callback_exn_r(ctx, run_at_context_exit_functions, Val_unit);
+  }
   CAMLreturn0;
 }
 

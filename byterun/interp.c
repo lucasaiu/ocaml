@@ -25,6 +25,7 @@
 #define CAML_CONTEXT_MINOR_GC
 #define CAML_CONTEXT_BACKTRACE
 #define CAML_CONTEXT_FIX_CODE
+#define CAML_CONTEXT_MEMORY
 
 /* The bytecode interpreter */
 #include <stdio.h>

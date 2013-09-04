@@ -36,7 +36,9 @@
 #include "callback.h" // for caml_callback_r
 #include "alloc.h"
 #include "intext.h"
+#ifdef HAS_PTHREAD
 #include <pthread.h>
+#endif // #ifdef HAS_PTHREAD
 #include <errno.h> // for EBUSY.  FIXME: ensure this is still needed at the end --Luca Saiu REENTRANTRUNTIME
 
 #ifndef HAS_MULTICONTEXT
@@ -49,10 +51,13 @@ static __thread caml_global_context *the_thread_local_caml_context = NULL;
 /* The one and only main context: */
 caml_global_context *the_main_context = NULL;
 
+#ifdef HAS_MULTICONTEXT
+/* In single-context mode, this is a trivial macro instead of a function. */
 caml_global_context *caml_get_thread_local_context(void)
 {
   return the_thread_local_caml_context;
 }
+#endif // #ifdef HAS_MULTICONTEXT
 
 void caml_set_thread_local_context(caml_global_context *new_caml_context)
 {

@@ -237,5 +237,5 @@ let assemble_file infile outfile =
   Ccomp.command (Config.asm ^ " -o " ^
                  Filename.quote outfile ^ " " ^ Filename.quote infile)
 
-open Clflags;;
-open Config;;
+(* open Clflags;; *) (* removed because it was unused, and this is compiled with Error-enabled warnings *)
+(* open Config;; *) (* removed because it was unused, and this is compiled with Error-enabled warnings *)

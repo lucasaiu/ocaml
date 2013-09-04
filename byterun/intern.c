@@ -348,7 +348,7 @@ static void intern_rec_r(CAML_R, value *dest)
         break;
 #else
         intern_cleanup_r(ctx);
-        caml_failwith("input_value: integer too large");
+        caml_failwith_r(ctx, "input_value: integer too large");
         break;
 #endif
       case CODE_SHARED8:
@@ -378,7 +378,7 @@ static void intern_rec_r(CAML_R, value *dest)
         goto read_block;
 #else
         intern_cleanup_r(ctx);
-        caml_failwith("input_value: data block too large");
+        caml_failwith_r(ctx, "input_value: data block too large");
         break;
 #endif
       case CODE_STRING8:

@@ -20,6 +20,7 @@
 #define CAML_CONTEXT_STARTUP
 #define CAML_CONTEXT_EXTERN
 #define CAML_CONTEXT_ROOTS
+#define CAML_CONTEXT_MEMORY
 
 #include <stdio.h>
 #include <string.h>
@@ -461,7 +462,7 @@ static void extern_rec_r(CAML_R, value v)
       if (serialize == NULL){
         //////
         //struct custom_operations *o = Custom_ops_val(v);
-        printf("About the object at %p, which is a %s custom\n", (void*)v, Custom_ops_val(v)->identifier); volatile int a = 1; a /= 0;
+        //printf("About the object at %p, which is a %s custom\n", (void*)v, Custom_ops_val(v)->identifier); volatile int a = 1; a /= 0;
         ///////////
         extern_invalid_argument_r(ctx, "output_value: abstract value (Custom)");
       }
@@ -527,11 +528,11 @@ static void extern_rec_r(CAML_R, value v)
       /* DUMP("probably crashing now"); */
       /* DUMP("tag is %i", (int)Tag_val(v)); */
       /* DUMP("size is %i", (int)Wosize_val(v)); */
-      volatile int a = 1; a /= 0;
+      //volatile int a = 1; a /= 0;
       //extern_rec_r(ctx, Val_int(0));
       /* fprintf(stderr, "ZZZZ [This is probably wrong: I'm marshalling an out-of-heap pointer as an int64]\n"); */
       /* writecode64_r(ctx, CODE_INT64, (v << 1) | 1); */
-      //extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap) [FIXME: implement]");
+      extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap) [FIXME: implement]");
     }
     else
       extern_invalid_argument_r(ctx, "output_value: abstract value (outside heap)");

@@ -18,6 +18,7 @@
 #define CAML_CONTEXT_FREELIST
 #define CAML_CONTEXT_COMPACT
 #define CAML_CONTEXT_MAJOR_GC
+#define CAML_CONTEXT_MEMORY
 
 #include <string.h>
 

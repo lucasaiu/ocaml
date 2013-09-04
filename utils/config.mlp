@@ -80,6 +80,7 @@ let system = "%%SYSTEM%%"
 
 let asm = "%%ASM%%"
 let asm_cfi_supported = %%ASM_CFI_SUPPORTED%%
+let multicontext = %%MULTICONTEXT%%
 
 let ext_obj = "%%EXT_OBJ%%"
 let ext_asm = "%%EXT_ASM%%"

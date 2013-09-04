@@ -22,6 +22,7 @@
 #define CAML_CONTEXT_SIGNALS
 #define CAML_CONTEXT_SIGNALS_ASM
 #define CAML_CONTEXT_FAIL
+#define CAML_CONTEXT_MEMORY
 
 #if defined(TARGET_amd64) && defined (SYS_linux)
 #define _GNU_SOURCE

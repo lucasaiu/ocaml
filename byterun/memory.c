@@ -18,6 +18,7 @@
 #define CAML_CONTEXT_MINOR_GC
 #define CAML_CONTEXT_FREELIST
 #define CAML_CONTEXT_GC_CTRL
+#define CAML_CONTEXT_MEMORY
 
 #include <stdio.h> // FIXME: remove in the end unless still needed
 #include <stdlib.h>
@@ -169,7 +170,7 @@ static int caml_page_table_modify_r(CAML_R, uintnat page, int toclear, int toset
 /* 32-bit implementation:
    The page table is represented as a 2-level array of unsigned char */
 
-int caml_page_table_initialize(mlsize_t bytesize)
+int caml_page_table_initialize_r(CAML_R, mlsize_t bytesize)
 {
   int i;
   for (i = 0; i < Pagetable1_size; i++)
@@ -177,7 +178,7 @@ int caml_page_table_initialize(mlsize_t bytesize)
   return 0;
 }
 
-static int caml_page_table_modify(uintnat page, int toclear, int toset)
+static int caml_page_table_modify_r(CAML_R, uintnat page, int toclear, int toset)
 {
   uintnat i = Pagetable_index1(page);
   uintnat j = Pagetable_index2(page);
@@ -411,7 +412,6 @@ CAMLexport value caml_alloc_shr_r (CAML_R, mlsize_t wosize, tag_t tag)
     if (new_block == NULL) {
       if (caml_in_minor_collection){
         DUMP("trying to allocate %i words with tag %i", (int)wosize, (int)tag);
-        volatile int a = 1; a /= 0; // FIXME: remove this kludge
         caml_fatal_error ("Fatal error: out of memory.\n");
       }
       else

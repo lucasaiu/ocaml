@@ -420,6 +420,7 @@ utils/config.ml: utils/config.mlp config/Makefile
 	    -e 's|%%ARCH%%|$(ARCH)|' \
 	    -e 's|%%MODEL%%|$(MODEL)|' \
 	    -e 's|%%SYSTEM%%|$(SYSTEM)|' \
+	    -e 's|%%MULTICONTEXT%%|$(MULTICONTEXT)|' \
 	    -e 's|%%EXT_OBJ%%|.o|' \
 	    -e 's|%%EXT_ASM%%|.s|' \
 	    -e 's|%%EXT_LIB%%|.a|' \
