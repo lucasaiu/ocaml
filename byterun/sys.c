@@ -99,7 +99,7 @@ CAMLexport void caml_sys_io_error_r(CAML_R, value arg)
 
 CAMLprim value caml_sys_exit_r(CAML_R, value retcode)
 {
-  DUMP();
+  //DUMP();
 #ifndef NATIVE_CODE
   caml_debugger_r(ctx, PROGRAM_EXIT);
 #endif

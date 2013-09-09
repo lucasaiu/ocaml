@@ -95,7 +95,7 @@ void caml_run_at_context_exit_functions_r(CAML_R){
      we simply won't run cleanup functions. */
   if(run_at_context_exit_functions_pointer != NULL){
     run_at_context_exit_functions = *run_at_context_exit_functions_pointer;
-    DUMP("Context.run_at_context_exit_functions is %p", (void*)(long)run_at_context_exit_functions);
+    //DUMP("Context.run_at_context_exit_functions is %p", (void*)(long)run_at_context_exit_functions);
     caml_callback_exn_r(ctx, run_at_context_exit_functions, Val_unit);
   }
   CAMLreturn0;
@@ -636,7 +636,7 @@ static void caml_raise_unimplemented_r(CAML_R){
 
 CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value function)
 {
-#if defined(HAS_MULTICONTEXT) && defined(NATIVE_CODE)
+#if defined(HAS_MULTICONTEXT) //&& defined(NATIVE_CODE)
 
   //DUMPROOTS("splitting: before GC-protecting locals");
   CAMLparam1(function);
@@ -753,7 +753,7 @@ CAMLprim value caml_context_split_r(CAML_R, value thread_no_as_value, value func
 #else
   caml_raise_unimplemented_r(ctx);
   return Val_unit; // unreachable
-#endif // #if defined(HAS_MULTICONTEXT) && defined(NATIVE_CODE)
+#endif // #if defined(HAS_MULTICONTEXT) //&& defined(NATIVE_CODE)
 }
 
 // FIXME: is this useful? I'd like to kill it

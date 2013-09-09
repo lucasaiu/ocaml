@@ -124,8 +124,6 @@ static void (*prev_scan_roots_hook) (scanning_action);
 
 /*static*/ int caml_systhreads_get_thread_no_r(CAML_R); // !!!!!!!!!!!!!!
 
-// NEW EXPERIMENTAL VERSION, IN WHICH IS SCAN FROM all_threads TO NULL
-// INSTEAD OF FROM curr_thread TO curr_thread
 static void caml_thread_scan_roots(scanning_action action)
 {
   QB();

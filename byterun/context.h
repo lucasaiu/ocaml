@@ -658,8 +658,6 @@ struct caml_global_context {
 
   /* Context-destructor structures: */
   int reference_count;
-  //pthread_mutex_t reference_count_mutex; // NO: I'll just use the contextual mutex // Actually I don't need *any* mutex: caml threads on the same context are not parallel!!!!
-  //pthread_cond_t reference_count_condition;
 #ifdef HAS_MULTICONTEXT
   sem_t destruction_semaphore;
   pthread_t destructor_thread;

@@ -27,10 +27,14 @@ val make_mailbox : unit -> mailbox
 val context_of_mailbox : mailbox -> t
 val is_mailbox_local : mailbox -> bool
 
+
 (* These may raise CannotSplit and Unimplemented *)
 val split1 : (mailbox -> unit) -> (*new context mailbox*)mailbox
 val split : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox list)
 val split_into_array : int -> (int -> mailbox -> unit) -> (*mailboxes to new contexts*)(mailbox array)
+
+(* val low_level_split_into_context_array : int -> (int -> unit) -> (t option array) *)
+
 
 (* FIXME: do I need to expose these? *)
 val split_into_context_array : int -> (int -> unit) -> (t array)
@@ -38,7 +42,7 @@ val split_into_context_list : int -> (int -> unit) -> (t list)
 val split_into_context : (unit -> unit) -> t
 
 val send : mailbox -> 'a -> unit
-val receive : mailbox -> 'a
+val receive : mailbox -> 'a (* not exactly type-safe :-) *)
 
 
 (* (\* Wait until the context local to the given mailbox or mailboxes terminates: *\) *)

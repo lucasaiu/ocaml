@@ -138,17 +138,17 @@ void caml_v_semaphore(sem_t* semaphore){
 #ifdef HAS_PTHREAD
 void* caml_destructor_thread_function(void *ctx_as_void_star){
   CAML_R = ctx_as_void_star;
-  DUMP("Hello from the destructor thread for context %p (ctx is %p)", ctx_as_void_star, ctx);
+  //DUMP("Hello from the destructor thread for context %p (ctx is %p)", ctx_as_void_star, ctx);
 
   /* Block until notified by a V: */
-  DUMP("waiting to be notified before destroying the context");
+  //DUMP("waiting to be notified before destroying the context");
   caml_p_semaphore(&ctx->destruction_semaphore);
 
   /* We were notified; run at_exit callbacks and destroy the context: */
   caml_run_at_context_exit_functions_r(ctx);
-  DUMP("about to destroy the context");
+  //DUMP("about to destroy the context");
   caml_destroy_context_r(ctx);
-  fprintf(stderr, "Destroyed the context %p: exiting the destructor thread %p as well.\n", ctx, (void*)pthread_self());  fflush(stderr);
+  //fprintf(stderr, "Destroyed the context %p: exiting the destructor thread %p as well.\n", ctx, (void*)pthread_self());  fflush(stderr);
   return NULL; // unused
 }
 #endif // #ifdef HAS_PTHREAD
@@ -550,7 +550,7 @@ section.  */
 
   /* Context-destructor structures: */
   this_ctx->reference_count = 1; // there is one user thread: the main one
-  {CAML_R = this_ctx; DUMP("added the initial pin to the context %p", this_ctx);}
+  //{CAML_R = this_ctx; DUMP("added the initial pin to the context %p", this_ctx);}
 #ifdef HAS_PTHREAD
   caml_initialize_semaphore(&this_ctx->destruction_semaphore, 0);
   int pthread_create_result =
@@ -768,7 +768,7 @@ void caml_finalize_context_r(CAML_R){
   //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: FIXME: actually free everything\n", ctx, (void*)(pthread_self())); fflush(stderr);
 
   //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
-  fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-5: finalized %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
+  //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-5: finalized %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
   // FIXME: really destroy stuff
 }
 
@@ -1074,15 +1074,15 @@ int caml_can_split_r(CAML_R){
 void caml_pin_context_r(CAML_R){
   Assert(ctx->reference_count > 0);
   ctx->reference_count ++;
-  DUMP("  PIN %i -> %i", ctx->reference_count - 1, ctx->reference_count);
+  //DUMP("  PIN %i -> %i", ctx->reference_count - 1, ctx->reference_count);
 }
 
 void caml_unpin_context_r(CAML_R){
   Assert(ctx->reference_count > 0);
   ctx->reference_count --;
-  DUMP("UNpin %i -> %i", ctx->reference_count + 1, ctx->reference_count);
+  //DUMP("UNpin %i -> %i", ctx->reference_count + 1, ctx->reference_count);
   if(ctx->reference_count == 0){
-    DUMP("removed the last pin");
+    //DUMP("removed the last pin");
 #ifdef HAS_MULTICONTEXT
     caml_v_semaphore(&ctx->destruction_semaphore);
 #else

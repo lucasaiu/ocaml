@@ -1241,28 +1241,34 @@ fi
 
 # Determine if multi-context is supported
 
-multicontext_support=false
-if test "$multicontext_wanted" = "yes"; then
-    case "$arch,$system" in
-        amd64,linux)
-            if test "$systhread_support" != "true"; then
-                echo "No pthreads on GNU/Linux amd64.  This should not happen" 1>&2
-                exit 2 # Why 2?  Just a local convention?  --L.S. !!!!!!!!!!!!!!!!!!!
-            fi
-            echo "Multi-context is supported."
-            multicontext_support=true
-            echo "#define HAS_MULTICONTEXT" >> s.h
-            ;;
-        *)
-            echo "Multi-context is not supported"
-            echo '// #define HAS_MULTICONTEXT /* not supported */' >> s.h
-            ;;
-    esac
-## FIXME: disable the next else branch, for uniformity !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+multicontext_supported=false
+case "$arch,$system" in
+    amd64,linux)
+        echo "Multi-context is supported."
+        multicontext_supported=true
+        echo "#define SUPPORTS_MULTICONTEXT" >> s.h
+        ;;
+    *)
+        echo "Multi-context is not supported"
+        echo '// #define SUPPORTS_MULTICONTEXT /* not supported */' >> s.h
+        ;;
+esac
+
+# Determine if multi-context is enabled
+multicontext_enabled=false
+if test "$multicontext_wanted" = "yes" && test "$multicontext_supported" = "true"; then
+    if test "$systhread_support" != "true"; then
+        echo "No pthreads on GNU/Linux amd64.  This should not happen" 1>&2
+        exit 2 # Why 2?  Just a local convention?  --L.S. !!!!!!!!!!!!!!!!!!!
+    fi
+    echo "Multi-context is enabled."
+    multicontext_enabled=true
+    echo "#define HAS_MULTICONTEXT" >> s.h
 else
-            echo "You disabled multi-context"
-            echo '// #define HAS_MULTICONTEXT /* disabled at configuration time */' >> s.h
+    echo "Multi-context is not supported or explicitly disabled"
+    echo '// #define HAS_MULTICONTEXT /* disabled or not supported */' >> s.h
 fi
+
 
 # Determine the location of X include files and libraries
 
@@ -1670,7 +1676,8 @@ echo "MKMAINDLL=$mkmaindll" >> Makefile
 echo "RUNTIMED=${debugruntime}" >>Makefile
 echo "CAMLP4=${withcamlp4}" >>Makefile
 echo "ASM_CFI_SUPPORTED=$asm_cfi_supported" >> Makefile
-echo "MULTICONTEXT=$multicontext_support" >> Makefile
+echo "MULTICONTEXT_SUPPORTED=$multicontext_supported" >> Makefile
+echo "MULTICONTEXT_ENABLED=$multicontext_enabled" >> Makefile
 
 rm -f tst hasgot.c
 rm -f ../m.h ../s.h ../Makefile
@@ -1728,10 +1735,14 @@ else
   fi
 fi
 
-if test "$multicontext_support" = "true"; then
-  echo "Multi-context: enabled"
+if test "$multicontext_supported" = "true"; then
+  if test "$multicontext_enabled" = "true"; then
+    echo "Multi-context: supported and enabled"
+  else
+    echo "Multi-context: supported but disabled"
+  fi
 else
-  echo "Multi-context: disabled or not supported"
+  echo "Multi-context: not supported"
 fi
 
 if test "$debugger" = "ocamldebugger"; then

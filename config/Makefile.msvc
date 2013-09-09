@@ -176,4 +176,5 @@ MAKEREC=$(MAKE) -f Makefile.nt
 MAKECMD=$(MAKE)
 
 ## Multicontext isn't supported on this architecture
-MULTICONTEXT=false
+MULTICONTEXT_SUPPORTED=false
+MULTICONTEXT_ENABLED=false
