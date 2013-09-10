@@ -119,7 +119,11 @@ void caml_final_do_calls_r (CAML_R)
       -- to_do_hd->size;
       f = to_do_hd->item[to_do_hd->size];
       running_finalisation_function = 1;
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       res = caml_callback_exn_r (ctx, f.fun, f.val + f.offset);
+#else
+      res = caml_callback_exn (f.fun, f.val + f.offset);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       running_finalisation_function = 0;
       if (Is_exception_result (res)) caml_raise_r (ctx, Extract_exception (res));
     }

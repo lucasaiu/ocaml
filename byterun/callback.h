@@ -28,17 +28,33 @@
 extern "C" {
 #endif
 
-CAMLextern value caml_callback (dont_use, value closure, value arg);
-CAMLextern value caml_callback2 (dont_use, value closure, value arg1, value arg2);
-CAMLextern value caml_callback3 (dont_use, value closure, value arg1, value arg2,
-                                 value arg3);
-CAMLextern value caml_callbackN (dont_use, value closure, int narg, value args[]);
+/* CAMLextern value caml_callback (dont_use, value closure, value arg); */
+/* CAMLextern value caml_callback2 (dont_use, value closure, value arg1, value arg2); */
+/* CAMLextern value caml_callback3 (dont_use, value closure, value arg1, value arg2, */
+/*                                  value arg3); */
+/* CAMLextern value caml_callbackN (dont_use, value closure, int narg, value args[]); */
 
-CAMLextern value caml_callback_exn (dont_use, value closure, value arg);
-CAMLextern value caml_callback2_exn (dont_use, value closure, value arg1, value arg2);
-CAMLextern value caml_callback3_exn (dont_use, value closure,
+#if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+CAMLextern value caml_callback (value closure, value arg);
+CAMLextern value caml_callback2 (value closure, value arg1, value arg2);
+CAMLextern value caml_callback3 (value closure, value arg1, value arg2,
+                                 value arg3);
+CAMLextern value caml_callbackN (value closure, int narg, value args[]);
+#endif // #if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+
+/* CAMLextern value caml_callback_exn (dont_use, value closure, value arg); */
+/* CAMLextern value caml_callback2_exn (dont_use, value closure, value arg1, value arg2); */
+/* CAMLextern value caml_callback3_exn (dont_use, value closure, */
+/*                                      value arg1, value arg2, value arg3); */
+/* CAMLextern value caml_callbackN_exn (dont_use, value closure, int narg, value args[]); */
+
+#if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+CAMLextern value caml_callback_exn (value closure, value arg);
+CAMLextern value caml_callback2_exn (value closure, value arg1, value arg2);
+CAMLextern value caml_callback3_exn (value closure,
                                      value arg1, value arg2, value arg3);
-CAMLextern value caml_callbackN_exn (dont_use, value closure, int narg, value args[]);
+CAMLextern value caml_callbackN_exn (value closure, int narg, value args[]);
+#endif // #if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
 
 CAMLextern value caml_callback_r (CAML_R, value closure, value arg);
 CAMLextern value caml_callback2_r (CAML_R, value closure, value arg1, value arg2);

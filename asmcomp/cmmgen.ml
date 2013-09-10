@@ -655,10 +655,31 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
 
 (* Simplification of some primitives into C calls *)
 
-let default_prim name =
-  { prim_name = name ^ "_r";
-    prim_arity = 0 (*ignored*); prim_ctx = true;
-    prim_alloc = true; prim_native_name = ""; prim_native_float = false }
+(* ***** *)
+let _ = Config.multicontext_supported
+let _ = Config.multicontext_enabled
+(* ***** *)
+
+(* FIXME: 2013-09: ask Fabrice: is this *only* used for reentrant primitives? I think so. --Luca Saiu *)
+(* let default_prim name = *)
+(*   { prim_name = name ^ "_r"; *)
+(*     prim_arity = 0 (\*ignored*\); prim_ctx = true; *)
+(*     prim_alloc = true; prim_native_name = ""; prim_native_float = false } *)
+
+
+(* VERY experimental: BEGIN ================================================== *)
+let default_prim =
+  if Config.multicontext_supported then
+    fun name ->
+      { prim_name = name ^ "_r";
+        prim_arity = 0 (*ignored*); prim_ctx = true;
+        prim_alloc = true; prim_native_name = ""; prim_native_float = false }
+  else
+    fun name ->
+      { prim_name = name ;
+        prim_arity = 0 (*ignored*); prim_ctx = false;
+        prim_alloc = true; prim_native_name = ""; prim_native_float = false }
+(* VERY experimental: END ================================================== *)
 
 let simplif_primitive_32bits = function
     Pbintofint Pint64 -> Pccall (default_prim "caml_int64_of_int")
@@ -1833,12 +1854,8 @@ let emit_all_constants cont =
 
 (* Translate a compilation unit *)
 
-(* --Luca Saiu REENTRANTRUNTIME DEBUG *)
-(* (\*FIXME: remove this crap --Luca Saiu REENTRANTRUNTIME *\) *)
-(* let rec ntimes_acc n x a = if n == 0 then a else ntimes_acc (n - 1) x (x :: a);; *)
-(* let ntimes n x = ntimes_acc n x [];; *)
-
 let compunit size ulam =
+  if Config.multicontext_supported then
   let glob = Compilenv.make_symbol None in
   let register_module_code =
     Cop(Cextcall("caml_register_module_r",
@@ -1882,7 +1899,21 @@ let compunit size ulam =
          Cint8 0; (* '\0'-terminate the string *)
          Calign 8; (* Don't break the alignment of what follows because of the string*)
         ] :: c3
-
+  else
+    (* non-contextual version *)
+    let glob = Compilenv.make_symbol None in
+    let init_code = transl ulam in
+    let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+                         fun_args = [];
+                         fun_body = init_code; fun_fast = false;
+                         fun_dbg  = Debuginfo.none }] in
+    let c2 = transl_all_functions StringSet.empty c1 in
+    let c3 = emit_all_constants c2 in
+    Cdata [Cint(block_header 0 size);
+           Cglobal_symbol glob;
+           Cdefine_symbol glob;
+           Cskip(size * size_addr)] :: c3
+    
 (*
 CAMLprim value caml_cache_public_method (value meths, value tag, value *cache)
 {
@@ -2180,28 +2211,50 @@ let generic_functions shared units =
 (* Generate the entry point *)
 
 let entry_point namelist =
-  let incr_global_inited =
+  if Config.multicontext_supported then
+    (* multicontext version *)
+    let incr_global_inited =
 (*
     Cop(Cstore Word,
         [Cconst_symbol "caml_globals_inited";
          Cop(Caddi, [Cop(Cload Word, [Cconst_symbol "caml_globals_inited"]);
                      Cconst_int 1])])
 *)
-    Cop(Cextcall("caml_incr_globals_inited_r", typ_void, false, true, Debuginfo.none), [])
- in
-  let body =
-    List.fold_right
-      (fun name next ->
-        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry_r") in
-        Csequence(Cop(Capply(typ_void, Debuginfo.none),
-                         [Cconst_symbol (entry_sym, Cglobal_kind)]),
-                  Csequence(incr_global_inited, next)))
-      namelist (Cconst_int 1) in
-  Cfunction {fun_name = "caml_program_r13";
-             fun_args = [];
-             fun_body = body;
-             fun_fast = false;
-             fun_dbg  = Debuginfo.none }
+      Cop(Cextcall("caml_incr_globals_inited_r", typ_void, false, true, Debuginfo.none), [])
+    in
+    let body =
+      List.fold_right
+        (fun name next ->
+          let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry_r") in
+          Csequence(Cop(Capply(typ_void, Debuginfo.none),
+                        [Cconst_symbol (entry_sym, Cglobal_kind)]),
+                    Csequence(incr_global_inited, next)))
+        namelist (Cconst_int 1) in
+    Cfunction {fun_name = "caml_program_r13";
+               fun_args = [];
+               fun_body = body;
+               fun_fast = false;
+               fun_dbg  = Debuginfo.none }
+  else
+    (* non-multicontext version *)
+    let incr_global_inited =
+      Cop(Cstore Word,
+          [Cconst_symbol ("caml_globals_inited", Cmm.Cglobal_kind(*FIXME: Cglobal_kind?*));
+           Cop(Caddi, [Cop(Cload Word, [Cconst_symbol ("caml_globals_inited", Cmm.Cglobal_kind(*FIXME: Cglobal_kind?*))]);
+                       Cconst_int 1])]) in
+    let body =
+      List.fold_right
+        (fun name next ->
+          let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
+          Csequence(Cop(Capply(typ_void, Debuginfo.none),
+                        [Cconst_symbol(entry_sym, Cmm.Cglobal_kind(*FIXME: Cglobal_kind?*))]),
+                    Csequence(incr_global_inited, next)))
+        namelist (Cconst_int 1) in
+    Cfunction {fun_name = "caml_program";
+               fun_args = [];
+               fun_body = body;
+               fun_fast = false;
+               fun_dbg  = Debuginfo.none }
 
 (* Generate the table of globals *)
 

@@ -11,6 +11,26 @@
 /*                                                                     */
 /***********************************************************************/
 
+/* experimental hack: begin */
+/* This works and isn't too complicated, but has to be done by hand on
+   each architecture (on all shitty asseblers, actually; with GNU as
+   everywhere it wouldn't be that hard).  Sadly, it will have to go.
+   --L.S. */
+#define BYTES_PER_WORD 4
+.equiv caml_young_limit,         the_one_and_only_context_struct + BYTES_PER_WORD*0
+.equiv caml_young_ptr,           the_one_and_only_context_struct + BYTES_PER_WORD*1
+.equiv caml_last_return_address, the_one_and_only_context_struct + BYTES_PER_WORD*2
+.equiv caml_bottom_of_stack,     the_one_and_only_context_struct + BYTES_PER_WORD*3
+.equiv caml_gc_regs,             the_one_and_only_context_struct + BYTES_PER_WORD*4
+.equiv caml_exception_pointer,   the_one_and_only_context_struct + BYTES_PER_WORD*5
+.equiv caml_backtrace_active,    the_one_and_only_context_struct + BYTES_PER_WORD*6
+.section ".data"
+        .globl  caml_globals_inited
+/*        .type   caml_globals_inited, @object */
+caml_globals_inited:
+        .long   1               /* one descriptor */
+/* experimental hack: end */
+
 /* $Id$ */
 
 #define Addrglobal(reg,glob) \

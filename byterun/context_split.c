@@ -96,7 +96,11 @@ void caml_run_at_context_exit_functions_r(CAML_R){
   if(run_at_context_exit_functions_pointer != NULL){
     run_at_context_exit_functions = *run_at_context_exit_functions_pointer;
     //DUMP("Context.run_at_context_exit_functions is %p", (void*)(long)run_at_context_exit_functions);
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
     caml_callback_exn_r(ctx, run_at_context_exit_functions, Val_unit);
+#else
+    caml_callback_exn(run_at_context_exit_functions, Val_unit);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   }
   CAMLreturn0;
 }

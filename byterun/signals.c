@@ -151,9 +151,14 @@ void caml_execute_signal_r(CAML_R, int signal_number, int in_signal_handler)
   sigprocmask(SIG_BLOCK, &sigs, &sigs);
 #endif
   //DUMP("right before calling caml_callback_exn_r; caml_signal_handlers is %p", (void*)caml_signal_handlers);
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   res = caml_callback_exn_r(ctx,
-           Field(caml_signal_handlers, signal_number),
-           Val_int(caml_rev_convert_signal_number(signal_number)));
+                            Field(caml_signal_handlers, signal_number),
+                            Val_int(caml_rev_convert_signal_number(signal_number)));
+#else
+  res = caml_callback_exn(Field(caml_signal_handlers, signal_number),
+                          Val_int(caml_rev_convert_signal_number(signal_number)));
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   //DUMP("back from caml_callback_exn_r; caml_signal_handlers is %p", caml_signal_handlers);
 #ifdef POSIX_SIGNALS
   if (! in_signal_handler) {

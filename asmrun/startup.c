@@ -178,7 +178,10 @@ caml_global_context* caml_make_empty_context(void)
 }
 #endif // #ifdef HAS_MULTICONTEXT
 
-extern value caml_start_program_r (CAML_R);
+/* Only one of these is defined in the assembly part: */
+extern value caml_start_program_r (CAML_R); // multicontext version
+extern value caml_start_program (void);     // non-multicontext version
+
 extern void caml_init_ieee_floats (void);
 extern void caml_init_signals (void);
 extern void caml_debugger_init_r(CAML_R);
@@ -256,7 +259,11 @@ caml_global_context* caml_main_rr(char **argv)
   }
   else{
     //fprintf(stderr, "caml_main_rr: right after the setjmp call [%p]\n", *((void**)(ctx->where_to_longjmp)));
+#ifdef SUPPORTS_MULTICONTEXT
     res = caml_start_program_r(ctx);
+#else
+    res = caml_start_program();
+#endif // #ifdef SUPPORTS_MULTICONTEXT
     if (Is_exception_result(res))
       caml_fatal_uncaught_exception_r(ctx, Extract_exception(res));
     //fprintf(stderr, "caml_main_rr: exiting normally\n");

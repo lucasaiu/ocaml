@@ -111,7 +111,12 @@ void caml_fatal_uncaught_exception_r(CAML_R, value exn)
   saved_backtrace_pos = caml_backtrace_pos;
   caml_backtrace_active = 0;
   at_exit = caml_named_value_r(ctx, "Pervasives.do_at_exit");
-  if (at_exit != NULL) caml_callback_exn_r(ctx, *at_exit, Val_unit);
+  if (at_exit != NULL)
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
+    caml_callback_exn_r(ctx, *at_exit, Val_unit);
+#else
+    caml_callback_exn(*at_exit, Val_unit);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   caml_backtrace_active = saved_backtrace_active;
   caml_backtrace_pos = saved_backtrace_pos;
   /* Display the uncaught exception */

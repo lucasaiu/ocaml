@@ -54,12 +54,23 @@ extern caml_generated_constant
 
 /* Exception raising */
 
+/* Only one of these is defined in the assembly part: */
 extern void caml_raise_exception_r (CAML_R, value bucket) Noreturn;
+extern void caml_raise_exception (value bucket) Noreturn;
+
+/* /\* Only one of these is defined in the assembly part: *\/ */
+/* extern void caml_fatal_uncaught_exception_r (CAML_R, value bucket) Noreturn; */
+/* extern void caml_fatal_uncaught_exception (value bucket) Noreturn; */
 
 void caml_raise_r(CAML_R, value v)
 {
   Unlock_exn();
-  if (caml_exception_pointer == NULL) caml_fatal_uncaught_exception_r(ctx, v);
+  if (caml_exception_pointer == NULL)
+/* #ifdef SUPPORTS_MULTICONTEXT */
+    caml_fatal_uncaught_exception_r(ctx, v);
+/* #else */
+/*     caml_fatal_uncaught_exception(v); */
+/* #endif // #ifdef SUPPORTS_MULTICONTEXT */
 
 #ifndef Stack_grows_upwards
 #define PUSHED_AFTER <
@@ -72,7 +83,11 @@ void caml_raise_r(CAML_R, value v)
   }
 #undef PUSHED_AFTER
 
+#ifdef SUPPORTS_MULTICONTEXT
   caml_raise_exception_r(ctx, v);
+#else
+  caml_raise_exception(v);
+#endif // #ifdef SUPPORTS_MULTICONTEXT
 }
 
 void caml_raise_constant_r(CAML_R, value tag)

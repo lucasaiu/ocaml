@@ -42,7 +42,6 @@
 static opcode_t callback_code[] = { ACC, 0, APPLY, 0, POP, 1, STOP };
 #endif
 
-
 #ifdef THREADED_CODE
 
 static void thread_callback_r(CAML_R)
@@ -148,17 +147,29 @@ CAMLexport value caml_callbackN_exn_r(CAML_R, value closure, int narg, value arg
     /* Pass as many arguments as possible */
     switch (narg - i) {
     case 1:
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       res = caml_callback_exn_r(ctx, res, args[i]);
+#else
+      res = caml_callback_exn(res, args[i]);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       if (Is_exception_result(res)) CAMLreturn (res);
       i += 1;
       break;
     case 2:
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       res = caml_callback2_exn_r(ctx, res, args[i], args[i + 1]);
+#else
+      res = caml_callback2_exn(res, args[i], args[i + 1]);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       if (Is_exception_result(res)) CAMLreturn (res);
       i += 2;
       break;
     default:
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       res = caml_callback3_exn_r(ctx, res, args[i], args[i + 1], args[i + 2]);
+#else
+      res = caml_callback3_exn(res, args[i], args[i + 1], args[i + 2]);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
       if (Is_exception_result(res)) CAMLreturn (res);
       i += 3;
       break;
@@ -173,14 +184,22 @@ CAMLexport value caml_callbackN_exn_r(CAML_R, value closure, int narg, value arg
 
 CAMLexport value caml_callback_r (CAML_R, value closure, value arg)
 {
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   value res = caml_callback_exn_r(ctx, closure, arg);
+#else
+  value res = caml_callback_exn(closure, arg);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   if (Is_exception_result(res)) caml_raise_r(ctx, Extract_exception(res));
   return res;
 }
 
 CAMLexport value caml_callback2_r (CAML_R, value closure, value arg1, value arg2)
 {
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   value res = caml_callback2_exn_r(ctx, closure, arg1, arg2);
+#else
+  value res = caml_callback2_exn(closure, arg1, arg2);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   if (Is_exception_result(res)) caml_raise_r(ctx, Extract_exception(res));
   return res;
 }
@@ -188,7 +207,11 @@ CAMLexport value caml_callback2_r (CAML_R, value closure, value arg1, value arg2
 CAMLexport value caml_callback3_r (CAML_R, value closure, value arg1, value arg2,
                                    value arg3)
 {
+#if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   value res = caml_callback3_exn_r(ctx, closure, arg1, arg2, arg3);
+#else
+  value res = caml_callback3_exn(closure, arg1, arg2, arg3);
+#endif // #if !defined(NATIVE_CODE) || defined(SUPPORTS_MULTICONTEXT)
   if (Is_exception_result(res)) caml_raise_r(ctx, Extract_exception(res));
   return res;
 }

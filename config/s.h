@@ -1,5 +1,5 @@
 #define OCAML_OS_TYPE "Unix"
-#define OCAML_STDLIB_DIR "/home/luca/usr-patched-ocaml/lib/ocaml"
+#define OCAML_STDLIB_DIR "/home/luca/usr-patched-ocaml//lib/ocaml"
 #define POSIX_SIGNALS
 #define HAS_C99_FLOAT_OPS
 #define HAS_GETRUSAGE
@@ -46,9 +46,7 @@
 #define HAS_PWRITE
 #define HAS_GETHOSTBYNAME_R 6
 #define HAS_GETHOSTBYADDR_R 8
-#define HAS_STACK_OVERFLOW_DETECTION
 #define HAS_PTHREAD
 #define HAS_SIGWAIT
-#define SUPPORTS_MULTICONTEXT
-#define HAS_MULTICONTEXT
-#define HAS_LIBBFD
+// #define SUPPORTS_MULTICONTEXT /* not supported */
+// #define HAS_MULTICONTEXT /* disabled or not supported */

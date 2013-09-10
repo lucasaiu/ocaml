@@ -17,8 +17,9 @@
 #define CAML_CONTEXT_MINOR_GC
 #define CAML_CONTEXT_ROOTS
 #define CAML_CONTEXT_FREELIST
-#define CAML_MEMORY
+#define CAML_CONTEXT_MEMORY
 
+#include "config.h"
 #include "memory.h"
 #include "alloc.h"
 #include "compact.h"
@@ -31,6 +32,7 @@
 #include "minor_gc.h"
 #include "misc.h"
 #include "mlvalues.h"
+//#include "context.h"
 #ifdef NATIVE_CODE
 #include "stack.h"
 #else

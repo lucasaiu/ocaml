@@ -81,6 +81,14 @@ void caml_garbage_collection_r(CAML_R)
   caml_process_pending_signals_r(ctx);
 }
 
+#if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+/* This is called from assembly on non-multiruntime platforms: */
+void caml_garbage_collection(void){
+  caml_garbage_collection_r(&the_one_and_only_context_struct);
+}
+#endif // #if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+
+
 DECLARE_SIGNAL_HANDLER(handle_signal)
 {
 #if !defined(POSIX_SIGNALS) && !defined(BSD_SIGNALS)
