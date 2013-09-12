@@ -134,6 +134,7 @@ CAMLprim value caml_obj_dup_r(CAML_R, value arg)
   }
   CAMLreturn (res);
 }
+CAMLprim value caml_obj_dup(value v){ return caml_obj_dup_r(caml_get_thread_local_context(), v); }
 
 /* Shorten the given block to the given size and return void.
    Raise Invalid_argument if the given size is less than or equal

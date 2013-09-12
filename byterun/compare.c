@@ -273,6 +273,7 @@ CAMLprim value caml_equal_r(CAML_R, value v1, value v2)
   if (compare_stack != compare_stack_init) compare_free_stack_r(ctx);
   return Val_int(res == 0);
 }
+CAMLprim value caml_equal(value v1, value v2){ return caml_equal_r(caml_get_thread_local_context(), v1, v2); }
 
 CAMLprim value caml_notequal_r(CAML_R, value v1, value v2)
 {
@@ -280,6 +281,7 @@ CAMLprim value caml_notequal_r(CAML_R, value v1, value v2)
   if (compare_stack != compare_stack_init) compare_free_stack_r(ctx);
   return Val_int(res != 0);
 }
+CAMLprim value caml_notequal(value v1, value v2){ return caml_notequal_r(caml_get_thread_local_context(), v1, v2); }
 
 CAMLprim value caml_lessthan_r(CAML_R, value v1, value v2)
 {
@@ -287,6 +289,7 @@ CAMLprim value caml_lessthan_r(CAML_R, value v1, value v2)
   if (compare_stack != compare_stack_init) compare_free_stack_r(ctx);
   return Val_int(res < 0 && res != UNORDERED);
 }
+CAMLprim value caml_lessthan(value v1, value v2){ return caml_lessthan_r(caml_get_thread_local_context(), v1, v2); }
 
 CAMLprim value caml_lessequal_r(CAML_R, value v1, value v2)
 {
@@ -294,6 +297,7 @@ CAMLprim value caml_lessequal_r(CAML_R, value v1, value v2)
   if (compare_stack != compare_stack_init) compare_free_stack_r(ctx);
   return Val_int(res <= 0 && res != UNORDERED);
 }
+CAMLprim value caml_lessequal(value v1, value v2){ return caml_lessequal_r(caml_get_thread_local_context(), v1, v2); }
 
 CAMLprim value caml_greaterthan_r(CAML_R, value v1, value v2)
 {
@@ -301,6 +305,7 @@ CAMLprim value caml_greaterthan_r(CAML_R, value v1, value v2)
   if (compare_stack != compare_stack_init) compare_free_stack_r(ctx);
   return Val_int(res > 0);
 }
+CAMLprim value caml_greaterthan(value v1, value v2){ return caml_greaterthan_r(caml_get_thread_local_context(), v1, v2); }
 
 CAMLprim value caml_greaterequal_r(CAML_R, value v1, value v2)
 {
@@ -308,3 +313,4 @@ CAMLprim value caml_greaterequal_r(CAML_R, value v1, value v2)
   if (compare_stack != compare_stack_init) compare_free_stack_r(ctx);
   return Val_int(res >= 0);
 }
+CAMLprim value caml_greaterequal(value v1, value v2){ return caml_greaterequal_r(caml_get_thread_local_context(), v1, v2); }
