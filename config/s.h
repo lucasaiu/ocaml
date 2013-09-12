@@ -46,7 +46,9 @@
 #define HAS_PWRITE
 #define HAS_GETHOSTBYNAME_R 6
 #define HAS_GETHOSTBYADDR_R 8
+#define HAS_STACK_OVERFLOW_DETECTION
 #define HAS_PTHREAD
 #define HAS_SIGWAIT
-// #define SUPPORTS_MULTICONTEXT /* not supported */
+#define SUPPORTS_MULTICONTEXT
 // #define HAS_MULTICONTEXT /* disabled or not supported */
+#define HAS_LIBBFD
