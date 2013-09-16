@@ -218,9 +218,12 @@ method select_operation op args =
     (Capply(ty, dbg), Cconst_symbol (s, _) :: rem) -> (Icall_imm s, rem)
   | (Capply(ty, dbg), _) -> (Icall_ind, args)
   | (Cextcall(s, ty, alloc, true, dbg), _) ->
-    (* (Iextcall(s, alloc), Cconst_symbol("caml_global_context", Cconstant_kind) :: args) *)
-    (* testing, as of 2013-09 --L.S. *)
-    (Iextcall(s, alloc), Cconst_symbol("the_one_and_only_context_struct", Cconstant_kind) :: args)
+    (Iextcall(s, alloc),
+     Cconst_symbol((if Config.multicontext_supported then
+                      "caml_global_context" (* a special case in emit.mlp *)
+                    else
+                      "the_one_and_only_context_struct"),
+                   Cconstant_kind) :: args)
   | (Cextcall(s, ty, alloc, false, dbg), _) -> (Iextcall(s, alloc), args)
   | (Cload chunk, [arg]) ->
       let (addr, eloc) = self#select_addressing chunk arg in

@@ -655,17 +655,11 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
 
 (* Simplification of some primitives into C calls *)
 
-(* ***** *)
-let _ = Config.multicontext_supported
-let _ = Config.multicontext_enabled
-(* ***** *)
-
 (* FIXME: 2013-09: ask Fabrice: is this *only* used for reentrant primitives? I think so. --Luca Saiu *)
 (* let default_prim name = *)
 (*   { prim_name = name ^ "_r"; *)
 (*     prim_arity = 0 (\*ignored*\); prim_ctx = true; *)
 (*     prim_alloc = true; prim_native_name = ""; prim_native_float = false } *)
-
 
 (* VERY experimental: BEGIN ================================================== *)
 let default_prim =

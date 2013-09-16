@@ -841,7 +841,7 @@ extern library_context *caml_get_library_context_r(
 #if defined(SUPPORTS_MULTICONTEXT)
 #define caml_young_ptr   ctx->caml_young_ptr
 #define caml_young_limit   ctx->caml_young_limit
-#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+#endif // defined(SUPPORTS_MULTICONTEXT)
 #define caml_ref_table   ctx->caml_ref_table
 #define caml_weak_ref_table   ctx->caml_weak_ref_table
 #define caml_in_minor_collection   ctx->caml_in_minor_collection

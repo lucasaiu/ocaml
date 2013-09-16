@@ -151,6 +151,7 @@ void caml_v_semaphore(sem_t* semaphore){
 }
 
 #ifdef HAS_MULTICONTEXT
+void caml_run_at_context_exit_functions_r(CAML_R);
 void* caml_destructor_thread_function(void *ctx_as_void_star){
   CAML_R = ctx_as_void_star;
   //DUMP("Hello from the destructor thread for context %p (ctx is %p)", ctx_as_void_star, ctx);
@@ -171,11 +172,11 @@ void* caml_destructor_thread_function(void *ctx_as_void_star){
 /* Initialize the given context structure, which has already been allocated elsewhere: */
 void caml_initialize_first_global_context(CAML_R/* caml_global_context *this_ctx */)
 {
-#ifndef HAS_MULTICONTEXT
-  /* If we're working with some context different from the one and
-     only, we're doing something wrong: */
+  //#ifndef HAS_MULTICONTEXT
+  // /* If we're working with some context different from the one and
+  //    only, we're doing something wrong: */
   //assert(ctx == &the_one_and_only_context_struct);
-#endif // #ifndef HAS_MULTICONTEXT
+  //#endif // #ifndef HAS_MULTICONTEXT
 
   /* Maybe we should use partial contexts for specific tasks, that
 will probably not be used by all threads.  We should check the size of
@@ -266,7 +267,13 @@ section.  */
   ctx->caml_young_base = NULL;
   ctx->caml_young_start = NULL;
   ctx->caml_young_end = NULL;
+#if defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_young_ptr = NULL;
+#if defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_young_limit = NULL;
 
   ctx->caml_ref_table.base = NULL;
@@ -313,9 +320,21 @@ section.  */
   /* caml_globals_scanned = 0; */
   /* caml_dyn_globals = NULL; */
   /* caml_top_of_stack; */
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_bottom_of_stack = NULL; /* no stack initially */
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_last_return_address = 1; /* not in OCaml code initially */
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_gc_regs = NULL;
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_globals_inited = 0;
   ctx->caml_globals_scanned = 0;
   ctx->caml_dyn_globals = NULL;
@@ -354,6 +373,9 @@ section.  */
   
   /* from fail.c */
 #ifdef NATIVE_CODE
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_exception_pointer= NULL;
   //array_bound_error_bucket_inited = 0;
 #else
@@ -383,6 +405,9 @@ section.  */
   /* from backtrace.c */
 
 #ifdef NATIVE_CODE
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+  ctx->
+#endif
   caml_backtrace_active = 0;
   ctx->caml_backtrace_pos = 0;
   ctx->caml_backtrace_buffer = NULL;
@@ -941,7 +966,7 @@ void caml_context_initialize_global_stuff(void){
 
 /* This is a thin wrapper over pthread_mutex_lock and pthread_mutex_unlock: */
 static void caml_call_on_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
-  INIT_CAML_R;
+  //INIT_CAML_R;
   if(! caml_are_mutexes_already_initialized){
     /* INIT_CAML_R; */ fprintf(stderr, "global mutexes aren't initialized yet.  Bailing out"); fflush(stderr);
     exit(EXIT_FAILURE);

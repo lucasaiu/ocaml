@@ -447,9 +447,9 @@ let at_exit f =
   exit_function := (fun () -> f(); g())
 
 (* Unchanged code: *)
-(* let do_at_exit () = (!exit_function) () *)
+let do_at_exit () = (!exit_function) ()
 
-let do_at_exit () = prerr_string "[from do_at_exit]\n"; (!exit_function) ()
+(* let do_at_exit () = prerr_string "[from do_at_exit]\n"; (!exit_function) () *)
 
 let exit retcode =
   do_at_exit ();
