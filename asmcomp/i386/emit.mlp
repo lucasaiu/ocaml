@@ -466,7 +466,7 @@ let emit_instr fallthrough i =
           float_constants := (lbl, s) :: !float_constants;
           `	fldl	{emit_label lbl}\n`
         end
-    | Lop(Iconst_symbol s) ->
+    | Lop(Iconst_symbol (s, _)) ->
         `	movl	${emit_symbol s}, {emit_reg i.res.(0)}\n`
     | Lop(Icall_ind) ->
         `	call	*{emit_reg i.arg.(0)}\n`;

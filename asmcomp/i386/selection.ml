@@ -31,7 +31,7 @@ type addressing_expr =
 
 let rec select_addr exp =
   match exp with
-    Cconst_symbol s ->
+    Cconst_symbol (s, _) ->
       (Asymbol s, 0)
   | Cop((Caddi | Cadda), [arg; Cconst_int m]) ->
       let (a, n) = select_addr arg in (a, n + m)
@@ -87,7 +87,7 @@ let rec float_needs = function
       let n1 = float_needs arg1 in
       let n2 = float_needs arg2 in
       if n1 = n2 then 1 + n1 else if n1 > n2 then n1 else n2
-  | Cop(Cextcall(fn, ty_res, alloc, dbg), args)
+  | Cop(Cextcall(fn, ty_res, alloc, _, dbg), args)
     when !fast_math && List.mem fn inline_float_ops ->
       begin match args with
         [arg] -> float_needs arg
@@ -160,7 +160,7 @@ method is_immediate (n : int) = true
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall(fn, _, alloc, _), args)
+  | Cop(Cextcall(fn, _, alloc, _, _), args)
     when !fast_math && List.mem fn inline_float_ops ->
       (* inlined float ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
@@ -190,7 +190,7 @@ method! select_store addr exp =
       (Ispecific(Istore_int(Nativeint.of_int n, addr)), Ctuple [])
   | Cconst_natpointer n ->
       (Ispecific(Istore_int(n, addr)), Ctuple [])
-  | Cconst_symbol s ->
+  | Cconst_symbol (s, _) ->
       (Ispecific(Istore_symbol(s, addr)), Ctuple [])
   | _ ->
       super#select_store addr exp
@@ -238,7 +238,7 @@ method! select_operation op args =
           super#select_operation op args
       end
   (* Recognize inlined floating point operations *)
-  | Cextcall(fn, ty_res, false, dbg)
+  | Cextcall(fn, ty_res, false, _, dbg)
     when !fast_math && List.mem fn inline_float_ops ->
       (Ispecific(Ifloatspecial fn), args)
   (* Default *)
@@ -289,7 +289,7 @@ method select_push exp =
   | Cconst_natint n -> (Ispecific(Ipush_int n), Ctuple [])
   | Cconst_pointer n -> (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
   | Cconst_natpointer n -> (Ispecific(Ipush_int n), Ctuple [])
-  | Cconst_symbol s -> (Ispecific(Ipush_symbol s), Ctuple [])
+  | Cconst_symbol (s, _) -> (Ispecific(Ipush_symbol s), Ctuple [])
   | Cop(Cload Word, [loc]) ->
       let (addr, arg) = self#select_addressing Word loc in
       (Ispecific(Ipush_load addr), arg)
