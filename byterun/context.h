@@ -240,13 +240,28 @@ struct intern_item {
   } op;
 };
 
+/* Some globals are referred by the assembly runtime, which we don't
+   want to change for non-multicontext ports: */
+#if !defined(SUPPORTS_MULTICONTEXT)
+  extern char *caml_young_limit;        /* minor_gc.c */
+  extern char *caml_young_ptr;          /* minor_gc.c */
+#endif // #if !defined(SUPPORTS_MULTICONTEXT)
+#if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+  extern uintnat caml_last_return_address;
+  extern char * caml_bottom_of_stack;
+  extern value * caml_gc_regs;
+  extern char * caml_exception_pointer;
+  extern int caml_backtrace_active;
+  extern intnat caml_globals_inited;
+#endif // #if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+
 /* The field ordering should not be changed without also updating the
    macro definitions at the beginning of asmrun/ARCHITECTURE.s. */
 struct caml_global_context {
 
   /* 0 */ char *caml_young_limit;        /* minor_gc.c */
   /* 1 */ char *caml_young_ptr;          /* minor_gc.c */
-#ifdef NATIVE_CODE
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
   /* 2 */ uintnat caml_last_return_address;
   /* 3 */ char * caml_bottom_of_stack;
   /* 4 */ value * caml_gc_regs;
@@ -254,6 +269,9 @@ struct caml_global_context {
   /* 6 */ int caml_backtrace_active;
   int padding1; /* FIXME: is there some good reason for caml_backtrace_active to
                    be int rather than long?  --Luca Saiu REENTRANTRUNTIME */
+#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
+
+#if defined(NATIVE_CODE)
   /* Context-local "global" OCaml variables: */
 #define INITIAL_CAML_GLOBALS_ALLOCATED_SIZE 8 /* in bytes */
   /* 7, 8, 9 */struct caml_extensible_buffer caml_globals; /* = {dynamic, INITIAL_CAML_GLOBALS_ALLOCATED_SIZE, 0} */
@@ -390,7 +408,9 @@ struct caml_global_context {
   //char * caml_bottom_of_stack /* = NULL */; /* no stack initially */
   //uintnat caml_last_return_address /* = 1 */; /* not in OCaml code initially */
   //value * caml_gc_regs;
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
   intnat caml_globals_inited /* = 0 */;
+#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
   intnat caml_globals_scanned /* = 0 */;
   caml_link * caml_dyn_globals /* = NULL */;
   uintnat (*caml_stack_usage_hook)(void);
@@ -818,8 +838,10 @@ extern library_context *caml_get_library_context_r(
 #define caml_young_base   ctx->caml_young_base
 #define caml_young_start   ctx->caml_young_start
 #define caml_young_end   ctx->caml_young_end
+#if defined(SUPPORTS_MULTICONTEXT)
 #define caml_young_ptr   ctx->caml_young_ptr
 #define caml_young_limit   ctx->caml_young_limit
+#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define caml_ref_table   ctx->caml_ref_table
 #define caml_weak_ref_table   ctx->caml_weak_ref_table
 #define caml_in_minor_collection   ctx->caml_in_minor_collection
@@ -839,10 +861,12 @@ extern library_context *caml_get_library_context_r(
 //#define caml_scan_roots_hook      ctx->caml_scan_roots_hook
 
 #define caml_top_of_stack         ctx->caml_top_of_stack
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define caml_bottom_of_stack      ctx->caml_bottom_of_stack
 #define caml_last_return_address  ctx->caml_last_return_address
 #define caml_gc_regs              ctx->caml_gc_regs
 #define caml_globals_inited       ctx->caml_globals_inited
+#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define caml_globals_scanned      ctx->caml_globals_scanned
 #define caml_dyn_globals          ctx->caml_dyn_globals
 
@@ -863,7 +887,9 @@ extern library_context *caml_get_library_context_r(
 
 #ifdef CAML_CONTEXT_FAIL
 #ifdef NATIVE_CODE
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define caml_exception_pointer ctx->caml_exception_pointer
+#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define array_bound_error_bucket_inited ctx->array_bound_error_bucket_inited
 #else
 #define caml_exn_bucket       ctx->caml_exn_bucket
@@ -894,7 +920,9 @@ extern library_context *caml_get_library_context_r(
 #ifdef CAML_CONTEXT_BACKTRACE
 #ifdef NATIVE_CODE
 
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define caml_backtrace_active   ctx->caml_backtrace_active
+#endif // #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 #define caml_backtrace_pos      ctx->caml_backtrace_pos
 #define caml_backtrace_buffer   ctx->caml_backtrace_buffer
 #define caml_backtrace_last_exn ctx->caml_backtrace_last_exn

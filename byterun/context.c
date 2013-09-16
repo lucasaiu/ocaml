@@ -46,6 +46,21 @@ caml_global_context the_one_and_only_context_struct;
 //caml_global_context * const ctx = the_one_and_only_context_struct;
 #endif // #ifndef HAS_MULTICONTEXT
 
+/* Some globals are referred by the assembly runtime, which we don't
+   want to change for non-multicontext ports: */
+#if !defined(SUPPORTS_MULTICONTEXT)
+char *caml_young_limit;        /* minor_gc.c */
+char *caml_young_ptr;          /* minor_gc.c */
+#endif // #if !defined(SUPPORTS_MULTICONTEXT)
+#if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+uintnat caml_last_return_address;
+char * caml_bottom_of_stack;
+value * caml_gc_regs;
+char * caml_exception_pointer;
+int caml_backtrace_active;
+intnat caml_globals_inited /* = 0 */;
+#endif // #if defined(NATIVE_CODE) && !defined(SUPPORTS_MULTICONTEXT)
+
 static __thread caml_global_context *the_thread_local_caml_context = NULL;
 
 /* The one and only main context: */
@@ -154,12 +169,12 @@ void* caml_destructor_thread_function(void *ctx_as_void_star){
 #endif // #ifdef HAS_MULTICONTEXT
 
 /* Initialize the given context structure, which has already been allocated elsewhere: */
-void caml_initialize_first_global_context(/* CAML_R */caml_global_context *this_ctx)
+void caml_initialize_first_global_context(CAML_R/* caml_global_context *this_ctx */)
 {
 #ifndef HAS_MULTICONTEXT
   /* If we're working with some context different from the one and
      only, we're doing something wrong: */
-  assert(this_ctx == &the_one_and_only_context_struct);
+  //assert(ctx == &the_one_and_only_context_struct);
 #endif // #ifndef HAS_MULTICONTEXT
 
   /* Maybe we should use partial contexts for specific tasks, that
@@ -178,7 +193,7 @@ which is never correctly initialized.
 */
   //memset(this_ctx, 1, sizeof(caml_global_context));
   //memset(this_ctx, -1, sizeof(caml_global_context));
-  memset(this_ctx, 0, sizeof(caml_global_context));
+  memset(ctx, 0, sizeof(caml_global_context));
 
 #ifdef NATIVE_CODE
   /* TODO : only for first context ! We should implement a way, so
@@ -186,313 +201,314 @@ that calling several times caml_main will actually start several
 runtimes, with different contexts. A thread would then be able to
 schedule several ocaml runtimes ! Protect this with a protected
 section.  */
-  this_ctx->caml_globals_map = caml_globals_map; // FIXME: this is Fabrice's version; I really have no reason to change it, except to see the effect --Luca Saiu REENTRANTRUNTIME
-  //this_ctx->caml_globals_map = NULL; // FIXME: horrible, horrible test.  I'm intentionally breaking Fabrice's code to see what breaks [nothing, apparently].  --Luca Saiu REENTRANTRUNTIME
+  ctx->caml_globals_map = caml_globals_map; // FIXME: this is Fabrice's version; I really have no reason to change it, except to see the effect --Luca Saiu REENTRANTRUNTIME
+  //caml_globals_map = NULL; // FIXME: horrible, horrible test.  I'm intentionally breaking Fabrice's code to see what breaks [nothing, apparently].  --Luca Saiu REENTRANTRUNTIME
 #endif/* #ifdef NATIVE_CODE */
 
   /* from stacks.c */
   /*  value caml_global_data; */
-  this_ctx->caml_stack_usage_hook = NULL;
-  /*  this_ctx->caml_stack_low;
-  this_ctx->caml_stack_high;
-  this_ctx->caml_stack_threshold;
-  this_ctx->caml_extern_sp;
-  this_ctx->caml_trapsp;
-  this_ctx->caml_trap_barrier;
-  this_ctx->caml_max_stack_size;
+  ctx->caml_stack_usage_hook = NULL;
+  /*  caml_stack_low;
+  caml_stack_high;
+  caml_stack_threshold;
+  caml_extern_sp;
+  caml_trapsp;
+  caml_trap_barrier;
+  caml_max_stack_size;
   */
 
   /* from major_gc.c */
-  /*  this_ctx->caml_percent_free;
-  this_ctx->caml_major_heap_increment;
-  this_ctx->caml_heap_start;
-  this_ctx->caml_gc_sweep_hp;
-  this_ctx->caml_gc_phase;
-  this_ctx->gray_vals;
-  this_ctx->gray_vals_cur;
-  this_ctx->gray_vals_end;
-  this_ctx->gray_vals_size;
-  this_ctx->heap_is_pure;
-  this_ctx->caml_allocated_words;
-  this_ctx->caml_dependent_size;
-  this_ctx->caml_dependent_allocated;
-  this_ctx->caml_extra_heap_resources;
+  /*  caml_percent_free;
+  caml_major_heap_increment;
+  caml_heap_start;
+  caml_gc_sweep_hp;
+  caml_gc_phase;
+  gray_vals;
+  gray_vals_cur;
+  gray_vals_end;
+  gray_vals_size;
+  heap_is_pure;
+  caml_allocated_words;
+  caml_dependent_size;
+  caml_dependent_allocated;
+  caml_extra_heap_resources;
 */
-  this_ctx->caml_fl_size_at_phase_change = 0;
+  ctx->caml_fl_size_at_phase_change = 0;
   /*
-  this_ctx->markhp;
-  this_ctx->mark_chunk;
-  this_ctx->mark_limit;
-  this_ctx->caml_gc_subphase;
-  this_ctx->weak_prev;
+  markhp;
+  mark_chunk;
+  mark_limit;
+  caml_gc_subphase;
+  weak_prev;
   */
 #ifdef DEBUG
-  this_ctx->major_gc_counter = 0;
+  ctx->major_gc_counter = 0;
 #endif
 
   /* from freelist.c */
-  this_ctx->sentinel.filler1 = 0;
-  this_ctx->sentinel.h = Make_header (0, 0, Caml_blue);
-  this_ctx->sentinel.first_bp = 0;
-  this_ctx->sentinel.filler2 = 0;
-#define Fl_head ((char *) (&(this_ctx->sentinel.first_bp)))
-  this_ctx->fl_prev = Fl_head;
-  this_ctx->fl_last = NULL;
-  this_ctx->caml_fl_merge = Fl_head;
-  this_ctx->caml_fl_cur_size = 0;
-  /*  this_ctx->last_fragment; */
-  /*  this_ctx->flp [FLP_MAX]; */
-  this_ctx->flp_size = 0;
-  this_ctx->beyond = NULL;
-  this_ctx->caml_allocation_policy = Policy_next_fit;
+  ctx->sentinel.filler1 = 0;
+  ctx->sentinel.h = Make_header (0, 0, Caml_blue);
+  ctx->sentinel.first_bp = 0;
+  ctx->sentinel.filler2 = 0;
+#define Fl_head ((char *) (&(ctx->sentinel.first_bp)))
+  ctx->fl_prev = Fl_head;
+  ctx->fl_last = NULL;
+  ctx->caml_fl_merge = Fl_head;
+  ctx->caml_fl_cur_size = 0;
+  /*  last_fragment; */
+  /*  flp [FLP_MAX]; */
+  ctx->flp_size = 0;
+  ctx->beyond = NULL;
+  ctx->caml_allocation_policy = Policy_next_fit;
 
   /* from minor_gc.c */
-  /*  this_ctx->caml_minor_heap_size; */
-  this_ctx->caml_young_base = NULL;
-  this_ctx->caml_young_start = NULL;
-  this_ctx->caml_young_end = NULL;
-  this_ctx->caml_young_ptr = NULL;
-  this_ctx->caml_young_limit = NULL;
+  /*  caml_minor_heap_size; */
+  ctx->caml_young_base = NULL;
+  ctx->caml_young_start = NULL;
+  ctx->caml_young_end = NULL;
+  caml_young_ptr = NULL;
+  caml_young_limit = NULL;
 
-  this_ctx->caml_ref_table.base = NULL;
-  this_ctx->caml_ref_table.end = NULL;
-  this_ctx->caml_ref_table.threshold = NULL;
-  this_ctx->caml_ref_table.ptr = NULL;
-  this_ctx->caml_ref_table.limit = NULL;
-  this_ctx->caml_ref_table.size = 0;
-  this_ctx->caml_ref_table.reserve = 0;
+  ctx->caml_ref_table.base = NULL;
+  ctx->caml_ref_table.end = NULL;
+  ctx->caml_ref_table.threshold = NULL;
+  ctx->caml_ref_table.ptr = NULL;
+  ctx->caml_ref_table.limit = NULL;
+  ctx->caml_ref_table.size = 0;
+  ctx->caml_ref_table.reserve = 0;
 
-  this_ctx->caml_weak_ref_table.base = NULL;
-  this_ctx->caml_weak_ref_table.end = NULL;
-  this_ctx->caml_weak_ref_table.threshold = NULL;
-  this_ctx->caml_weak_ref_table.ptr = NULL;
-  this_ctx->caml_weak_ref_table.limit = NULL;
-  this_ctx->caml_weak_ref_table.size = 0;
-  this_ctx->caml_weak_ref_table.reserve = 0;
-  this_ctx->caml_in_minor_collection = 0;
-  this_ctx->oldify_todo_list = 0;
+  ctx->caml_weak_ref_table.base = NULL;
+  ctx->caml_weak_ref_table.end = NULL;
+  ctx->caml_weak_ref_table.threshold = NULL;
+  ctx->caml_weak_ref_table.ptr = NULL;
+  ctx->caml_weak_ref_table.limit = NULL;
+  ctx->caml_weak_ref_table.size = 0;
+  ctx->caml_weak_ref_table.reserve = 0;
+  ctx->caml_in_minor_collection = 0;
+  ctx->oldify_todo_list = 0;
 #ifdef DEBUG
-  this_ctx->minor_gc_counter = 0;
+  ctx->minor_gc_counter = 0;
 #endif
 
 #if 0
   /* from memory.h */
 #ifdef ARCH_SIXTYFOUR
-  /* this_ctx->caml_page_table */
+  /* caml_page_table */
 #else
-  /*  this_ctx->caml_page_table[Pagetable1_size]; */
-  this_ctx->caml_page_table_empty[0] = 0;
+  /*  caml_page_table[Pagetable1_size]; */
+  caml_page_table_empty[0] = 0;
 #endif/* #else (#ifdef ARCH_SIXTYFOUR) */
 #endif/* #if 0 */
 
   /* from roots.c */
 #ifdef NATIVE_CODE
-  this_ctx->caml_local_roots = NULL;
-  //this_ctx->caml_scan_roots_hook = NULL;
+  ctx->caml_local_roots = NULL;
+  //caml_scan_roots_hook = NULL;
   /* Fabrice's original version; see my comment in context.h --Luca Saiu REENTRANTRUNTIME */
-  /*  this_ctx->caml_top_of_stack; */
-  /* this_ctx->caml_bottom_of_stack = NULL; */
-  /* this_ctx->caml_last_return_address = 1; */
-  /* /\*  this_ctx->caml_gc_regs; */
-  /*     this_ctx->caml_globals_inited; *\/ */
-  /* this_ctx->caml_globals_scanned = 0; */
-  /* this_ctx->caml_dyn_globals = NULL; */
-  /* this_ctx->caml_top_of_stack; */
-  this_ctx->caml_bottom_of_stack = NULL; /* no stack initially */
-  this_ctx->caml_last_return_address = 1; /* not in OCaml code initially */
-  /* this_ctx->caml_gc_regs; */
-  this_ctx->caml_globals_inited = 0;
-  this_ctx->caml_globals_scanned = 0;
-  this_ctx->caml_dyn_globals = NULL;
-  this_ctx->caml_stack_usage_hook = NULL;
+  /*  caml_top_of_stack; */
+  /* caml_bottom_of_stack = NULL; */
+  /* caml_last_return_address = 1; */
+  /* /\*  caml_gc_regs; */
+  /*     caml_globals_inited; *\/ */
+  /* caml_globals_scanned = 0; */
+  /* caml_dyn_globals = NULL; */
+  /* caml_top_of_stack; */
+  caml_bottom_of_stack = NULL; /* no stack initially */
+  caml_last_return_address = 1; /* not in OCaml code initially */
+  caml_gc_regs = NULL;
+  caml_globals_inited = 0;
+  ctx->caml_globals_scanned = 0;
+  ctx->caml_dyn_globals = NULL;
+  ctx->caml_stack_usage_hook = NULL;
 #else
-  this_ctx->caml_local_roots = NULL;
-  //this_ctx->caml_scan_roots_hook = NULL;
+  ctx->caml_local_roots = NULL;
+  //caml_scan_roots_hook = NULL;
 #endif/* #else (#ifdef NATIVE_CODE) */
 
 
 #ifdef CAML_CONTEXT_STARTUP
   /* from startup.c */
 #ifdef NATIVE_CODE
-  /* this_ctx->caml_atom_table
-     this_ctx->caml_code_area_start
-     this_ctx->caml_code_area_end */
-  /*  this_ctx->caml_termination_jmpbuf */
-  this_ctx->caml_termination_hook = NULL;
+  /* caml_atom_table
+     caml_code_area_start
+     caml_code_area_end */
+  /*  caml_termination_jmpbuf */
+  caml_termination_hook = NULL;
 #endif/* #ifdef NATIVE_CODE */
 #endif/* #ifdef CAML_CONTEXT_STARTUP */
 
   /* from globroots.c */
-  this_ctx->random_seed = 0;
+  ctx->random_seed = 0;
 
-  this_ctx->caml_global_roots.root = NULL;
-  this_ctx->caml_global_roots.forward[0] = NULL;
-  this_ctx->caml_global_roots.level = 0;
+  ctx->caml_global_roots.root = NULL;
+  ctx->caml_global_roots.forward[0] = NULL;
+  ctx->caml_global_roots.level = 0;
   
-  this_ctx->caml_global_roots_young.root = NULL;
-  this_ctx->caml_global_roots_young.forward[0] = NULL;
-  this_ctx->caml_global_roots_young.level = 0;
+  ctx->caml_global_roots_young.root = NULL;
+  ctx->caml_global_roots_young.forward[0] = NULL;
+  ctx->caml_global_roots_young.level = 0;
   
-  this_ctx->caml_global_roots_old.root = NULL;
-  this_ctx->caml_global_roots_old.forward[0] = NULL;
-  this_ctx->caml_global_roots_old.level = 0;
+  ctx->caml_global_roots_old.root = NULL;
+  ctx->caml_global_roots_old.forward[0] = NULL;
+  ctx->caml_global_roots_old.level = 0;
   
   /* from fail.c */
 #ifdef NATIVE_CODE
-  this_ctx->caml_exception_pointer= NULL;
-  this_ctx->array_bound_error_bucket_inited = 0;
+  caml_exception_pointer= NULL;
+  //array_bound_error_bucket_inited = 0;
 #else
-  this_ctx->caml_external_raise = NULL;
-  /* this_ctx->caml_exn_bucket */
-  this_ctx->out_of_memory_bucket.hdr = 0; this_ctx->out_of_memory_bucket.exn = 0;
+  ctx->caml_external_raise = NULL;
+  /* caml_exn_bucket */
+  ctx->out_of_memory_bucket.hdr = 0;
+  ctx->out_of_memory_bucket.exn = 0;
 #endif /* #else (#ifdef NATIVE_CODE) */
 
   /* from signals_byt.c */
-  this_ctx->caml_something_to_do = 0;
-  this_ctx->caml_async_action_hook = NULL;
+  ctx->caml_something_to_do = 0;
+  ctx->caml_async_action_hook = NULL;
 
   /* from signals.c */
-  this_ctx->caml_signals_are_pending = 0;
-  /* this_ctx->caml_pending_signals */
-  this_ctx->caml_async_signal_mode = 0;
+  ctx->caml_signals_are_pending = 0;
+  /* caml_pending_signals */
+  ctx->caml_async_signal_mode = 0;
 
-  /* this_ctx->caml_enter_blocking_section_hook = &caml_enter_blocking_section_default; */
-  /* this_ctx->caml_leave_blocking_section_hook = &caml_leave_blocking_section_default; */
-  /* this_ctx->caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default; */
+  /* caml_enter_blocking_section_hook = &caml_enter_blocking_section_default; */
+  /* caml_leave_blocking_section_hook = &caml_leave_blocking_section_default; */
+  /* caml_try_leave_blocking_section_hook = &caml_try_leave_blocking_section_default; */
 
-  this_ctx->caml_force_major_slice = 0;
-  this_ctx->caml_signal_handlers = Val_int(0);
-  caml_register_global_root_r(this_ctx, &this_ctx->caml_signal_handlers);
+  ctx->caml_force_major_slice = 0;
+  ctx->caml_signal_handlers = Val_int(0);
+  caml_register_global_root_r(ctx, &ctx->caml_signal_handlers);
 
   /* from backtrace.c */
 
 #ifdef NATIVE_CODE
-  this_ctx->caml_backtrace_active = 0;
-  this_ctx->caml_backtrace_pos = 0;
-  this_ctx->caml_backtrace_buffer = NULL;
-  this_ctx->caml_backtrace_last_exn = Val_unit;
+  caml_backtrace_active = 0;
+  ctx->caml_backtrace_pos = 0;
+  ctx->caml_backtrace_buffer = NULL;
+  ctx->caml_backtrace_last_exn = Val_unit;
 #else
-  this_ctx->caml_backtrace_active = 0;
-  this_ctx->caml_backtrace_pos = 0;
-  this_ctx->caml_backtrace_buffer = NULL;
-  this_ctx->caml_backtrace_last_exn = Val_unit;
-  this_ctx->caml_cds_file = NULL;
+  //caml_backtrace_active = 0;
+  ctx->caml_backtrace_pos = 0;
+  ctx->caml_backtrace_buffer = NULL;
+  ctx->caml_backtrace_last_exn = Val_unit;
+  ctx->caml_cds_file = NULL;
 #endif /* #else (#ifdef NATIVE_CODE) */
 
   /* from compare.c */
-  /* this_ctx->compare_stack_init */
-  this_ctx->compare_stack = this_ctx->compare_stack_init;
-  this_ctx->compare_stack_limit = this_ctx->compare_stack_init + COMPARE_STACK_INIT_SIZE;
-  /* this_ctx->caml_compare_unordered; */
+  /* compare_stack_init */
+  ctx->compare_stack = ctx->compare_stack_init;
+  ctx->compare_stack_limit = ctx->compare_stack_init + COMPARE_STACK_INIT_SIZE;
+  /* caml_compare_unordered; */
 
   /* from sys.c */
-  /* this_ctx->caml_exe_name */
-  /* this_ctx->caml_main_argv */
+  /* caml_exe_name */
+  /* caml_main_argv */
 
   /* from extern.c */
   /*
-  this_ctx->obj_counter;
-  this_ctx->size_32;
-  this_ctx->size_64;
-  this_ctx->extern_ignore_sharing;
-  this_ctx->extern_closures;
-  this_ctx->extern_cross_context;
-  this_ctx->extern_trail_first;
-  this_ctx->extern_trail_block;
-  this_ctx->extern_trail_cur;
-  this_ctx->extern_trail_limit;
-  this_ctx->extern_userprovided_output;
-  this_ctx->extern_ptr;
-  this_ctx->extern_limit;
-  this_ctx->extern_output_first;
-  this_ctx->extern_output_block;
-  this_ctx->extern_stack_init;
+  obj_counter;
+  size_32;
+  size_64;
+  extern_ignore_sharing;
+  extern_closures;
+  extern_cross_context;
+  extern_trail_first;
+  extern_trail_block;
+  extern_trail_cur;
+  extern_trail_limit;
+  extern_userprovided_output;
+  extern_ptr;
+  extern_limit;
+  extern_output_first;
+  extern_output_block;
+  extern_stack_init;
   */
-  this_ctx->extern_stack = this_ctx->extern_stack_init;
-  this_ctx->extern_stack_limit = this_ctx->extern_stack_init + EXTERN_STACK_INIT_SIZE;
-  this_ctx->extern_flags[0] = NO_SHARING; this_ctx->extern_flags[1] = CLOSURES; this_ctx->extern_flags[2] = CROSS_CONTEXT;
+  ctx->extern_stack = ctx->extern_stack_init;
+  ctx->extern_stack_limit = ctx->extern_stack_init + EXTERN_STACK_INIT_SIZE;
+  ctx->extern_flags[0] = NO_SHARING; ctx->extern_flags[1] = CLOSURES; ctx->extern_flags[2] = CROSS_CONTEXT;
   
   /* From intext.h */
-  /*this_ctx->caml_code_fragments_table;*/
+  /*caml_code_fragments_table;*/
 
   /* from intern.c */
   /*
-  this_ctx->intern_src;
-  this_ctx->intern_input;
-  this_ctx->intern_input_malloced;
-  this_ctx->intern_dest;
-  this_ctx->intern_extra_block;
-  this_ctx->intern_obj_table;
-  this_ctx->intern_color;
-  this_ctx->intern_header;
-  this_ctx->intern_block;
+  intern_src;
+  intern_input;
+  intern_input_malloced;
+  intern_dest;
+  intern_extra_block;
+  intern_obj_table;
+  intern_color;
+  intern_header;
+  intern_block;
   */
-  this_ctx->camlinternaloo_last_id = NULL;
+  ctx->camlinternaloo_last_id = NULL;
   /* intern_stack_init[INTERN_STACK_INIT_SIZE]; */
-  this_ctx->intern_stack = this_ctx->intern_stack_init;
-  this_ctx->intern_stack_limit = this_ctx->intern_stack_init + INTERN_STACK_INIT_SIZE;
+  ctx->intern_stack = ctx->intern_stack_init;
+  ctx->intern_stack_limit = ctx->intern_stack_init + INTERN_STACK_INIT_SIZE;
 
   /* from gc_ctrl.c */
-  this_ctx->caml_stat_minor_words = 0.0;
-  this_ctx->caml_stat_promoted_words = 0.0;
-  this_ctx->caml_stat_major_words = 0.0;
+  ctx->caml_stat_minor_words = 0.0;
+  ctx->caml_stat_promoted_words = 0.0;
+  ctx->caml_stat_major_words = 0.0;
 
-  this_ctx->caml_stat_minor_collections = 0;
-  this_ctx->caml_stat_major_collections = 0;
-  this_ctx->caml_stat_heap_size = 0;
-  this_ctx->caml_stat_top_heap_size = 0;
-  this_ctx->caml_stat_compactions = 0;
-  this_ctx->caml_stat_heap_chunks = 0;
-  /* this_ctx->caml_percent_max */
+  ctx->caml_stat_minor_collections = 0;
+  ctx->caml_stat_major_collections = 0;
+  ctx->caml_stat_heap_size = 0;
+  ctx->caml_stat_top_heap_size = 0;
+  ctx->caml_stat_compactions = 0;
+  ctx->caml_stat_heap_chunks = 0;
+  /* caml_percent_max */
 
   /* from compact.c */
-  /* this_ctx->compact_fl */
+  /* compact_fl */
 
   /* from callback.c */
-  this_ctx->caml_callback_depth = 0;
-  this_ctx->callback_code_threaded = 0;
+  ctx->caml_callback_depth = 0;
+  ctx->callback_code_threaded = 0;
   int i;
   for(i = 0; i < Named_value_size; i ++)
-    this_ctx->named_value_table[i] = NULL;
+    ctx->named_value_table[i] = NULL;
 
   /* from debugger.c */
-  this_ctx->caml_debugger_in_use = 0;
-  /* this_ctx->caml_event_count; */
-  this_ctx->caml_debugger_fork_mode = 1;
-  this_ctx->marshal_flags = Val_emptylist;
+  ctx->caml_debugger_in_use = 0;
+  /* caml_event_count; */
+  ctx->caml_debugger_fork_mode = 1;
+  ctx->marshal_flags = Val_emptylist;
 
   /* from weak.c */
-  this_ctx->caml_weak_list_head = 0;
+  ctx->caml_weak_list_head = 0;
 
   /* from finalise.c */
-  this_ctx->final_table = NULL;
-  this_ctx->final_old = 0;
-  this_ctx->final_young = 0;
-  this_ctx->final_size = 0;
-  this_ctx->to_do_hd = NULL;
-  this_ctx->to_do_tl = NULL;
-  this_ctx->running_finalisation_function = 0;
+  ctx->final_table = NULL;
+  ctx->final_old = 0;
+  ctx->final_young = 0;
+  ctx->final_size = 0;
+  ctx->to_do_hd = NULL;
+  ctx->to_do_tl = NULL;
+  ctx->running_finalisation_function = 0;
 
   /* from dynlink.c */
   /*
-  this_ctx->caml_prim_table
-  this_ctx->caml_prim_name_table
-  this_ctx->shared_libs;
-  this_ctx->caml_shared_libs_path;
+  caml_prim_table
+  caml_prim_name_table
+  shared_libs;
+  caml_shared_libs_path;
   */
 
   /* from parsing.c */
-  this_ctx->caml_parser_trace = 0;
+  ctx->caml_parser_trace = 0;
 
   //caml_context = this_ctx;
   /*
   fprintf(stderr, "set caml_context %x\n", this_ctx);
   fprintf(stderr, "enter_blocking_section_hook = %lx (%lx)\n",
-	  & this_ctx->enter_blocking_section_hook,
-	  this_ctx->enter_blocking_section_hook);
+	  & enter_blocking_section_hook,
+	  enter_blocking_section_hook);
   fprintf(stderr, "leave_blocking_section_hook = %lx (%lx)\n",
-	  & this_ctx->leave_blocking_section_hook,
-	  this_ctx->leave_blocking_section_hook);
+	  & leave_blocking_section_hook,
+	  leave_blocking_section_hook);
   fprintf(stderr, "caml_enter_blocking_section_default = %lx\n",
 	  caml_enter_blocking_section_default);
   fprintf(stderr, "caml_leave_blocking_section_default = %lx\n",
@@ -500,46 +516,46 @@ section.  */
   */
 
   /* From st_stubs.c */
-  this_ctx->all_threads = NULL;
-  this_ctx->curr_thread = NULL;
-  /* this_ctx->caml_master_lock; */
-  this_ctx->caml_tick_thread_running = 0;
-  /* this_ctx->caml_tick_thread_id; */
-  this_ctx->caml_thread_next_ident = 0;
+  ctx->all_threads = NULL;
+  ctx->curr_thread = NULL;
+  /* caml_master_lock; */
+  ctx->caml_tick_thread_running = 0;
+  /* caml_tick_thread_id; */
+  ctx->caml_thread_next_ident = 0;
 
   /* From scheduler.c: */
-  this_ctx->curr_vmthread = NULL;
-  this_ctx->next_ident = Val_int(0);
-  this_ctx->last_locked_channel = NULL;
+  ctx->curr_vmthread = NULL;
+  ctx->next_ident = Val_int(0);
+  ctx->last_locked_channel = NULL;
 
 
   /* Global context-local OCaml variables */
 #ifdef NATIVE_CODE
-  this_ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE;
-  this_ctx->caml_globals.used_size = 0;
-  this_ctx->caml_globals.array = caml_stat_alloc(this_ctx->caml_globals.allocated_size);
+  ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE;
+  ctx->caml_globals.used_size = 0;
+  ctx->caml_globals.array = caml_stat_alloc(ctx->caml_globals.allocated_size);
 #endif /* #ifdef NATIVE_CODE */
 
   /* Global context-local C variables */
-  this_ctx->c_globals.allocated_size = INITIAL_C_GLOBALS_ALLOCATED_SIZE;
-  this_ctx->c_globals.used_size = 0;
-  this_ctx->c_globals.array = caml_stat_alloc(this_ctx->c_globals.allocated_size);
+  ctx->c_globals.allocated_size = INITIAL_C_GLOBALS_ALLOCATED_SIZE;
+  ctx->c_globals.used_size = 0;
+  ctx->c_globals.array = caml_stat_alloc(ctx->c_globals.allocated_size);
 
   /* By default, a context is associated with its creating thread: */
-  this_ctx->thread = pthread_self();
-  caml_set_thread_local_context(this_ctx);
+  ctx->thread = pthread_self();
+  caml_set_thread_local_context(ctx);
 
   /* Make a local descriptor for this context: */
   //fprintf(stderr, "Initializing the context descriptor...\n"); fflush(stderr);
-  this_ctx->descriptor = caml_stat_alloc(sizeof(struct caml_global_context_descriptor));
-  this_ctx->descriptor->kind = caml_global_context_main;
-  this_ctx->descriptor->content.local_context.context = this_ctx;
-  //fprintf(stderr, "Initialized the context [%p] descriptor [%p]\n", this_ctx, this_ctx->descriptor); fflush(stderr);
+  ctx->descriptor = caml_stat_alloc(sizeof(struct caml_global_context_descriptor));
+  ctx->descriptor->kind = caml_global_context_main;
+  ctx->descriptor->content.local_context.context = ctx;
+  //fprintf(stderr, "Initialized the context [%p] descriptor [%p]\n", this_ctx, descriptor); fflush(stderr);
 
-  caml_initialize_mutex(&this_ctx->mutex);
+  caml_initialize_mutex(&ctx->mutex);
 
   /* We can split in the present state: */
-  this_ctx->can_split = 1;
+  ctx->can_split = 1;
 
   ///* The main thread is already a user for this context.  This pinning
   //   has to be performed *before* creating the destructor thread, to
@@ -549,19 +565,19 @@ section.  */
   //DUMP("added the initial pin");
 
   /* Context-destructor structures: */
-  this_ctx->reference_count = 1; // there is one user thread: the main one
+  ctx->reference_count = 1; // there is one user thread: the main one
   //{CAML_R = this_ctx; DUMP("added the initial pin to the context %p", this_ctx);}
 #ifdef HAS_MULTICONTEXT
-  caml_initialize_semaphore(&this_ctx->destruction_semaphore, 0);
+  caml_initialize_semaphore(&ctx->destruction_semaphore, 0);
   int pthread_create_result =
-    pthread_create(&this_ctx->destructor_thread, NULL, caml_destructor_thread_function, this_ctx);
+    pthread_create(&ctx->destructor_thread, NULL, caml_destructor_thread_function, ctx);
   assert(pthread_create_result == 0);
-  //caml_initialize_mutex(&this_ctx->reference_count_mutex);
+  //caml_initialize_mutex(&reference_count_mutex);
 #endif // #ifdef HAS_MULTICONTEXT
 
   /* The kludgish self-pointer: */
 #ifdef HAS_MULTICONTEXT
-  this_ctx->ctx = this_ctx;
+  ctx->ctx = ctx;
 #endif // #ifdef HAS_MULTICONTEXT
 }
 

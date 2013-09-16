@@ -113,6 +113,11 @@ void caml_stash_backtrace_r(CAML_R, value exn, uintnat pc, char * sp, char * tra
   }
 }
 
+/* Compatibility version, called by the assembly runtime in some ports: */
+void caml_stash_backtrace(value exn, uintnat pc, char * sp, char * trapsp){
+  caml_stash_backtrace_r(caml_get_thread_local_context(), exn, pc, sp, trapsp);
+}
+
 /* Extract location information for the given frame descriptor */
 
 struct loc_info {

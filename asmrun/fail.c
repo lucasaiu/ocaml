@@ -223,6 +223,12 @@ void caml_array_bound_error_r(CAML_R)
   caml_raise_r(ctx, (value) &array_bound_error_bucket.exn);
 }
 
+/* Compatibility version, called by the assembly runtime in some ports: */
+void caml_array_bound_error(void){
+  caml_array_bound_error_r(caml_get_thread_local_context());
+}
+
+
 int caml_is_special_exception_r(CAML_R, value exn) {
   return exn == (value) caml_exn_Match_failure
     || exn == (value) caml_exn_Assert_failure
