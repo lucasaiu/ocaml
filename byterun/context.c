@@ -653,6 +653,7 @@ void* caml_context_local_c_variable_r(CAML_R, caml_c_global_id id){
 void caml_scan_caml_globals_r(CAML_R, scanning_action f){
 #ifdef NATIVE_CODE
   int i, caml_global_no = ctx->caml_globals.used_size / sizeof(value);
+  QDUMP("scanning %i contextual Caml globals", caml_global_no);
   if(ctx != caml_get_thread_local_context())
     {fprintf(stderr, "Context %p: it's different from the thread-local context %p !!!\n", ctx, caml_get_thread_local_context()); fflush(stderr);};
 
@@ -810,7 +811,7 @@ void caml_finalize_context_r(CAML_R){
 
   //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-4\n", ctx, (void*)(pthread_self())); fflush(stderr);
   //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-5: finalized %p\n", ctx, (void*)(pthread_self()), ctx); fflush(stderr);
-  // FIXME: really destroy stuff
+  // FIXME: really destroy fields
 }
 
 #ifdef HAS_MULTICONTEXT
@@ -822,7 +823,10 @@ void caml_destroy_context_r(CAML_R){
 }
 #endif // #ifdef HAS_MULTICONTEXT
 
-#ifdef NATIVE_CODE
+/* Let's not add this when not needed: calling it by mistake non
+   non-multicontext architectures will make a difficult-to-debug
+   mess: */
+#if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT)
 /* The index of the first word in caml_globals which is not used yet.
    This variable is shared by all contexts, and accessed in mutual
    exclusion. */
@@ -848,7 +852,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
     first_unused_word_offset += size_in_words;
     caml_allocate_caml_globals_r(ctx, size_in_words);
     //caml_resize_global_array_r(ctx, first_unused_word_offset);
-    /* fprintf(stderr, "The new first_unused_word_offset is %i\n", (int)first_unused_word_offset); */
+    DUMP("The new first_unused_word_offset is %i\n", (int)first_unused_word_offset);
     /* fprintf(stderr, "The global vector is now at %p\n", (void*)ctx->caml_globals.array); */
   }
   /* else */
@@ -859,11 +863,13 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* fprintf(stderr, "Globals are at %p\n", (void*)ctx->caml_globals.array); */
   //fprintf(stderr, "caml_register_module_r [context %p]: registered %s@%p.  END (still alive)\n", ctx, module_name, offset_pointer); fflush(stderr);
 }
-#endif /* #ifdef NATIVE_CODE */
 
 void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   /* We keep the module name right after the offset pointer, as a read-only string: */
-  char *module_name __attribute__ (( unused )) = (char*)offset_pointer + sizeof(long);
+  char *module_name __attribute__ (( unused )) = (char*)offset_pointer - size_in_bytes + sizeof(long);
+
+  DUMP("Initialized the module %s", module_name);
+
   //fprintf(stderr, "caml_after_module_initialization_r [context %p]: %s@%p: still alive.\n", ctx, module_name, offset_pointer); fflush(stderr);
   /*
   fprintf(stderr, "caml_after_module_initialization_r: BEGIN [%lu bytes at %p]\n",
@@ -887,6 +893,7 @@ void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offs
   fprintf(stderr, "caml_after_module_initialization_r: END (still alive)\n\n");
   */
 }
+#endif /* #if defined(NATIVE_CODE) && defined(SUPPORTS_MULTICONTEXT) */
 
 /* FIXME: use a custom value instead.  However this in practice works
    fine on 64-bit architectures: */
