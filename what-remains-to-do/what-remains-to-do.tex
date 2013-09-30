@@ -1,5 +1,5 @@
-%\documentclass[a4paper,twoside,12pt]{article}
-\documentclass[a4paper,twoside,draft,12pt]{article}
+\documentclass[a4paper,twoside,12pt]{article}
+%\documentclass[a4paper,twoside,draft,12pt]{article}
 
 \def\AUTHOR{Luca Saiu\xspace}
 \def\TITLE{Multi-runtime OCaml\xspace}
@@ -8,6 +8,8 @@
 
 \include{format-and-defs}
 
+\renewcommand{\SECTION}[1]{§\ref{#1}}
+\newcommand{\MULTIRUNTIME}[0]{\textit{multi-runtime}\xspace}
 \newcommand{\EMAIL}[1]{\href{mailto:{#1}}{<\texttt{#1}>}}
 %\newcommand{\EMAIL}[1]{\url{ageinghacker.net} \href{http://www.gnu.org}{<{#1}>}}
 \newcommand{\BLAHS}[0]{Blah blah blah blah blah blah blah blah. }
@@ -21,30 +23,125 @@
 \maketitle
 
 % ===================================================
-\section{How to debug}
-\TODO{the kind of bugs: memory corruption; primitives interrupted by signals (with vmthreads)}
+The core ideas should be quite easy to understand from my presentation
+slides I used in June 2013 when speaking to the BWare group:
+\\
+{\small
+  \url{http://ageinghacker.net/talks/ocaml-multiruntime-presentation.pdf}}
+\\
+The user-visible implementation state as described there is
+up-to-date, with the following exceptions:
+\begin{itemize}
+\item
+  the \MULTIRUNTIME system now works with \textit{systhreads};
+\item
+  the \MULTIRUNTIME system can be disabled at configuration time;
+\item
+  we also support (without \MULTIRUNTIME) PowerPC and i386 GNU/Linux;
+  non-\MULTIRUNTIME support for the other architectures is trivial to add (see \SECTION{other-architectures})
+\item
+  there's one new crucial optimization for non-\MULTIRUNTIME
+  configurations, allowing to avoid an context indirection when
+  referring a contextual runtime variable, thanks to the conditional
+  definition of \CODE{ctx}.
+\end{itemize}
 
-\TODO{Reason forward, not backward}
-
-\TODO{gdb is your friend, but starting from breakpoints; when failure occurs it's usually too late to search for its cause}
-
-\TODO{valgrind is useful; helgrind, not so much}
 
 % ===================================================
-\section{Grunt work}
-\TODO{Context finalization}
+\section{A few debugging tips}
+By far the hardest problems to debug are relating to forgetting to
+notify the collector about Caml GC roots in C code, and having one
+context objects reachable from objects belonging to a different
+context; the result of these mistakes is some apparent memory
+corruption, happening far from its cause both in space and time.
 
-\TODO{Make mailboxes a \textit{custom} type (contexts need not be)}
+The good way of debugging this is via \CODE{gdb}, but you have to
+reason \textit{forward} (using breakpoints) rather than
+\textit{backward}; when a failure manifests itself, it's usually far
+too late to discover its cause back in time.
+
+A crude debugging technique which works is to tentatively comment-out
+parts of the C code, until the failure stops manifesting itself.  Of
+course we can use prints from the code; I defined a relatively complex
+printing facility for debugging in \CODE{runtime/context.h} (look for
+\CODE{DUMP}), using variadic macros.
+\\
+\\
+Many failures are non-deterministic, so it's useful to have some
+automatic facility to run a test many times, and see if some run fails
+instead of either exiting with success, or being still alive after a
+given timeout.
+
+Here's my disgusting \CODE{bash} function doing this (interrupting the function
+leaves dangling processes):
+\begin{Verbatim}
+# Really, really horrible.  FIXME: remove $directory if interrupted.  Omit
+# job status output
+function crash_after_times
+{
+    noncrash_timeout="$1"; shift
+    times="$1"; shift
+    command="$@"; shift
+    echo "command is \"$command\""
+    for (( i=1; $i <= $times; i++ )); do
+        echo "Iteration $i of $times:"
+        directory="$(mktemp -d)"
+        successfile="$directory/success"
+        sleep_pid=$!
+        (bash -c "$command" &> /dev/null && touch "$successfile") &
+        pid=$!
+        sleep "$noncrash_timeout"
+        if kill -0 "$pid" &> /dev/null; then
+            kill -KILL "$pid" &> /dev/null || true
+            echo "* iteration $i: still alive after $noncrash_timeout seconds."
+            rm -rf "$directory"
+        elif [ -f "$successfile" ]; then
+            echo "* iteration $i: succeeded before $noncrash_timeout seconds."
+            rm -rf "$directory"
+        else
+            echo "* iteration $i: failed before $noncrash_timeout seconds."
+            echo "FAILURE (after $i attempts)"
+            rmdir "$directory"
+            return 255
+        fi
+        # Kill processes named after the first part of the command
+        # line, up to the first space.  Yes, I know, this sucks.
+        killall $(echo "$command" | awk -F ' ' '{print $1}') &> /dev/null || true
+
+        # kill -KILL "$pid" &> /dev/null || true
+    done
+    echo "SUCCESS: no crashes before $noncrash_timeout seconds after $times attempts."
+    return 0
+}
+\end{Verbatim}
+
+\CODE{valgrind} is your friend;  \CODE{helgrind}, not nearly as much: too many false positives.
+\\
+\\
+\textit{vmthreads} use \CODE{SIGALRM} for preemption at time thread
+switching time.  Beware of primitives interrupted by signals.  A
+\CODE{sem\_wait} operation unexpectedly interrupted by a signal is a
+funny thing to debug, so to speak.
 
 % ===================================================
-\section{Cosmetics}
-\TODO{remove my commented-out old crap}
-
-\TODO{remove all my \CODE{GC.compact} calls; I used them to stress the system}
-
-\TODO{make the patch as short as possible}
-
-\TODO{possibly rename \CODE{Context} to \CODE{Runtime} in the Caml interface.  Or maybe to \CODE{Multicontext}}
+\section{Grunt work, mostly cosmetic}
+Some trivial tasks remain to do, which I didn't finish only for lack of time:
+\begin{itemize}
+\item free the context structure field at context destruction time;
+\item make mailboxes a \textit{custom} type; both mailboxes and
+  contexts are currently pointers to \CODE{malloc}'ed objects tagged
+  as unboxed caml objects --- the current solution is fine for
+  contexts because they are finalized in a special way, but mailboxes
+  need real finalization at GC time;
+\item remove my horrible debug prints, commented-out alternate code
+  and tests, and forced \CODE{caml\_gc\_compaction\_r} code
+  which pollute C code everywhere;
+\item possibly rename the Caml module \CODE{Context}.  Fabrice
+  suggested \CODE{Runtime}, but I'd propose the more explicit
+  \CODE{MultiContext}, \CODE{MultiRuntime}, or possibly just \CODE{Multi};
+\item support \CODE{otherlibs/graphics};
+\item support \textit{Dynlink} (more interesting).
+\end{itemize}
 
 % ===================================================
 \section{Nitpicking}
@@ -78,9 +175,6 @@ By the way, even if some commented-out code remains from previous
 tests, the splitting logic is actually pretty simple.  We can add a
 new synchronization phase.  It won't be critical for performance, in
 the common use case.
-
-
-\FILL
 
 % ===================================================
 \section{OCaml thread cleanup}
@@ -118,36 +212,88 @@ the following way:
 At that point the existing runtime code can be simplified, and the
 multi-context system gains portability.
 
+% ===================================================
+\section{Porting to other architectures}
+\label{other-architectures}
+I had to do some very small changes in \textit{ocamlopt} (essentially
+to propagate information down to intermediate representations), which
+require a very minor fix in architecture-dependent files.  This is
+actually very easy and can be guided by compile-time errors; if you
+want an example, look at what I did for the PowerPC and i386 runtime
+(the Caml part --- the assembly part is completely untouched).
+
+The important file should be the architecture-dependent \FILE{cmmgen.ml}
+\\
+\\
+The architectures requiring fixes are Arm and Sparc (I already fixed
+i386 and PowerPC; amd64 supports \MULTIRUNTIME on GNU/Linux); the
+systems are windows and mac os.
 
 % ===================================================
-\section{Porting}
-\TODO{arm, sparc, windows, mach-o}
+\section{Porting the patch to the OCaml mainline}
+My work is based on a snapshot from October 2012.  It has to be ported
+to the new mainline, but I'm sure it won't be difficult this time ---
+there was an ABI change in the time between the original work by
+Fabrice and the beginning of my time at Inria --- see the BWare
+slides.  Since there were no such change in recent times, I don't
+anticipate any problems.  Most of my work is on the C part, with
+smaller changes in the assembly runtime; the OCaml part, which I guess
+is the most rapidly-changing one nowadays, is nearly untouched.
 
-\TODO{easy: fix compilation errors; very easy: look at what I did for PowerPC and i386 GNU/Linux}
-
-\FILL
+\label{on-ageinghacker-net}
+I've uploaded the unpatched snapshot I started from on my personal
+server, at \url{http://ageinghacker.net/inria-temporary/}.  You'll
+also find there my test programs, most of which are ugly and not
+really fitting in the repository, and a snapshot of my current git
+repo at \url{https://github.com/lucasaiu/ocaml}.
 
 % ===================================================
 \section{API compatibility}
-\subsection{Two solutions}
-\TODO{CPP macros or my hand?}
+We discussed API compatibility with Xavier and Damien.  In order to
+provide the old interface with no ``\CODE{\_r}'' suffixes and no
+context-pointer parameters, one solution is changing many function
+prototypes to use a macro, as exemplified here:
+\begin{Verbatim}
+#define CAMLFUNCTION1(TYPE, NAME, ARG1TYPE, ARG1NAME) \
+  TYPE NAME(ARG1TYPE ARG1NAME){ return NAME##_r(caml_get_thread_local_context(), \
+                                                ARG1NAME); } \
+  TYPE NAME##_r(CAML_R, ARG1TYPE, ARG1NAME)
+\end{Verbatim}
+It's ugly, and we also need a special case for the type \CODE{void}
+(in C it's invalid to \CODE{return} a \CODE{void}-typed expression,
+even from a \CODE{void}-returning procedure).  Xavier and Damien
+seemed to find the alternative of explicitly duplicating prototypes
+preferable to preprocessor-based solutions; personally I'd always
+choose syntactic abstraction over code duplication, but as a Lisper I
+understand that we have different cultural biases.
+
+Whatever the choice, a form of backward compatibility will have to
+be implemented.
+
+By contrast the ABI will break, and there's nothing to be done about
+it.  I don't think it's worth even considering the issue.
+\\
+\\
+This is easy grunt work, but it still has to be done very carefully:
+bugs related to parameter names, for example, will be difficult to find.
+
 
 % ===================================================
 \section{Behaviors to be clearly defined}
-% ---------------------------------------------------
-\subsection{Finalization}
-% ---------------------------------------------------
-\subsection{``Hiding'' OCaml in a library exporting C interface}
-\TODO{the idea is being able to link several such libraries in the same application}
+We don't really know what the good semantics would be for a few
+features, for example context finalization in a \textit{multi-thread}
+setting..  The whole idea of being able to link several C libraries
+using OCaml internally together in the same executable is also still a
+little nebulous in its details.
 
-\TODO{C \textit{contextual} variables: the code is there (shared with
-  contextual Caml variables for native code), but we have to check
-  that this is the semantics we want.}
+Related to C libraries, there is some support for C
+\textit{contextual} variables: the code is there (shared with
+contextual Caml variables for native code), but we have to check that
+this is the semantics we want.
 
 % ===================================================
 \section{Long-term developments}
-\TODO{presumably after integration}
-
-\FILL
+Longer-term developments include adding a third \textit{ancient}
+generation, shared among contexts.  Details are still vague.
 
 \end{document}
