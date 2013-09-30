@@ -1,0 +1,153 @@
+%\documentclass[a4paper,twoside,12pt]{article}
+\documentclass[a4paper,twoside,draft,12pt]{article}
+
+\def\AUTHOR{Luca Saiu\xspace}
+\def\TITLE{Multi-runtime OCaml\xspace}
+\def\SUBTITLE{what remains to do\xspace}
+\def\SHORTTITLE{\TITLE -- \SUBTITLE}
+
+\include{format-and-defs}
+
+\newcommand{\EMAIL}[1]{\href{mailto:{#1}}{<\texttt{#1}>}}
+%\newcommand{\EMAIL}[1]{\url{ageinghacker.net} \href{http://www.gnu.org}{<{#1}>}}
+\newcommand{\BLAHS}[0]{Blah blah blah blah blah blah blah blah. }
+\newcommand{\TEXT}[0]{\BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS \BLAHS}
+
+\author{\AUTHOR \EMAIL{positron@gnu.org}}
+\title{\TITLE\ ---\ \SUBTITLE}
+\date{2013-09-27}
+
+\begin{document}
+\maketitle
+
+% ===================================================
+\section{How to debug}
+\TODO{the kind of bugs: memory corruption; primitives interrupted by signals (with vmthreads)}
+
+\TODO{Reason forward, not backward}
+
+\TODO{gdb is your friend, but starting from breakpoints; when failure occurs it's usually too late to search for its cause}
+
+\TODO{valgrind is useful; helgrind, not so much}
+
+% ===================================================
+\section{Grunt work}
+\TODO{Context finalization}
+
+\TODO{Make mailboxes a \textit{custom} type (contexts need not be)}
+
+% ===================================================
+\section{Cosmetics}
+\TODO{remove my commented-out old crap}
+
+\TODO{remove all my \CODE{GC.compact} calls; I used them to stress the system}
+
+\TODO{make the patch as short as possible}
+
+\TODO{possibly rename \CODE{Context} to \CODE{Runtime} in the Caml interface.  Or maybe to \CODE{Multicontext}}
+
+% ===================================================
+\section{Nitpicking}
+When explaining the source code to Xavier and Damien, I told them
+about a potential problem: in the current implementation if a split
+operation (say, a \CODE{pthread\_create} call) fails because of
+unavailable resources \textit{after} the blob has been allocated, it's
+not obvious how to have the Caml \CODE{Context.split} operation fail cleanly.
+In that case at the very least \textit{we leak the blob}, but effects
+are potentially more dangerous.  In order to provide a clean and safe
+interface, we could add a further synchronization phase in which the
+parent context waits for all children to have split with success,
+before returning to the caller; if any of them failed, the parent has
+to ask all non-failing children to rollback and die, so as to free all
+resources before ever starting to execute Caml code.  Only if all
+children performed their part of the split operation with success, the
+parent can authorize them to go on and execute the code.
+\\
+\\
+Xavier and Damien seemed to take this issue seriously and I understand
+their stance from a philosophical point of view, but I'm not sure if
+this complexity will be worth the trouble in practice: in the use
+cases we care about splitting will happen early in the program
+execution, and the number of contexts will never be much larger than
+the number of CPU cores.
+
+I think that the extra-safe version can be implemented later, and the
+current splitting code will not fail for lack of resources in any
+reasonable scenario.
+By the way, even if some commented-out code remains from previous
+tests, the splitting logic is actually pretty simple.  We can add a
+new synchronization phase.  It won't be critical for performance, in
+the common use case.
+
+
+\FILL
+
+% ===================================================
+\section{OCaml thread cleanup}
+Xavier was considering the idea of removing vmthreads altogether, and
+requiring some form of threads in the main OCaml runtime, without
+external libraries.  I'd strongly support that.
+
+Vmthreads are currently incompatible with multicontext (I started to
+add vmthreads support in scheduler.c, but some bug remains) and
+considerably complex because of blocking behaviour.  Even more
+importantly, the interaction of threads with the rest of the runtime
+is complex, for historical reasons.  The code in \FILE{byterun/} and
+\FILE{asmrun/} is supposed to work with no threads, systhreads or
+vmthreads: the initialization function for a threading library is a
+global operation installing some hooks (for GC or locking), which
+become valid from that point on.  A good example of the complexity
+introduced by this mechanism is the presence of mutexes in channel
+structures (\FILE{byterun/io.c}): a per-channel mutex is created
+lazily when attempting a lock operations, so we cannot suppose its
+presence or absence in general.
+
+If this part of the code is streamlined (and it can be: we can make
+thread creation always fail on some platforms) I suggest to proceed
+the following way:
+
+\begin{itemize}
+\item Implement a thin abstraction layer over system threads: thread
+  creation, and operations over synchronization data structures;
+\item update my context implementation to use the new layer instead of
+  POSIX threads;
+\item change systhreads to use the abstraction layer (this part will
+  be the most difficult to debug, from my past experience).
+\end{itemize}
+
+At that point the existing runtime code can be simplified, and the
+multi-context system gains portability.
+
+
+% ===================================================
+\section{Porting}
+\TODO{arm, sparc, windows, mach-o}
+
+\TODO{easy: fix compilation errors; very easy: look at what I did for PowerPC and i386 GNU/Linux}
+
+\FILL
+
+% ===================================================
+\section{API compatibility}
+\subsection{Two solutions}
+\TODO{CPP macros or my hand?}
+
+% ===================================================
+\section{Behaviors to be clearly defined}
+% ---------------------------------------------------
+\subsection{Finalization}
+% ---------------------------------------------------
+\subsection{``Hiding'' OCaml in a library exporting C interface}
+\TODO{the idea is being able to link several such libraries in the same application}
+
+\TODO{C \textit{contextual} variables: the code is there (shared with
+  contextual Caml variables for native code), but we have to check
+  that this is the semantics we want.}
+
+% ===================================================
+\section{Long-term developments}
+\TODO{presumably after integration}
+
+\FILL
+
+\end{document}

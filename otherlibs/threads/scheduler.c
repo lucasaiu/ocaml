@@ -242,6 +242,10 @@ static void caml_thread_initialize_for_current_context_r(CAML_R){
   curr_thread->waitpid = NO_WAITPID;
   curr_thread->retval = Val_unit;
   curr_thread->last_locked_channel = ctx->last_locked_channel;
+
+  /* Vmthreads are (currently) incompatible with multicontext: from
+     now on Context.split will fail: */
+  ctx->can_split = 0;
 }
 
 /* Initialize the global thread machinery; this has to be called once,

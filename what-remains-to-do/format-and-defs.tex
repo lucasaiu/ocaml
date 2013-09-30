@@ -1,0 +1,1348 @@
+% -*- mode: latex; fill-column: 79; mode: auto-fill; mode: flyspell; buffer-file-coding-system: utf-8 -*-
+
+% Taken from my PhD thesis sources.  Of course a lot of this is redundant here.  --L.S.
+
+\usepackage{etex}
+%\usepackage{savesym} % this provides \savesymbol{} and \restoresymbol{}{}
+%\usepackage{bbding}
+%\usepackage{mathfrak}
+%\usepackage[open-square,define-standard-theorems]{QED}
+%\usepackage{amssymb}
+
+%\newcommand\hmmax{0} % default 3
+% \newcommand\bmmax{0} % default 4
+
+\usepackage{xfrac} % This provides \sfrac, for making slanted functions
+
+%\usepackage{skull}
+%\usepackage{ulsy}
+
+%% %\usepackage{pbox}
+%% \usepackage{float}
+%% \floatstyle{boxed} 
+%% \restylefloat{figure}
+
+\usepackage{xspace}
+\usepackage{amsmath}
+\usepackage{amssymb}             % AMS Math
+\usepackage{mathrsfs} % Used for \mathscr
+\usepackage{mathabx}
+\usepackage{slashed}
+
+\usepackage{caption} % Useful for figures spanning multiple pages
+
+%% % MnSymbols screws up some symbols I like, by redefining the entire symbol
+%% % font:  I found the main idea of this workaround in a piece of code
+%% % suggested by Scott Pakin on comp.text.tex:
+%% %\usepackage{MnSymbol} % ... but I want some symbols defined here
+%% % define a new font corresponding to what MnSymbol has overridden:
+%% \DeclareSymbolFont{ltxsymbols}{OMS}{cmsy}{m}{n}
+%% % Make the symbols I like come from our new font:
+%% %\DeclareMathSymbol{\leq}{\mathord}{ltxsymbols}{"14}
+%% %\DeclareMathSymbol{\geq}{\mathord}{ltxsymbols}{"15}
+%% \DeclareMathSymbol{\bot}{\mathord}{ltxsymbols}{'077}
+%% \DeclareMathSymbol{\top}{\mathord}{ltxsymbols}{'076}
+
+\usepackage{stmaryrd}
+%\usepackage{ragged2e} % This contains the justify environment
+%\usepackage{amssymb}
+\usepackage{url}
+%\usepackage{graphicx}
+%\usepackage{amssymb}
+%\usepackage{amsmath}
+%\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{listings}
+\usepackage{fancyvrb} % For the Verbatim (big V) environment.
+                      % Also makes
+                      % \verbatim work in footnotes, if I run \VerbatimFootnotes *after* the preamble:
+
+%% % Reset the footnote counter at each page:
+%% \usepackage{perpage}
+%% \MakePerPage{footnote}
+
+%\usepackage{boxedminipage}
+\usepackage{color}
+%\usepackage{proof}
+\usepackage{bussproofs}
+\usepackage{semantic} % For T diagrams
+%\usepackage{xspace} % This shouldn't be needed for English, but I may be wrong --positron
+\usepackage{wasysym} % for \frownie and \lightning
+\usepackage{ifsym}
+%\usepackage[english]{babel}
+% \usepackage[french]{babel}
+%\usepackage[latin1]{inputenc}
+%% %% \usepackage[T2A,T1]{fontenc} % T2A is for Cyrillic; I don't need it in my
+%% %%                               % thesis, but I want to keep this information
+%% %%                               % around (commented out)
+%% %% \newcommand\cyrtext[1]{{\fontencoding{T2A}\selectfont #1}}
+\usepackage[T1]{fontenc}
+%\usepackage{keystroke} % \keystroke{foo} looks nice
+%\usepackage{epstopdf}
+\usepackage{enumerate}
+%\usepackage{breqn} % Automatic line breaks in display math mode;
+                   % but it's apparently kludgy and dangerous, and
+                   % might have bad interactions
+%\usepackage{algorithm}
+
+%% % PGF craziness:
+\usepackage{pgf}
+\usepackage{tikz}
+%\usepackage{pgffor}
+\usetikzlibrary{automata,calc,through,backgrounds,arrows,decorations.pathmorphing,decorations.shapes,fit,positioning,matrix}
+\tikzset{terminal/.style=...}
+
+%\usepackage{natbib}
+
+% My trivial and hackish higher-level conditional facility:
+\newcommand{\WHENCOMPLETE}[1]{\ifx\COMPLETE\THISNAMEISDEFINITELYNOTBOUND{}\else{#1}\fi}
+\newcommand{\INCLUDEWHENCOMPLETE}[1]{\WHENCOMPLETE{\include{#1}}}
+\newcommand{\UNLESSCOMPLETE}[1]{\ifx\COMPLETE\THISNAMEISDEFINITELYNOTBOUND{#1}\else{}\fi}
+\newcommand{\INCLUDEUNLESSCOMPLETE}[1]{\UNLESSCOMPLETE{\include{#1}}}
+
+% My funny non-standard macros:
+%% \newcommand{\QUOTAION}[2]{
+%% \begin{quotation}
+%% {\sf #1}
+
+%% --- {#2}
+%% \end{quotation}}
+\definecolor{pagecounter}{rgb}{0.5,0.5,0.5}
+\definecolor{darkred}{rgb}{0.6,0,0}
+\definecolor{darkgreen}{rgb}{0,0.6,0}
+\definecolor{darkblue}{rgb}{0,0,0.6}
+%% \definecolor{darkred}{rgb}{0.5,0,0}
+%% \definecolor{darkgreen}{rgb}{0,0.5,0}
+%% \definecolor{darkblue}{rgb}{0,0,0.5}
+\definecolor{darkyellow}{rgb}{0.4,0.4,0}
+\definecolor{purple}{rgb}{0.4,0,1}
+\definecolor{brown}{rgb}{0.6,0.1,0}
+\definecolor{white}{rgb}{1,1,1}
+\definecolor{black}{rgb}{0,0,0}
+\def\TEST{\textcolor{darkgreen}}
+\newcommand{\NOTE}[1]{\small {\textcolor{red}{[}}{\textcolor{blue}{#1}}{\textcolor{red}{]}}}
+\newcommand{\urlsmall}[1]{{\scriptsize\url{#1}}}
+\newcommand{\REMOVE}[1]{{\textcolor{brown}{[{\bf Remove}:~{\em #1}]}}}
+\newcommand{\SUGGESTIONS}[1]{{\textcolor{brown}{[{\bf I accept suggestions}:~{#1}]}}}
+\newcommand{\TOOMUCH}[1]{{\textcolor{brown}{[{\bf Is this too much?}~{#1}]}}}
+\newcommand{\REREAD}[1]{{\textcolor{brown}{[{\bf Re-read}:~{#1}]}}}
+\newcommand{\TODO}[1]{{\textcolor{red}{[{\bf To do}:~{#1}]}}}
+\newcommand{\TODOF}[1]{\footnote{\TODO{#1}}}
+\newcommand{\NEW}[1]{\textcolor{darkgreen}{\textbf{[New:} {#1}\textbf{]}}}
+\newcommand{\REPHRASED}[1]{\textcolor{darkgreen}{\textbf{[Rephrased:} {#1}\textbf{]}}}
+\newcommand{\RATIONALEF}[1]{\footnote{\RATIONALE{#1}}}
+\newcommand{\TODOQ}[1]{{\textcolor{red}{#1}}}
+\newcommand{\PREMISEWHICHCOULDBEPROVEN}[1]{}%{{\textcolor{purple}{#1}}}
+\newcommand{\DONE}[1]{{\textcolor{darkgreen}{[{\bf Done}:~{#1}]}}}
+\newcommand{\DONEQ}[1]{\textcolor{darkgreen}{#1}}
+\newcommand{\Q}[1]{\textcolor{red}{[\textit{#1}]}}
+\newcommand{\STRONG}[1]{{\textcolor{red}{[{\bf Too strong}:~{#1}]}}}
+\newcommand{\STRONGQ}[1]{{\textcolor{red}{#1}}}
+\newcommand{\VIOLENT}[1]{{\textcolor{red}{[{\bf Too violent}:~{#1}]}}}
+\newcommand{\MAYBEVIOLENT}[1]{{\textcolor{red}{{\bf [Violent?]}~{#1}}}}
+\newcommand{\VIOLENTQ}[1]{\STRONGQ{#1}}
+\newcommand{\USELESS}[1]{{\textcolor{brown}{[{\bf Useless?}:~{#1}]}}}
+\newcommand{\REFORMULATE}[1]{{\textcolor{brown}{[{\bf Reformulate}:~{#1}]}}}
+\newcommand{\MOVE}[1]{{\textcolor{blue}{[{\bf Move}:~{#1}]}}}
+\newcommand{\MOVEQ}[1]{{\textcolor{blue}{#1}}}
+\newcommand{\MAYBEMOVE}[1]{{\textcolor{blue}{[{\bf Move?}~{#1}]}}}
+\newcommand{\MAYBE}[1]{{\textcolor{darkgreen}{{\bf ?}{#1}{\bf ?}}}}
+\newcommand{\MAYBEQ}[1]{{\textcolor{darkgreen}{#1}}}
+\newcommand{\IMPORTANT}[1]{{\textcolor{blue}{[{\bf Important}:~{\em #1}]}}}
+\newcommand{\REMINDER}[1]{{\textcolor{purple}{[{\bf Reminder}:~{\em #1}]}}}
+\newcommand{\RATIONALE}[1]{{\textcolor{purple}{[{\bf Rationale}:~{\em #1}]}}}
+\newcommand{\IMP}[1]{\IMPORTANT{#1}}
+\newcommand{\CHECKINTHEEND}[1]{{\textcolor{brown}{[{\bf Check at the end}:~{\em #1}]}}}
+\newcommand{\CHECK}[1]{{\textcolor{brown}{[{\bf Check}:~{\em #1}]}}}
+\newcommand{\MYOR}[2]{\textcolor{red}{{\bf [}{{\textcolor{darkgreen}{#1}}{\bf ~OR~}{{\textcolor{darkgreen}{#2}}{\bf ]}}}}}
+\newcommand{\ORTWO}[2]{\textcolor{red}{{\bf [}{{\textcolor{darkgreen}{#1}}{\bf ~OR~}{{\textcolor{darkgreen}{#2}}{\bf ]}}}}}
+\newcommand{\ORTHREE}[3]{\textcolor{red}{{\bf [}{{\textcolor{darkgreen}{#1}}{\bf ~OR~}{{\textcolor{darkgreen}{#2}}{\bf ~OR~}{{\textcolor{darkgreen}{#3}}{\bf ]}}}}}}
+\newcommand{\ORFOUR}[4]{\textcolor{red}{{\bf [}{{\textcolor{darkgreen}{#1}}{\bf ~OR~}{{\textcolor{darkgreen}{#2}}{\bf ~OR~}{{\textcolor{darkgreen}{#3}}{\bf ~OR~}{{\textcolor{darkgreen}{#4}}{\bf ]}}}}}}}
+\newcommand{\SYNONYM}[1]{\textcolor{blue}{{\bf [Find a synonym}:~{\em #1}{\bf ]}}}
+\newcommand{\UNSURE}[1]{\textcolor{red}{{\bf [I'm not sure of this}:~{\em #1}{\bf ]}}}
+\newcommand{\WORD}[1]{\textcolor{purple}{{\bf [Is there a better term?}~{\em #1}{\bf ]}}}
+\newcommand{\TERM}[1]{\WORD{#1}}
+\newcommand{\LANGUAGE}[1]{\WORD{#1}}
+\newcommand{\GRAMMAR}[1]{\textcolor{red}{{\bf [Is this correct in English?}~{\em #1}{\bf ]}}}
+\newcommand{\GRAMMARQ}[1]{\textcolor{red}{#1}}
+\newcommand{\ENGLISH}[1]{\GRAMMAR{#1}}
+\newcommand{\ITALIANISM}[1]{\textcolor{red}{{\bf [Is this an italianism?}~{\em #1}{\bf ]}}}
+\newcommand{\EXCESSIVE}[1]{\textcolor{red}{{\bf [This may be excessive}:~{\em #1}{\bf ]}}}
+\newcommand{\HACKER}[1]{\textcolor{red}{{\bf [This is informal jargon}:~{\em #1}{\bf ]}}}
+\newcommand{\JARGON}[1]{\textcolor{red}{{\bf [This is informal jargon}:~{\em #1}{\bf ]}}}
+\newcommand{\INFORMAL}[1]{\textcolor{red}{{\bf [This is informal}:~{\em #1}{\bf ]}}}
+\newcommand{\UGLY}[1]{\textcolor{red}{{\bf [ugly}:~{\em #1}{\bf ]}}}
+\newcommand{\DISLIKE}[1]{\textcolor{red}{{\bf [I don't like this}:~{\em #1}{\bf ]}}}
+\newcommand{\DONTLIKE}[1]{\DISLIKE{#1}}
+\newcommand{\GENIAL}[1]{{\textcolor{darkgreen}{[{\bf A genial idea}:~{#1}]}}}
+\newcommand{\GOOD}[1]{{\textcolor{darkgreen}{[{\bf Good}:~{#1}]}}}
+\newcommand{\IGNORE}[1]{}
+\newcommand{\OBSOLETE}[1]{{\textcolor{brown}{[{\bf Obsolete}:~{#1}]}}}
+\newcommand{\OBSOLETEQ}[1]{{\textcolor{brown}{#1}}}
+\newcommand{\SW}[1]{{\textcolor{darkgreen}{[{\bf Somewhere}:~{#1}]}}}
+\newcommand{\SOMEWHERE}[1]{\SW{#1}}
+\newcommand{\MAYBESOMEWHERE}[1]{\MAYBE{\SOMEWHERE{#1}}}
+\newcommand{\SOMEWHEREMAYBE}[1]{\MAYBESOMEWHERE{#1}}
+\newcommand{\FILL}[0]{{\textcolor{red}{\bf [Fill this...]}}}
+\newcommand{\SOMETHING}[0]{{\textcolor{red}{\bf [Something]}}}
+\newcommand{\PROBABLYNOT}[1]{{\textcolor{red}{[{\bf Probably not}:~{#1}]}}}
+\newcommand{\NO}[1]{\textcolor{brown}{{\bf [I don't like this}:~{\em #1}{\bf ]}}}
+\newcommand{\NOTREALLY}[1]{\textcolor{brown}{{\bf [Not really}:~{\em #1}{\bf ]}}}
+\newcommand{\WHYNOT}[1]{\textcolor{red}{{\bf [Why not?}~{\em #1}{\bf ]}}}
+\newcommand{\WHYNOTQ}[1]{\textcolor{red}{#1}}
+\newcommand{\YES}[1]{\textcolor{red}{{\bf [Yes}:~{\em #1}{\bf ]}}}
+\newcommand{\YESQ}[1]{\textcolor{red}{#1}}
+\newcommand{\WRONG}[1]{\textcolor{brown}{{\bf [Wrong}:~{\em #1}{\bf ]}}}
+\newcommand{\WRONGQ}[1]{\RED{#1}}
+\newcommand{\LONG}[1]{\textcolor{red}{{\bf [Only for the long version}:~{\em #1}{\bf ]}}}
+\newcommand{\SHORT}[1]{\textcolor{red}{{\bf [Only for the short version}:~{\em #1}{\bf ]}}}
+\newcommand{\LONGSHORT}[2]{\LONG{#1}{\SHORT{#2}}}
+\newcommand{\SHORTLONG}[2]{\SHORT{#1}{\LONG{#2}}}
+\newcommand{\TEMP}[1]{{\textcolor{darkgreen}{[{#1}]}}}
+\newcommand{\META}[1]{\textcolor{darkgreen}{[{\em {#1}}]}}
+\newcommand{\CH}[1]{{\textcolor{darkgreen}{[Christophe: {\em {#1}}]}}}
+\newcommand{\JV}[1]{{\textcolor{darkgreen}{[Jean-Vincent: {\em {#1}}]}}}
+\newcommand{\ADVISORS}[1]{{\textcolor{darkgreen}{[Christophe et Jean-Vincent: {#1}]}}}
+\newcommand{\ADV}[1]{\ADVISORS{#1}}
+\newcommand{\INVISIBLE}[1]{{\textcolor{white}{{#1}}}}
+\newcommand{\SKIPALINE}[0]{{\\\INVISIBLE{.}\\}}
+%\newcommand{\NOTHING}[0]{}
+\newcommand{\NOTHING}[0]{\INVISIBLE{\em hack}}
+\def\TEMPBLOCK{\textcolor{darkgreen}}
+
+\newcommand{\FATBRACKETS}[1]
+  {\mbox{$[\![ #1 ]\!]$}}
+\newcommand{\BANANABRACKETS}[1]
+  {\mbox{$\llparenthesis {#1} \rrparenthesis$}}
+\newcommand{\LFATBRACKETS}[2]{\mbox{$\mathcal{#1}[\![ #2 ]\!]$}}
+\newcommand{\PFATBRACKETS}[2]{\mbox{$#1[\![ #2 ]\!]$}}
+\newcommand{\TRANSFORM}[2]{\mbox{${#1}[\![ #2 ]\!]$}}
+\newcommand{\SSYNTAX}[1]{\mbox{$S[\![ #1 ]\!]$}}
+
+\newcommand{\LIFT}[1]
+  {\lfloor{#1}\rfloor}
+%  {\lvert{#1}\rvert}
+%  {\lceil\lfloor{#1}\rfloor\rceil}
+
+\newcommand{\MACROEXPANDSTO}[0]{\ \ \equiv\ \ }
+\newcommand{\EQD}[0]{\triangleq}
+
+%% Reified sementic structures:
+\newcommand{\PRIMITIVE}[1]{\mathcal{P}({#1})} % primitive name
+\newcommand{\FUNCTION}[3]{\mathcal{T}({#1}, {#2}, {#3})} % environment, formal, code
+%\newcommand{\CONTINUATION}[3]{\mathcal{K}({#1}, {#2}, {#3})} % environment, formal, code
+\newcommand{\CONTINUATION}[1]{\mathcal{K}({#1})}
+\newcommand{\FUTURE}[1]{\mathcal{T}({#1})} % token
+\newcommand{\TASK}[1]{\mathcal{T}({#1})} % identifier
+
+% Tasks:
+%\def\TASKFONT{\mathsf}
+%\def\TASKFONT{\mathfrak}
+\newcommand{\BUSYTASK}[2]{{\TASKFONT{B}}({#1},{#2})} % environment, expression
+\newcommand{\READYTASK}[1]{{\TASKFONT{R}}({#1})}
+\newcommand{\DEADTASK}[0]{\TASKFONT{D}}
+%\newcommand{\K}[3]{\mathcal{K}({#1}, {#2}, {#3})} % environment, formal, code
+
+%% Stuff for writing rules:
+\newcommand{\tsq}[0]{\vdash}
+\newcommand{\ts}[0]{\ \vdash\ }
+\newcommand{\tr}[0]{\ \rhd\ }
+\newcommand{\arNS}[1]{\to_{#1}}
+\newcommand{\ar}[1]{\ \arNS{#1}\ }
+\newcommand{\NOAXIOM}[0]{\AxiomC{\NOTHING}}
+\newcommand{\NOAXIOMQ}[0]{\AxiomC{}}
+\newcommand{\tto}[0]{\ \twoheadrightarrow\ }
+%%
+\newcommand{\TWORULES}[2]
+           {\begin{minipage}[b]{\linewidth}
+               \begin{minipage}[b]{0.5\linewidth}
+                 \centering {#1}
+               \end{minipage}
+               \begin{minipage}[b]{0.5\linewidth}
+                 \centering {#2}
+               \end{minipage}
+             \end{minipage}}
+\newcommand{\THREERULES}[3]
+           {\begin{minipage}[b]{\linewidth}
+               \begin{minipage}[b]{0.32\linewidth}
+                 \centering {#1}
+               \end{minipage}
+               \begin{minipage}[b]{0.32\linewidth}
+                 \centering {#2}
+               \end{minipage}
+               \begin{minipage}[b]{0.32\linewidth}
+                 \centering {#3}
+               \end{minipage}
+             \end{minipage}}
+
+
+\usepackage{aecompl}
+
+% Links in pdf
+\usepackage{color}
+\definecolor{linkcol}{rgb}{0,0,0.4} 
+\definecolor{citecol}{rgb}{0.5,0,0} 
+
+% definitions.
+% -------------------
+
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+% Some useful commands and shortcut for maths:  partial derivative and stuff
+
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\def\abs{\operatorname{abs}}
+\def\argmax{\operatornamewithlimits{arg\,max}}
+\def\argmin{\operatornamewithlimits{arg\,min}}
+\def\diag{\operatorname{Diag}}
+\newcommand{\eqRef}[1]{(\ref{#1})}
+
+\usepackage{rotating}                    % Sideways of figures & tables
+%\usepackage{bibunits}
+%\usepackage[sectionbib]{chapterbib}          % Cross-reference package (Natural BiB)
+%\usepackage{natbib}                  % Put References at the end of each chapter
+                                         % Do not put 'sectionbib' option here.
+                                         % Sectionbib option in 'natbib' will do.
+
+% \usepackage{txfonts}                     % Public Times New Roman text & math font
+  
+%\usepackage{algorithm}
+%\usepackage[noend]{algorithmic}
+
+%%% Clear Header %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Clear Header Style on the Last Empty Odd pages
+\makeatletter
+
+\def\cleardoublepage{\clearpage\if@twoside \ifodd\c@page\else%
+  \hbox{}%
+  \thispagestyle{empty}%              % Empty header styles
+  \newpage%
+  \if@twocolumn\hbox{}\newpage\fi\fi\fi}
+
+\makeatother
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+% Prints your review date and 'Draft Version' (From Josullvn, CS, CMU)
+\newcommand{\reviewtimetoday}[2]{\special{!userdict begin
+    /bop-hook{gsave 20 710 translate 45 rotate 0.8 setgray
+      /Times-Roman findfont 12 scalefont setfont 0 0   moveto (#1) show
+      0 -12 moveto (#2) show grestore}def end}}
+% You can turn on or off this option.
+% \reviewtimetoday{\today}{Draft Version}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+\newenvironment{maxime}[1]
+{
+\vspace*{0cm}
+\hfill
+\begin{minipage}{0.5\textwidth}%
+%\rule[0.5ex]{\textwidth}{0.1mm}\\%
+\hrulefill $\:$ {\bf #1}\\
+%\vspace*{-0.25cm}
+\it 
+}%
+{%
+
+\hrulefill
+\vspace*{0.5cm}%
+\end{minipage}
+}
+
+\usepackage{multirow}
+\usepackage{pdflscape}
+\usepackage{amsfonts} % This interferes with mathbbol and they are not
+                      % commutative, but I don't understand exactly what
+                      % the interaction is; anyway I don't use amsfonts
+
+
+\newenvironment{bulletList}%
+{ \begin{list}%
+	{$\bullet$}%
+	{\setlength{\labelwidth}{25pt}%
+	 \setlength{\leftmargin}{30pt}%
+	 \setlength{\itemsep}{\parsep}}}%
+{ \end{list} }
+
+% centered page environment
+\newenvironment{vcenterpage}
+{\newpage\vspace*{\fill}\fancyhf{}\renewcommand{\headrulewidth}{0pt}}
+{\vspace*{\fill}\par\pagebreak}
+
+% My funny macros
+\newcommand{\NEWLINE}[0]
+  {\INVISIBLE{\tiny\tiny\tiny.}\\}
+%% \lstset{language=Lisp,
+%%         basicstyle=\tiny\ttfamily,
+%%         numbers=left,
+%%         stringstyle=\ttfamily,
+%%         keywordstyle=\ttfamily,
+%%         commentstyle=\ttfamily,
+%%         identifierstyle=\ttfamily
+%% }
+%        numbers=left,
+\lstset{language=Lisp,
+        basicstyle=\small\ttfamily,
+        numbers=none,
+        stringstyle=\ttfamily,
+        keywordstyle=\ttfamily,
+        commentstyle=\ttfamily,
+        identifierstyle=\ttfamily
+}
+%\def\NANOLISP{\textcolor{red}{nanolisp}}
+\def\NANOLISP{nanolisp\xspace}
+% My hackish support for grammars:
+\newcommand{\SPACER}[0]{\\\INVISIBLE{\small{\tiny{hack!}}}}
+%\newcommand{\SPACERF}[0]{\SPACER$\ \ $}
+\newcommand{\SPACERP}[0]{\SPACER$|\ $}
+\newcommand{\SPACERF}[0]{\SPACER\INVISIBLE{$|\ $}}
+%% Example:
+%% $E ::=$
+%% \SPACERF$v$
+%% \SPACERP$x$
+%% \SPACERP$\LAMBDA{x}{E}$
+%% \SPACERP$\APPLY{E_1}{E_2}$
+%% \SPACERP$\IFIN{E_1}{\VALUES}{E_2}{E_3}$
+%% \SPACERP$\PROMPT{E}$
+%% \SPACERP$\CONTROL{x}{E}$
+
+\def\CITE{\TODOQ{[Cite something]}}
+\def\union{\cup}
+\newcommand{\DISJOINTUNION}[0]{\uplus}
+
+\newcommand{\EMPTYLIST}[0]{\texttt{()}}
+%% \newcommand{\CONS}[2]{{\tt (}$#1${\tt\ .\ }$#2${\tt )}}
+%% \newcommand{\SINGLETON}[1]{{\tt (}$#1${\tt )}}
+\newcommand{\CONS}[2]{{\texttt{(}}{#1}{\texttt{.}}{#2}{\texttt{)}}}
+%\newcommand{\CONS}[2]{${\tt (}${#1}${\tt \ .\ }${#2}${\tt )}$}
+\newcommand{\SINGLETON}[1]{{\texttt{(}}#1{\texttt{)}}}
+\newcommand{\SLIST}[1]{\texttt{(}#1\texttt{)}}
+
+\newcommand{\ALAMBDA}[2]
+  {[\lambda{#1}.{#2}]}
+\newcommand{\AAPPLY}[2]
+  {[{#1}\ @\ {#2}]}
+
+\newcommand{\BUNDLENAME}[0]
+  {\CODE{bundle}\xspace}
+\newcommand{\LETNAME}[0]
+  {\CODE{let}\xspace}
+\newcommand{\PRIMITIVENAME}[0]
+  {\CODE{primitive}\xspace}
+\newcommand{\CALLNAME}[0]
+  {\CODE{call}\xspace}
+\newcommand{\CALLINDIRECTNAME}[0]
+  {\CODE{call-{\allowbreak}indirect}\xspace}
+\newcommand{\IFNAME}[0]
+  {\CODE{if}\xspace}
+\newcommand{\THENNAME}[0]
+  {\CODE{then}\xspace}
+\newcommand{\ELSENAME}[0]
+  {\CODE{else}\xspace}
+\newcommand{\FORKNAME}[0]
+  {\CODE{fork}\xspace}
+\newcommand{\JOINNAME}[0]
+  {\CODE{join}\xspace}
+\newcommand{\EXTENDEDNAME}[0]
+  {\CODE{join}\xspace}
+%% \newcommand{\DEFINENONPROCEDURENAME}[0]
+%%   {\CODE{non-procedure}\xspace}%{\CODE{define-value}}
+\newcommand{\DEFINEPROCEDURENAME}[0]
+  {\CODE{procedure}\xspace}%{\CODE{define-procedure}}
+
+%% \newcommand{\ACONSTANT}[1]
+%%   {{#1}}
+%% \newcommand{\AVARIABLE}[1]
+%%   {{#1}}
+%% \newcommand{\ABUNDLE}[1]
+%%   {[\CODE{bundle}\ {#1}]}
+%% \newcommand{\APRIMITIVE}[2]
+%%   {[\pi\ {#1}\ {#2}]}
+%% \newcommand{\ACALL}[2]
+%%   {[{#1}\ {#2}]}
+%% \newcommand{\AIFIN}[4]
+%% %  {[{#1} \in {#2} \rightarrow {#3},\ {#4}]}
+%%   {[\CODE{if}\ {#1} \in \{{#2}\}\ \CODE{then}\ {#3}\ \CODE{else}\ {#4}]}
+
+%% \newcommand{\ALET}[3]
+%%   {[{\tt let}\ {#1}\ {\tt be}\ {#2}\ {\tt in}\ {#3}]}
+%% \newcommand{\AFORK}[2]
+%%   {[\FORK{#1\ #2}]}
+%% \newcommand{\AJOIN}[1]
+%%   {[\JOIN{#1}]}
+%% \newcommand{\AEXTENDED}[2]
+%%   {[\chi\ {#1}\ {#2}]}
+%% \newcommand{\ADEFINENONPROCEDURE}[2]
+%%   {[\CODE{define-value}\ {#1}\ {#2}]} % \triangleq
+%% \newcommand{\ADEFINEPROCEDURE}[3]
+%%   {[\CODE{define-procedure}\ {\ACALL{#1}{#2}}\ {#3}]}
+
+%% %% \newcommand{\FORK}[0]
+%% %%   {\downpitchfork}
+%% %% \newcommand{\JOIN}[0]
+%% %%   {\uppitchfork}
+
+%% \newcommand{\AFUTURE}[1]
+%%   {[\CODE{fork} {#1}]}
+%% \newcommand{\ATOUCH}[1]
+%%   {[\CODE{join} {#1}]}
+
+%% \newcommand{\ABOX}[1]
+%%   {[box\ {#1}]}
+%% \newcommand{\AUNBOX}[1]
+%%   {[unbox\ {#1}]}
+%% \newcommand{\ASETX}[2]
+%%   {[set!\ {#1} {#2}]}
+%% \newcommand{\ASET}[2]
+%%   {\ASETX{#1}\ {#2}}
+
+%% %\newcommand{\ASEQUENCE}[2]
+%% %  {{#1};\ {#2}}
+
+%% \newcommand{\ADEFINE}[2]
+%%   {{#1} \triangleq {#2}}
+%% \newcommand{\ADEFINEMACRO}[3]
+%%   {\CONS{#1}{#2}\ \equiv\ #3}
+%% %  {${\tt (}$#1${\tt \ .\ }$#2${\tt )}$\ \equiv\ #3}
+%% \newcommand{\VALUEPLUS}[0]
+%%   {v^{+}}
+%% %% \newcommand{\APPLY}[2]
+%% %%   {{#1}@{#2}}
+%% \newcommand{\COMPOSE}[2]
+%%   {{#1}\circ{#2}}
+%% %\newcommand{\SEQUENCE}[2]
+%% %  {{#1};{#2}}
+%% \newcommand{\ALAMBDATWO}[3]
+%%   {\ALAMBDA{#1}{\ALAMBDA{#2}{#3}}}
+%% \newcommand{\ALAMBDATHREE}[4]
+%%   {\ALAMBDA{#1}{\ALAMBDA{#2}{\ALAMBDA{#3}{#4}}}}
+%% \newcommand{\ALAMBDAFOUR}[5]
+%%   {\ALAMBDA{#1}{\ALAMBDA{#2}{\ALAMBDA{#3}{\ALAMBDA{#4}{#5}}}}}
+%% \newcommand{\ASHIFT}[2]
+%%   {[\xi{#1}.{#2}]}
+%% \newcommand{\ARESET}[1]
+%%   {[\langle{#1}\rangle]}
+%% \newcommand{\ACONTROL}[2]
+%%   {[{\mathcal{C}}{#1}.{#2}]}
+%% \newcommand{\APROMPT}[1]
+%%   {[\#{#1}]}
+
+\newcommand{\BLACK}[1]
+  {\textcolor{black}{#1}}
+\newcommand{\RED}[1]
+  {\textcolor{red}{#1}}
+\newcommand{\PURPLE}[1]
+  {\textcolor{purple}{#1}}
+\newcommand{\BROWN}[1]
+  {\textcolor{brown}{#1}}
+\newcommand{\YELLOW}[1]
+  {\textcolor{yellow}{#1}}
+\newcommand{\BLUE}[1]
+  {\textcolor{blue}{#1}}
+\newcommand{\GREEN}[1]
+  {\textcolor{darkgreen}{#1}}
+\newcommand{\DEF}[0]
+  {\stackrel{\text{\tiny def}}{=}}
+\newcommand{\BELONGS}[0]
+  {\ \epsilon\ }
+\newcommand{\BELONGSREVERSE}[0]
+  {\ \backepsilon\ }
+
+\newcommand{\SEMANTICE}[1]
+  {\LFATBRACKETS{E}{#1}}
+\newcommand{\SEMANTICESTAR}[1]
+  {\LFATBRACKETS{E^{*}}{#1}}
+\newcommand{\SEMANTICS}[1]
+  {\LFATBRACKETS{S}{#1}}
+\newcommand{\SEMANTICSSTAR}[1]
+  {\LFATBRACKETS{S^{*}}{#1}}
+\newcommand{\SEMANTICT}[1]
+  {\LFATBRACKETS{T}{#1}}
+\newcommand{\SEMANTICTSTAR}[1]
+  {\LFATBRACKETS{T^{*}}{#1}}
+\newcommand{\SEMANTICPRIMITIVE}[2]
+  {\LFATBRACKETS{P}{{#1}, {#2}}}
+\newcommand{\SEMANTICAPPLY}[2]
+  {\LFATBRACKETS{A}{#1, #2}}
+\newcommand{\SEMANTICM}[1]
+  {\LFATBRACKETS{M}{#1}}
+\newcommand{\SEMANTICMADDEND}[2]
+  {\mbox{$\mathcal{M}_{#1}[\![ #2 ]\!]$}}
+\newcommand{\SEMANTICMACROCALL}[3]
+  {\mbox{$\mathcal{MC}[\![ #1, #2, #3 ]\!]$}}
+\newcommand{\POSSIBLY}[0]{{\textcolor{red}{[{\bf The thing will {\em possibly} be like this}]}}}
+\newcommand{\EPSILON}[0]{$\varepsilon$\xspace}
+\newcommand{\EPSILONZERO}[0]{$\varepsilon_{0}$\xspace}
+\newcommand{\EPSILONONE}[0]{$\varepsilon_{1}$\xspace}
+\newcommand{\EPSILONNOXSPACE}[0]{$\varepsilon$}
+\newcommand{\EPSILONZERONOXSPACE}[0]{$\varepsilon_{0}$}
+%\newcommand{\EPSILONZERO}[0]{$\varepsilon_{0}$}
+\newcommand{\EPSILONZEROHOLE}[0]{$\varepsilon_{0}^{\HOLE}$\xspace}
+\newcommand{\EPSILONMINUSONE}[0]{$\varepsilon_{-1}$\xspace}
+\newcommand{\LAMBDA}[0]{$\lambda$}
+\newcommand{\LAMBDACALCULUS}[0]{\mbox{$\lambda$-calculus}\xspace}
+\newcommand{\PICALCULUS}[0]{\mbox{$\pi$-calculus}\xspace}
+
+\newcommand{\HOLEDES}[0]{\ensuremath{\SET{E}_{\HOLE}}}
+
+\newcommand{\iem}[1]{\index{#1}{\em{#1}}}
+\newcommand{\textiti}[1]{\index{#1}{\textit{#1}}}
+\newcommand{\ind}[1]{\index{#1}{#1}}
+\newcommand{\idef}[1]{\index{#1}{\sl{#1}}}
+\newcommand{\TDEF}[1]{\idef{#1}}
+
+\newcommand{\QUOTATION}[3]
+      {\begin{quotation}
+        {\em #1}\\
+        {\INVISIBLE{}\hfill---~{#2}, {#3}}
+      \end{quotation}}
+\newcommand{\LATER}[1]{\textcolor{blue}{[{\bf Later:} {#1}]}}
+\newcommand{\UPDATE}[1]{\textcolor{purple}{[{\bf Update:} {#1}]}}
+
+\newcommand{\TO}[0]
+  {\ \to\ }
+\newcommand{\TOENEW}[0]
+%  {\ \longrightarrow_{\SET{E}}\ }
+  {\Longrightarrow_{\SET{E}}}
+\newcommand{\TOE}[0]
+%  {\ \longrightarrow_{\SET{E}}\ }
+  {\LINEBREAK\longrightarrow_{\SET{E}}\LINEBREAK}
+\newcommand{\TOEP}[0]
+%  {\ \longrightarrow_{\SET{E}}\ }
+  {\LINEBREAK\longrightarrow^{+}_{\SET{E}}\LINEBREAK}
+%% \newcommand{\TOET}[0]
+%%   {\ \longrightarrow_{\SET{E}}^{+}\ }
+%% \newcommand{\TOEST}[0]
+%%   {\ \longrightarrow_{\SET{E}}^{\slashed{\parallel}+}\ }
+%% \newcommand{\TOESRT}[0]
+%%   {\ \longrightarrow_{\SET{E}}^{\slashed{\parallel}*}\ }
+%% \newcommand{\TOERT}[0]
+%%   {\ \longrightarrow_{\SET{E}}^{*}\ }
+%% \newcommand{\TOES}[0]
+%%   {\longrightarrow_{\SET{E}}^{\slashed{\parallel}}}
+\newcommand{\TOET}[0]
+  {\LINEBREAK\longrightarrow_{\SET{E}}^{+}\LINEBREAK}
+\newcommand{\TOEST}[0]
+  {\LINEBREAK\longrightarrow_{\SET{E}}^{\slashed{\parallel}+}\LINEBREAK}
+\newcommand{\TOESRT}[0]
+  {\LINEBREAK\longrightarrow_{\SET{E}}^{\slashed{\parallel}*}\LINEBREAK}
+\newcommand{\TOERT}[0]
+  {\LINEBREAK\longrightarrow_{\SET{E}}^{*}\LINEBREAK}
+\newcommand{\TOES}[0]
+  {\longrightarrow_{\SET{E}}^{\slashed{\parallel}}}
+
+\newcommand{\REDUCES}[0]
+  {\twoheadrightarrow_{\SET{E}}}
+\newcommand{\DOESNOTREDUCE}[0]
+  {\ensuremath{\mathrel{\slashed{\REDUCES}}}}
+\newcommand{\TOEFT}[0]
+  {\ \longrightarrow_{e,\FAILURE}^{*}\ }
+\newcommand{\EVENTUALLYFAILSBECAUSEOF}[1]
+  {\Downarrow_{\SET{E}}\FAILURE_{#1}}
+%\newcommand{\DOESNTFAILBECAUSEOF}[1]
+%  {{\slashed{\Downarrow}}_{\FAILUREONARROW}^{#1}}
+\newcommand{\EVENTUALLYFAILSBECAUSEOFDIMENSION}[0]
+  {\EVENTUALLYFAILSBECAUSEOF{\#}}
+\newcommand{\DOESNTFAILBECAUSEOFDIMENSION}[0]
+  {\DOESNTFAILBECAUSEOF{\#}}  
+\newcommand{\EVENTUALLYFAILSBECAUSEOFPRIMITIVE}[0]
+  {\EVENTUALLYFAILSBECAUSEOF{\SET{P}}}
+\newcommand{\DOESNTFAILBECAUSEOFPRIMITIVE}[0]
+  {\DOESNTFAILBECAUSEOF{\SET{P}}}  
+\newcommand{\EVENTUALLYFAILSBECAUSEOFENVIRONMENTS}[0]
+  {\EVENTUALLYFAILSBECAUSEOF{\SET{X}}}
+
+\newcommand{\EVENTUALLYFAILSBECAUSEOFWITHRELATION}[2]
+  {\Downarrow_{\SET{E}}^{#2}\FAILURE_{#1}}
+
+\newcommand{\EVENTUALLYFAILSSBECAUSEOF}[1]
+  {\Downarrow_{\SET{E}}^{\slashed{\parallel}}\FAILURE_{#1}}
+\newcommand{\EVENTUALLYFAILSSBECAUSEOFDIMENSION}[0]
+  {\EVENTUALLYFAILSSBECAUSEOF{\#}}
+\newcommand{\EVENTUALLYFAILSSBECAUSEOFPRIMITIVE}[0]
+  {\EVENTUALLYFAILSSBECAUSEOF{\SET{P}}}
+\newcommand{\EVENTUALLYFAILSSBECAUSEOFENVIRONMENTS}[0]
+  {\EVENTUALLYFAILSSBECAUSEOF{\SET{X}}}
+%  {\EVENTUALLYFAILSBECAUSEOF{\textcolor{red}{\rho}}}
+\newcommand{\EVENTUALLYFAILSS}[0]
+  {\EVENTUALLYFAILSSBECAUSEOF{}}
+\newcommand{\DOESNTFAILBECAUSEOFENVIRONMENTS}[0]
+%  {\DOESNTFAILBECAUSEOF{\textcolor{red}{\rho}}}
+  {\DOESNTFAILBECAUSEOF{\SET{X}}}
+%\newcommand{\EVENTUALLYFAILSBECAUSEOFANOTHERTHREAD}[0]
+%  {\EVENTUALLYFAILSBECAUSEOF{\parallel}}
+%\newcommand{\DOESNTFAILBECAUSEOFANOTHERTHREAD}[0]
+%  {\DOESNTFAILBECAUSEOF{\parallel}}
+\newcommand{\EVENTUALLYFAILS}[0]
+  {\EVENTUALLYFAILSBECAUSEOF{}}
+\newcommand{\DOESNTFAIL}[0]
+  {{\slashed{\Downarrow}_{\FAILUREONARROW}}}
+
+\newcommand{\FAILUREBECAUSEOFDIMENSION}[0]
+  {\FAILURE^{\#}}
+\newcommand{\FAILUREBECAUSEOFPRIMITIVE}[0]
+  {\FAILURE^{\Pi}}
+\newcommand{\FAILUREBECAUSEOFENVIRONMENTS}[0]
+  {\FAILURE^{\textcolor{red}{\rho}}}
+
+\newcommand{\FAILURE}[0]
+%  {\textcolor{red}{\divideontimes}}
+%  {\textbf{E}}
+%  {\maltese} 
+%  {\text{$\skull$}}
+%  {\text{\small$\skull$}} % It looks the same with and without \small
+%  {\text{\tiny$\skull$}} 
+%  {\frownie}
+%  {\rip}
+%  {\textrm{\tiny{\blitza}}}
+%  {\frownie}
+%  {\textrm{\lightning}}
+%  {\textrm{\rm \textinterrobang}}
+%  {\textit{\textinterrobang}}
+%  {\textrm{\blitza}}
+%  {\textrm{\rm \textreferencemark}}
+  {\textrm{\rm \large \textreferencemark}}
+\newcommand{\FAILUREONARROW}[0]
+  {\FAILURE}
+%  {\textcolor{red}{\divideontimes}}
+%  {\textbf{E}}
+%  {\maltese} 
+% {\skull}
+% {{}^{\text{\tiny$\skull$}}}
+% {{}^{\textrm{\blitza}}}
+%{^{^{\text{\blitza}}}}
+
+\newcommand{\FAILSBECAUSEOF}[1]
+%  {\longrightarrow_{\SET{E}}\FAILURE^{#1}}
+  {\longrightarrow_{\SET{E}}\FAILURE_{#1}}
+\newcommand{\DOESNTFAILBECAUSEOF}[1]
+%  {\longrightarrow_{\SET{E}}\FAILURE^{#1}}
+  {{\slashed{\longrightarrow}}_{\SET{E}}\FAILURE_{#1}}
+\newcommand{\FAILSBECAUSEOFDIMENSION}[0]
+  {\FAILSBECAUSEOF{\#}}
+\newcommand{\FAILSBECAUSEOFPRIMITIVE}[0]
+  {\FAILSBECAUSEOF{\SET{P}}}
+\newcommand{\FAILSBECAUSEOFENVIRONMENTS}[0]
+  {\FAILSBECAUSEOF{\SET{X}}}
+%\newcommand{\FAILSBECAUSEOFANOTHERTHREAD}[0]
+%  {\FAILSBECAUSEOF{\parallel}}
+\newcommand{\FAILS}[0]
+  {\FAILSBECAUSEOF{}}
+
+\newcommand{\DIVERGESE}[0]
+  {\Uparrow_{\SET{E}}}
+%\newcommand{\DIVERGESES}[0]
+%  {\Uparrow_{\SET{E}}^{\slashed{\parallel}}}
+\newcommand{\DOESNTDIVERGE}[0]
+  {{\slashed{\uparrow}}}
+\newcommand{\CONVERGES}[0]
+  {\Downarrow}
+\newcommand{\DOESNTCONVERGE}[0]
+  {{\slashed{\CONVERGES}}}
+\newcommand{\CONVERGESP}[0]
+  {\CONVERGES_{\SET{P}}}
+\newcommand{\CONVERGEST}[0]
+  {\CONVERGES_{\SET{T}}}
+\newcommand{\CONVERGESPPROVISIONAL}[0]
+  {\CONVERGES_{\SET{P}}^{\thicksim}}
+\newcommand{\CONVERGESE}[0]
+  {\CONVERGES_{\SET{E}}}
+\newcommand{\CONVERGESI}[0]
+  {\CONVERGES_{\SET{I}}}
+\newcommand{\TOITILDE}[0]
+  {\longrightarrow_{\SET{I}}^{_\thicksim}}
+\newcommand{\TOPTILDE}[0]
+  {\longrightarrow_{\SET{P}}^{_\thicksim}}
+\newcommand{\CONVERGESITILDE}[0]
+  {\CONVERGES^{\thicksim}_{\SET{I}}}
+\newcommand{\CONVERGESES}[0]
+  {\CONVERGES_{\SET{E}}^{\slashed{\parallel}}}
+\newcommand{\CONVERGESSE}[0]
+  {\CONVERGESES}
+\newcommand{\DOESNTCONVERGEE}[0]
+  {{\slashed{\CONVERGES}}_{\SET{E}}}
+\newcommand{\NCONVERGESE}[0]
+  {\DOESNTCONVERGEE}
+\newcommand{\TOEE}[0]
+  {\ \longrightarrow_{ee}\ }
+%  {\ \to_{EE}\ }
+
+\newcommand{\TOD}[0]
+  {\longrightarrow_{\SET{D}}}
+\newcommand{\TOT}[0]
+  {\longrightarrow_{\SET{T}}}
+\newcommand{\TOP}[0]
+  {\longrightarrow_{\SET{P}}}
+\newcommand{\TOV}[0]
+  {\longrightarrow_{\SET{V}}}
+\newcommand{\TOTPROVISIONAL}[0]
+  {\xrightarrow{provisional}_{\SET{T}}}
+
+
+\newcommand{\TOM}[0]
+  {\to_M}
+\newcommand{\TOBIG}[0]
+  {\downarrow}
+\newcommand{\TOBIGE}[0]
+  {\TOBIG_E}
+\newcommand{\TOBIGT}[0]
+  {\TOBIG_T}
+\newcommand{\TOBIGP}[0]
+  {\TOBIG_P}
+\newcommand{\TOBIGM}[0]
+  {\TOBIG_M}
+\newcommand{\PARALLELCONFIGURATION}[2]
+  {{#1} \rhd {#2}}
+\newcommand{\PCONF}[2]
+  {\PARALLELCONFIGURATION{#1}{#2}}
+%\newcommand{\REWRITE}[3]
+%  {{#1}\ \vdash\ {#2}\ \TOE\ {#3}}
+\newcommand{\REWRITEP}[5]
+%  {{\PCONF{#1}{#2}}\ \TOE\ {\PCONF{#3}{#4}}}
+  {{#1}\ \vdash\ {\PCONF{#2}{#3}}\ \TOE\ {\PCONF{#4}{#5}}}
+\newcommand{\REWRITEBIGE}[5]
+  {{#1}\ \vdash\ \PCONF{#2}{#3}\ \TOBIGE\ \PCONF{#4}{#5}}
+\newcommand{\REWRITEM}[4]
+  {\PCONF{#1}{#2}\ \TOM\ \PCONF{#3}{#4}}
+%% \newcommand{\STATE}[1]
+%%   {\STATEQ_{#1}}
+%% \newcommand{\STATEDEFAULT}[0]
+%%   {\STATE{\Gamma, \Pi, M}}
+%% \newcommand{\STATEQ}[0]
+%%   {\Sigma}
+
+\newcommand{\FUTURES}[0]
+  {\Phi}
+
+\newcommand{\RULETWO}[5]
+  {\begin{prooftree}
+      \LeftLabel{$[#1]$}
+      \RightLabel{$#5$}
+      \AxiomC{$#2$}
+      \AxiomC{$#3$}
+      \BinaryInfC{$#4$}
+  \end{prooftree}}
+
+\newcommand{\RULETHREE}[6]
+  {\begin{prooftree}
+      \LeftLabel{$[#1]$}
+      \RightLabel{$#6$}
+      \AxiomC{$#2$}
+      \AxiomC{$#3$}
+      \AxiomC{$#4$}
+      \TrinaryInfC{$#5$}
+  \end{prooftree}}
+
+\newcommand{\RULEONE}[4]
+  {\begin{prooftree}
+      \LeftLabel{$[#1]$}
+      \RightLabel{$#4$}
+      \AxiomC{$#2$}
+      \UnaryInfC{$#3$}
+  \end{prooftree}}
+  
+\newcommand{\RULEZERO}[3]
+  {\RULEONE{#1}{\INVISIBLE{hack}}{#2}{#3}}
+
+\newcommand{\SET}[1]
+  {\mathbb{#1}}
+\newcommand{\VALUES}[0]
+  {\SET{V}}
+\newcommand{\NATURALS}{\SET{N}}
+\newcommand{\INTEGERS}{\SET{Z}}
+\newcommand{\RATIONALS}{\SET{Q}}
+\newcommand{\REALS}{\SET{R}}
+\newcommand{\SYMBOLS}{\SET{S}}
+
+\newcommand{\UNION}{\cup}
+\newcommand{\INTERSECTION}{\cap}
+
+\newcommand{\CLOSURE}[3]
+  {\mathcal{C}({#1}, {#2}, {#3})}
+
+\newcommand{\NONVALUE}[1]
+  {{#1} \notin \VALUES}
+%\newcommand{\VALUE}[1] {{#1} \in \VALUES}
+
+\newcommand{\BULLET}[0]
+  {\bullet}
+\newcommand{\SECTION}[0]
+  {§}
+\newcommand{\SECTIONS}[0]
+  {§§}
+\newcommand{\SOMEREF}[0]
+  {\textcolor{red}{\textbf{[\SECTION???]}}}
+\newcommand{\REFSOMETHING}[0]
+  {\SOMEREF}
+
+%\newcommand{\UNFILLEDUNPOSITIONEDQED}{\ensuremath{\Box}}
+\newcommand{\UNFILLEDUNPOSITIONEDQED}{\ensuremath{\square}}
+\newcommand{\FILLEDUNPOSITIONEDQED}{\ensuremath{\blacksquare}}
+%\newcommand{\FILLEDUNPOSITIONEDQED}{\ensuremath{\filledsquare}}
+
+%\newcommand{\qed}{\hfill \ensuremath{\Box}}
+\newcommand{\UNFILLEDQED}{\hfill \ensuremath{\UNFILLEDUNPOSITIONEDQED}}
+\newcommand{\FILLEDQED}{\hfill \ensuremath{\FILLEDUNPOSITIONEDQED}}
+
+\newcommand{\EXAMPLEQED}{\UNFILLEDQED}
+\newcommand{\PROOFQED}{\FILLEDQED}
+\newcommand{\NOPROOF}{\PROOFQED}
+\newcommand{\NOPROOFQED}{\NOPROOF}
+
+\newcommand{\INJECT}{inject}
+\newcommand{\EJECT}{eject} % Christophe didn't like this name. To do: find the name he
+                           % liked; I have it on paper
+
+%\newcommand{\CODE}[1]{\verb!{#1}!}
+\newcommand{\CODE}[1]{{\rm \texttt{#1}}}
+\newcommand{\FILE}[1]{\texttt{#1}}
+%\newcommand{\UNIT}[0]{$\square$}
+\newcommand{\UNIT}[0]{$\bullet$}
+%\newcommand{\UNIT}[0]{$\star$}
+\newcommand{\SYMBOL}[1]{\CODE{\#s-}{#1}}
+\newcommand{\SYMBOLTEXT}[1]{\CODE{\#s-#1}}
+\newcommand{\SYMBOLMETA}[1]{\CODE{\#s-{\ensuremath{#1}}}}
+
+%\newcommand{\HASDIMENSION}{:_d}
+\newcommand{\HASDIMENSION}{:_{\#}}
+
+\newcommand{\LINEBREAK}[0]
+  {\allowbreak}
+%  {\linebreak[1]{\allowbreak{}}}
+%{}
+%%%%
+\newcommand{\DHANDLE}[2]
+  {\LINEBREAK{#2}_{#1}}
+\newcommand{\DCONSTANT}[2]
+  {\LINEBREAK{#2}_{#1}}
+\newcommand{\DVARIABLE}[2]
+  {\LINEBREAK{#2}_{#1}}
+\newcommand{\DBUNDLE}[2]
+  {\LINEBREAK[\BUNDLENAME\xspace\ \LINEBREAK{#2}]_{#1}}
+\newcommand{\DPRIMITIVE}[3]
+  {\LINEBREAK[\PRIMITIVENAME\ \LINEBREAK{{\tt #2}}\ \LINEBREAK{#3}]_{#1}}
+\newcommand{\DCALL}[3]
+%  {\LINEBREAK[\CALLNAME\ \LINEBREAK{{\tt \CODE{#2}}}\ \xspace\LINEBREAK{#3}]_{#1}}
+  {\LINEBREAK[\CALLNAME\ \LINEBREAK{{{#2}}}\ \xspace\LINEBREAK{#3}]_{#1}}
+\newcommand{\DCALLINDIRECT}[3]
+%  {\LINEBREAK[\CALLINDIRECTNAME\ \LINEBREAK{{\tt \CODE{#2}}}\ \xspace\LINEBREAK{#3}]_{#1}}
+  {\LINEBREAK[\CALLINDIRECTNAME\ \LINEBREAK{{{#2}}}\ \xspace\LINEBREAK{#3}]_{#1}}
+\newcommand{\DIFIN}[5]
+%  {[{#2} \in {#3} \rightarrow {#4},\ {#5}]_{#1}}
+  {\LINEBREAK[\IFNAME\ \LINEBREAK{#2} \LINEBREAK\in \LINEBREAK\{{#3}\}\ \LINEBREAK\CODE{then}\ \LINEBREAK{#4}\ \LINEBREAK\CODE{else}\ \LINEBREAK{#5}]_{#1}}
+\newcommand{\DLET}[4]
+  {\LINEBREAK[\LETNAME\ \LINEBREAK{#2}\ \LINEBREAK{\tt be}\ \LINEBREAK{#3}\ \LINEBREAK{\tt in}\ \LINEBREAK{#4}]_{#1}}
+\newcommand{\DFORK}[3]
+  {\LINEBREAK[\FORKNAME\ \LINEBREAK{#2}\ \LINEBREAK{#3}]_{#1}}
+\newcommand{\DJOIN}[2]
+  {\LINEBREAK[\JOINNAME\ \LINEBREAK{#2}]_{#1}}
+\newcommand{\DEXTENDED}[3]
+  {\LINEBREAK[\EXTENDEDNAME\ \LINEBREAK{#2}\ \LINEBREAK{#3}]_{#1}}
+\newcommand{\DDEFINENONPROCEDURE}[3]
+%  {\LINEBREAK[\DEFINENONPROCEDURENAME\ \LINEBREAK{{\tt #2}}\ \LINEBREAK{#3}]_{#1}}
+  {\LINEBREAK[\DEFINENONPROCEDURENAME\ \LINEBREAK{#2}\ \LINEBREAK{#3}]_{#1}}
+\newcommand{\DDEFINEPROCEDURE}[3]
+%  {\LINEBREAK[\DEFINEPROCEDURENAME\CODE{\ \LINEBREAK(}{{\tt \CODE{#2}}\ \xspace\LINEBREAK{#3}}\CODE{)\ \LINEBREAK}{#4}]_{#1}}
+  {\LINEBREAK[\DEFINEPROCEDURENAME\CODE{\ \LINEBREAK(}{{{#1}}\ \xspace\LINEBREAK{#2}}\CODE{)\ \LINEBREAK}{#3}]}
+\newcommand{\DCALLWITHHOLE}[2]
+  {\LINEBREAK[\CODE{call}\ {#2}\ \LINEBREAK{\HOLE}]_{#1}}
+\newcommand{\DFORKWITHHOLE}[2]
+  {\LINEBREAK[\FORKNAME\ \LINEBREAK{#2}\ \LINEBREAK\HOLE]_{#1}}
+\newcommand{\DBUNDLEWITHHOLE}[1]
+  {\LINEBREAK[\BUNDLENAME\ \LINEBREAK\HOLE]_{#1}}
+\newcommand{\DPRIMITIVEWITHHOLE}[2]
+  {\LINEBREAK[\PRIMITIVENAME\ \LINEBREAK{#2}\ \LINEBREAK\HOLE]_{#1}}
+
+\newcommand{\AHOLE}[0]
+  {\bullet}
+
+\newcommand{\SEQUENCE}[1]
+  {\langle {#1} \rangle}
+%  {\text{$\langle${}${#1}${}$\rangle$}}
+\newcommand{\EMPTYSEQUENCE}[0]
+  {\SEQUENCE{}}
+
+\def\DRSH{\ensuremath{\mathrel{\slashed{\drsh}}}}
+\def\NDRSH{\ensuremath{\mathrel{\slashed{\drsh}}}}
+\newcommand{\ISTAIL}[1]
+  {{#1}\DRSH}
+%  {{#1}\Rsh}
+\newcommand{\ISTAILFOR}[2]
+  {\ISTAIL{#1}{#2}}
+\newcommand{\ISNOTTAIL}[1]
+  {{#1}\NDRSH}
+
+\newcommand{\DIMENSION}[1]
+  {\mbox{$d \ldbrack {#1}\rdbrack$}}
+
+\newcommand{\MEET}[0]
+  {\wedge}
+\newcommand{\JOIN}[0]
+  {\vee}
+\newcommand{\SQMEET}[0]
+  {\sqcap}
+\newcommand{\SQJOIN}[0]
+  {\sqcup}
+\newcommand{\BIGSQJOIN}[0]
+  {\bigsqcup}
+\newcommand{\BIGSQMEET}[0]
+  {\bigsqcap}
+%% \newcommand{\BIGMEET}[2]
+%%   {\bigwedge{#2}}
+%% \newcommand{\BIGJOIN}[2]
+%%   {\bigvee{#2}}
+
+\newcommand{\SUCHTHAT}[0]
+%  {~|~}
+%  {~.~}
+  {:}
+
+\newcommand{\SQL}[0]
+  {\sqsubset}
+\newcommand{\SQLE}[0]
+  {\sqsubseteq}
+\newcommand{\SQGE}[0]
+  {\sqsupseteq}
+\newcommand{\NSQL}[0]
+  {\nsqsubset}
+\newcommand{\NSQLE}[0]
+  {\nsqsubseteq}
+
+\newcommand{\NATURALSB}[0]
+  {\NATURALS_{\bot}}
+\newcommand{\NATURALSTB}[0]
+  {\NATURALS_{\bot}^{\top}}
+\newcommand{\NATURALSBT}[0]
+  {\NATURALSTB}
+
+\newcommand{\EXPRESSIONS}{\SET{E}}
+\newcommand{\PROGRAMS}{\SET{P}}
+\newcommand{\CONSTANTS}{\SET{C}}
+\newcommand{\STATESSET}{\SET{\Gamma}}
+%\newcommand{\PROCEDURES}{\ensuremath{Proc}}
+\newcommand{\PROCEDURES}{\SET{F}}
+
+\newcommand{\PARTIAL}{\rightharpoonup}
+
+\newcommand{\HOLE}{\Box}
+
+% A way of superimposing two symbols, in Math mode.  I took the general idea
+% from ``The LaTeX comprehensive symbol list'' and generalized:
+\newcommand*{\SUPERIMPOSE}[2]
+            {\mathrel{\mathchoice{\hbox{\hbox to 0pt{$\displaystyle{#1}$\hss}$\displaystyle{#2}$}}
+                {\hbox{\hbox to 0pt{$\textstyle{#1}$\hss}$\textstyle{#2}$}}
+                {\hbox{\hbox to 0pt{$\scriptstyle{#1}$\hss}$\scriptstyle{#2}$}}
+                {\hbox{\hbox to 0pt{$\scriptscriptstyle{#1}$\hss}$\scriptscriptstyle{#2}$}}}}
+
+\newcommand{\OCCURS}{\SUPERIMPOSE{\Subset}{-}}
+
+\newcommand{\COLOREDMINIPAGE}[2]
+  {\textcolor{#1}{
+     \begin{minipage}{\linewidth}
+       #2
+     \end{minipage}}}
+
+\newcommand{\PARAMETER}[0]
+  {\mathunderscore}
+
+\newcommand{\xqed}[1]{%
+  \leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+  \quad\hbox{\ensuremath{#1}}}
+\def\QEDDEFINITION{\xqed{\UNFILLEDUNPOSITIONEDQED}}
+%\def\QEDNOPROOF{\xqed{\blacksquare}} % To do: it should be smaller
+\def\QEDNOPROOF{\xqed{\UNFILLEDUNPOSITIONEDQED}}
+\def\QEDPROOF{\xqed{\FILLEDUNPOSITIONEDQED}}
+\def\QEDAXIOM{\xqed{\UNFILLEDUNPOSITIONEDQED}}
+\def\QEDEXAMPLE{\xqed{\Diamond}}
+\def\QEDIMPLEMENTATIONNOTE{\QEDDEFINITION}
+\def\QEDSYNTACTICCONVENTION{\QEDIMPLEMENTATIONNOTE}
+
+\newcommand{\EMPTYSET}[0]{\varnothing}
+%\newcommand{\EMPTYSET}[0]{\emptyset}
+%\newcommand{\EMPTYSTACK}[0]{\EMPTYSET}
+\newcommand{\EMPTYSTACK}[0]{\EMPTYSEQUENCE}
+
+%\newcommand{\VALUESEPARATOR}[0]{!}
+\newcommand{\VALUESEPARATOR}[0]{\text{\ensuremath{\wr}}} % This hack suppresses the spaces around \wr
+%\newcommand{\ACTIVATIONSEPARATOR}[0]{?}
+%\newcommand{\VALUESEPARATOR}[0]{\ensuremath{\wr}}
+%\newcommand{\VALUESEPARATOR}[0]{\ensuremath{\dagger}}
+\newcommand{\ACTIVATIONSEPARATOR}[0]{\ensuremath{\ddagger}}
+
+%% \newcommand{\VALUESEPARATOR}[0]{\ensuremath{\lrcorner}}
+%% \newcommand{\ACTIVATIONSEPARATOR}[0]{\ensuremath{\urcorner}}
+
+\newcommand{\UNIFY}[0]
+  {\equiv}
+\newcommand{\UNIFIES}[0]
+  {\UNIFY}
+\newcommand{\DOESNTUNIFY}[0]
+  {\ensuremath{\mathrel{\slashed{\equiv}}}}
+  %{\nequiv}
+\newcommand{\DOESNOTUNIFY}
+  {\DOESNTUNIFY}
+
+\newcommand{\SIMULATES}
+  {\thickapprox}
+%  {\thicksim}
+
+\newcommand{\REDUCTIONEQUIVALENT}[0]
+  {\equiv_{\EXPRESSIONS}}
+\newcommand{\FILLBYHAND}[0]
+  {\INVISIBLE{a\\\\a}}
+
+\newcommand{\STATE}
+  {state\xspace}
+%  {context\xspace}
+\newcommand{\STATES}
+  {states\xspace}
+%  {contexts\xspace}
+\newcommand{\SSTATE}
+  {State\xspace}
+%  {Context\xspace}
+\newcommand{\SSTATES}
+  {States\xspace}
+%  {Contexts\xspace}
+\newcommand{\STATEKEY}
+  {state key\xspace}
+%  {context\xspace}
+\newcommand{\STATEKEYS}
+  {state keys\xspace}
+%  {contexts\xspace}
+\newcommand{\SSTATEKEY}
+  {State key\xspace}
+%  {Context\xspace}
+\newcommand{\SSTATEKEYS}
+  {State keys\xspace}
+%  {Contexts\xspace}
+
+\newcommand{\UPDATEENVIRONMENT}[3]
+  {{#1}[{#2} \mapsto {#3}]}
+\newcommand{\UPDATESTATE}[3]
+  {{#1}[{}_{#2}^{#3}]}
+\newcommand{\UPDATESTATEIN}[4]
+  {\UPDATESTATE{#1}{#2}{{#3}~\mapsto~{#4}}}
+
+%% % I want my unnumbered chapters to appear in the contents:
+%% \newcommand{\UNNUMBEREDCHAPTER}[1]{\chapter*{#1}\addcontentsline{toc}{chapter}{\protect\numberline{}#1}}
+
+%% % I want my unnumbered sections to appear in the contents.  They should be
+%% % listed as chapters in the ToC, since they are independent top-level units.
+%% %\newcommand{\UNNUMBEREDSECTION}[1]{\section*{#1}\addcontentsline{toc}{chapter}{\protect\numberline{}#1}}
+%% \newcommand{\UNNUMBEREDSECTION}[1]{\section*{#1}\addcontentsline{toc}{section}{\protect\numberline{}#1}}
+%% \newcommand{\UNNUMBEREDSUBSECTION}[1]{\subsection*{#1}\addcontentsline{toc}{subsection}{\protect\numberline{}#1}}
+%% \newcommand{\UNNUMBEREDSUBSUBSECTION}[1]{\subsubsection*{#1}\addcontentsline{toc}{subsubsection}{\protect\numberline{}#1}}
+
+% This use of \addstarredchapter is needed not to interfere with minitocs.
+% I want my unnumbered chapters to appear in the contents:
+%\newcommand{\UNNUMBEREDCHAPTER}[1]{\chapter*{#1}\addstarredchapter{\protect\numberline{}#1}}
+\newcommand{\UNNUMBEREDCHAPTER}[1]{\chapter*{#1}\addstarredchapter{#1}}
+
+% This use of \addcontentsline is needed not to interfere with minitocs.
+% I want my unnumbered sections to appear in the contents.  They should be
+% listed as chapters in the ToC, since they are independent top-level units.
+\newcommand{\UNNUMBEREDSECTION}[1]{\section*{#1}\addcontentsline{toc}{section}{\protect\numberline{}#1}}
+
+% I like verbatim environments to always have small fonts:
+%% \makeatletter 
+%% \g@addto@macro\@verbatim\small
+%% \makeatother 
+%\fvset{gobble=2, fontsize=\tiny} % For fancyvrb
+\newcommand{\EPSILONGC}[0]{\CODE{epsilongc}\xspace}
+
+\newcommand{\FATBRACKETSWITH}[2]
+%  {\mbox{${#1}[\![ {#2} ]\!]$}}
+%  {E_{\SET{#1}}{[{#2}]}}
+%  {E_{\SET{#1}}{({#2})}}
+%  {E_{\SET{#1}}{\Lbag{#2}\Rbag}}
+%  {E_{\SET{#1}}{\lbag{{#2}}\rbag}}
+  {E_{\SET{#1}}\BANANABRACKETS{#2}}
+%  {E_{\SET{#1}}{\lcorners{#2}\rcorners}}
+%  {E_{\SET{#1}}{\llcorner{#2}\lrcorner}}
+%  {E_{\SET{#1}}{\ulcorner{#2}\urcorner}}
+%  {E_{\SET{#1}}{\llfloor{#2}\rrfloor}}
+\newcommand{\LOTSA}[1]
+%  {\overline{#1}}
+%  {{#1}^{*}}
+  {{#1}s}
+\newcommand{\EXPANDE}[1]{\FATBRACKETSWITH{E}{#1}}
+\newcommand{\EXPANDX}[1]{\FATBRACKETSWITH{X}{#1}}
+\newcommand{\EXPANDCS}[1]{\FATBRACKETSWITH{\LOTSA{C}}{#1}}
+\newcommand{\EXPANDXS}[1]{\FATBRACKETSWITH{\LOTSA{X}}{#1}}
+\newcommand{\EXPANDES}[1]{\FATBRACKETSWITH{\LOTSA{E}}{#1}}
+
+\newcommand{\BOOTSTRAPPHASE}[1]{{\em ({#1})}}
+%\newcommand{\WHATEVER}[1]{\ensuremath{\overline{\CODE{#1}}}}
+\newcommand{\WHATEVER}[1]{\CODE{#1}} % The definition above was a bad idea
+
+\newcommand{\BETWEENTINYANDSMALL}{\fontsize{9}{11}\selectfont}
+\newcommand{\LARGERTHANSMALL}{\fontsize{12}{14}\selectfont}
+
+\usepackage{censor}
+
+\usepackage{fancyhdr}                    % Fancy Header and Footer
+\pagestyle{fancy}                       % Sets fancy header and footer
+%\fancyfoot{\flushright \textit{Summer 2012}}
+\fancyfoot{} % Delete current footer settings
+%% \let\footruleORIG\footrule
+%% \renewcommand{\footrule}{\color{black} \footruleORIG}
+%% \renewcommand{\footrulewidth}{1.0pt}
+%% \fancyfoot[LE]{\bf{Luca SAIU}, Summer 2012}
+%% \fancyfoot[RO]{\bf \TITLE, \SUBTITLE\ --- PhD thesis}
+%\fancyfoot{{\tiny [preliminary --- Luca Saiu]}}
+
+%\renewcommand{\chaptermark}[1]{         % Lower Case Chapter marker style
+%  \markboth{\chaptername\ \thechapter.\ #1}}{}} %
+
+%\renewcommand{\sectionmark}[1]{         % Lower case Section marker style
+%  \markright{\thesection.\ #1}}         %
+
+\fancyhead[LE,RO]{\textcolor{black}{\bfseries\thepage}}    % Page number (boldface) in left on even pages and right on odd pages
+\fancyhead[RE]{\textcolor{black}{\bfseries\nouppercase{\leftmark}}}      % Chapter in the right on even pages
+\fancyhead[LO]{\textcolor{black}{\bfseries\nouppercase{\rightmark}}}     % Section in the left on odd pages
+
+\let\headruleORIG\headrule
+\renewcommand{\headrule}{\color{black} \headruleORIG}
+\renewcommand{\headrulewidth}{1.0pt}
+\usepackage{colortbl}
+\arrayrulecolor{black}
+
+\fancypagestyle{plain}{
+  \fancyhead{}
+  \fancyfoot{}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+\fancypagestyle{unobstrusive}{
+  \fancyhead{}
+  \fancyfoot[LE,RO]{\textcolor{black}{\bfseries\thepage}}
+\fancyfoot[RE]{\textcolor{black}{\bfseries\nouppercase{\leftmark}}}
+\fancyfoot[LO]{\textcolor{black}{\bfseries\nouppercase{\rightmark}}}
+  %% \fancyfoot[RE]{\textcolor{black}{\em\nouppercase{\leftmark}}}
+  %% \fancyfoot[LO]{\textcolor{black}{\em\nouppercase{\rightmark}}}
+%  \fancyfoot[C]{\textcolor{black}{\bfseries\thepage}}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{1.0pt}
+}
+
+\usepackage[left=1.5in,right=1.3in,top=1.1in,bottom=1.1in,includefoot,includehead,headheight=13.6pt]{geometry}
+\renewcommand{\baselinestretch}{1.05}
+
+% Table of contents for each chapter
+\usepackage[nottoc, notlof, notlot]{tocbibind}
+\usepackage{makeidx}
+
+%% \setcounter{tocdepth}{3} % I want a very detailed toc, including subsubsections
+%% \makeindex
+%% \usepackage{minitoc}
+%% \let\minitocORIG\minitoc
+%% \renewcommand{\minitoc}{\minitocORIG \vspace{1.5em}}
+%% \setcounter{minitocdepth}{1}
+%% %\setcounter{minitocdepth}{5}
+%% \mtcindent=15pt
+%% % Use \minitoc where to put a table of contents
+%% %\dominitoc
+
+\usepackage{xcolor}
+\pagecolor{white}
+
+% My pdf code
+%% \usepackage{ifpdf}
+%% \ifpdf
+%  \usepackage[pdftex]{graphicx}
+%  \usepackage{graphicx}
+%  \DeclareGraphicsExtensions{.jpg}
+  \DeclareGraphicsExtensions{.ps,.eps,.jpg}
+%  \usepackage[hidelinks=true,colorlinks=false,linkcolor=blue,filecolor=blue,citecolor=blue,urlcolor=red,a4paper,pagebackref,hyperindex=true]{hyperref}
+%  \usepackage[hidelinks=false,colorlinks=true,linkcolor=blue,filecolor=blue,citecolor=blue,urlcolor=red,a4paper,pagebackref,hyperindex=true]{hyperref}
+  \usepackage[colorlinks=true,linkcolor=darkblue,filecolor=darkblue,citecolor=darkblue,urlcolor=darkred,a4paper,pagebackref,hyperindex=true]{hyperref}
+%% \else
+%%   \usepackage{graphicx}
+%%   \DeclareGraphicsExtensions{.ps,.eps}
+%%   \usepackage[colorlinks=true,linkcolor=blue,filecolor=blue,citecolor=blue,urlcolor=red,a4paper,dvipdfm,pagebackref,hyperindex=true]{hyperref}
+%% \fi
+\graphicspath{{.}{images/}}
+
+% Change this to change the informations included in the pdf file
+% See hyperref documentation for information on those parameters
+\hypersetup
+{
+%% bookmarksopen=true,
+%pdftitle={\SHORTTITLE},
+%pdftitle={\TTITLE},
+pdftitle={\TITLE\ -\ \SUBTITLE},
+pdfauthor={\AUTHOR}, 
+pdfsubject={\TITLE\ -\ \SUBTITLE}, %subject of the document
+%pdftoolbar=false, % toolbar hidden
+%% pdftoolbar=true, % toolbar shown
+%% pdfmenubar=true, %menubar shown
+%% pdfhighlight=/O, %effect of clicking on a link
+%% colorlinks=true, %couleurs sur les liens hypertextes
+%% %colorlinks=false, %couleurs sur les liens hypertextes
+pdfpagemode=None, %aucun mode de page
+pdfpagelayout=SinglePage, %ouverture en simple page
+pdffitwindow=true, %pages ouvertes entierement dans toute la fenetre
+%% linkcolor=linkcol, %couleur des liens hypertextes internes
+%% citecolor=citecol, %couleur des liens pour les citations
+%% urlcolor=linkcol %couleur des liens pour les url
+}
+
+\usepackage[amsmath,standard,thmmarks,framed,thref]{ntheorem} % Shall I really use the amsmath option?
+%% \usepackage{amsthm}
+%% %\qedsymbol{$\pi$}
+%\renewcommand{\qedsymbol}{\heartsuit}
+
+% I want identifiers such as CHAPTERNO.index
+%\renewtheorem{theorem}{Theorem}[chapter]
+%\renewtheorem{definition}{Definition}[chapter]
+% The following things share the same counter as theorems:
+\renewtheorem{definition}[theorem]{Definition} 
+\renewtheorem{lemma}[theorem]{Lemma}
+\renewtheorem{corollary}[theorem]{Corollary}
+\renewtheorem{proposition}[theorem]{Proposition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{informaldefinition}[theorem]{Informal Definition}
+\newtheorem{implementationnote}[theorem]{Implementation Note}
+\newtheorem{syntacticconvention}[theorem]{Syntactic Convention}
+
+\def\TheoremSymbol{\bullet}
+\def\DefinitionSymbol{\bullet}
+\def\PropositionSymbol{\bullet}
+
+%\renewcommand{\theorem}{\arabic{chapter}.\arabic{theorem}}
+%\newtheorem{definition}{Definition}[subsection]
+
+%\newtheorem{theorem}{Theorem}[section]
+%% \newtheorem{theorem}{Theorem}
+%% \newtheorem{lemma}[theorem]{Lemma}
+%% \newtheorem{proposition}[theorem]{Proposition}
+%% \newtheorem{corollary}[theorem]{Corollary}
+%% \newtheorem{definition}{Definition}
+%% \newtheorem{proof}{Proof}
+%\newenvironment{proof}[1][Proof]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\PROOFQED \end{trivlist}}
+%%\renewenvironment{definition}[1][Definition]{\begin{trivlist}
+%%\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%% \newenvironment{example}[1][Example]{\begin{trivlist}
+%% \item[\hskip \labelsep {\bfseries #1}]}{\EXAMPLEQED \end{trivlist}}
+%% \newenvironment{remark}[1][Remark]{\begin{trivlist}
+%% \item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+
+\usepackage{relsize} % Relative font size is handy
+% Change some defaults for our fancy verbatim (capital ``Verbatim''
+% environments):
+\fvset{numbers=left, fontsize=\relsize{-1}, frame=lines}
+
+\usepackage[bbgreekl]{mathbbol} % This changes the appearance of \SET stuff,
+                                % but allows me to use many more symbols in
+                                % \SET
+
+\newcommand*\cleartoleftpage{%
+  \clearpage
+  \ifodd\value{page}\hbox{}\newpage\fi
+}
+\usepackage[multiple]{footmisc} % Place footnote markers before the punctuation following them

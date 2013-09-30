@@ -274,7 +274,7 @@ struct caml_global_context {
 #if defined(NATIVE_CODE)
   /* Context-local "global" OCaml variables: */
 #define INITIAL_CAML_GLOBALS_ALLOCATED_SIZE 8 /* in bytes */
-  /* 7, 8, 9 */struct caml_extensible_buffer caml_globals; /* = {dynamic, INITIAL_CAML_GLOBALS_ALLOCATED_SIZE, 0} */
+  /* 7, 8, 9, 10 */struct caml_extensible_buffer caml_globals; /* = ... */
 #endif
 
 #ifndef NATIVE_CODE

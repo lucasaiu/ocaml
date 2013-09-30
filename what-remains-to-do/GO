@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+for x in *tex; do
+    if [[ "$x" != "format-and-defs.tex" ]]; then
+        pdflatex "$x" < /dev/null
+#        basename=`basename "$x" .tex`
+#        cp "$basename.pdf" "$basename--stable.pdf"
+    fi
+done

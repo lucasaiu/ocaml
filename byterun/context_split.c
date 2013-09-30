@@ -130,16 +130,16 @@ static value caml_pair_r(CAML_R, value left, value right)
   CAMLreturn(result);
 }
 
-static value caml_triple_r(CAML_R, value a, value b, value c)
-{
-  CAMLparam3(a, b, c);
-  CAMLlocal1(result);
-  result = caml_alloc_tuple_r(ctx, 3);
-  caml_initialize_r(ctx, &Field(result, 0), a);
-  caml_initialize_r(ctx, &Field(result, 1), b);
-  caml_initialize_r(ctx, &Field(result, 2), c);
-  CAMLreturn(result);
-}
+/* static value caml_triple_r(CAML_R, value a, value b, value c) */
+/* { */
+/*   CAMLparam3(a, b, c); */
+/*   CAMLlocal1(result); */
+/*   result = caml_alloc_tuple_r(ctx, 3); */
+/*   caml_initialize_r(ctx, &Field(result, 0), a); */
+/*   caml_initialize_r(ctx, &Field(result, 1), b); */
+/*   caml_initialize_r(ctx, &Field(result, 2), c); */
+/*   CAMLreturn(result); */
+/* } */
 
 static value caml_quadruple_r(CAML_R, value a, value b, value c, value d)
 {
@@ -162,7 +162,7 @@ CAMLprim value caml_global_array_r(CAML_R, value unit)
   CAMLparam0();
 #ifdef NATIVE_CODE
   CAMLlocal1(globals);
-  const int global_no = ctx->caml_globals.used_size / sizeof(value);
+  const int global_no = ctx->caml_globals.local_used_size / sizeof(value);
   globals = caml_alloc_tuple_r(ctx, global_no);
   int i;
   for(i = 0; i < global_no; i ++){
@@ -195,8 +195,7 @@ void caml_set_globals_r(CAML_R, value global_tuple){
   size_t global_tuple_size = Wosize_val(global_tuple);
   //fprintf(stderr, "caml_set_globals_r: there are %i globals to be copied\n", (int)global_tuple_size);
   caml_resize_extensible_buffer(&ctx->caml_globals,
-                                global_tuple_size * sizeof(value),
-                                1);
+                                global_tuple_size * sizeof(value));
   void* to_globals = ctx->caml_globals.array;
   size_t to_global_no;
   caml_copy_tuple_elements_r(ctx,
@@ -213,6 +212,7 @@ void caml_set_globals_r(CAML_R, value global_tuple){
 #endif /* #else, #ifdef NATIVE_CODE */
 }
 
+#ifdef HAS_MULTICONTEXT
 static value caml_globals_and_data_r(CAML_R, value function)
 {
   CAMLparam1(function);
@@ -226,6 +226,7 @@ static value caml_globals_and_data_r(CAML_R, value function)
                               ctx->caml_signal_handlers,
                               caml_named_value_table_as_caml_value_r(ctx)));
 }
+#endif // #ifdef HAS_MULTICONTEXT
 
 /* Return a pointer to a malloc'ed buffer: */
 //static long QQQ_length;

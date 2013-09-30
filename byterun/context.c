@@ -90,6 +90,9 @@ extern char caml_globals_map[];
 
 /* static */ /* !!!!!!!!!!!!!!! */ int caml_are_mutexes_already_initialized = 0;
 
+static struct caml_extensible_buffer_shape c_extensible_buffer_shape;
+static struct caml_extensible_buffer_shape caml_extensible_buffer_shape;
+
 /* The global lock: */
 static pthread_mutex_t caml_global_mutex;
 static pthread_mutex_t caml_channel_mutex /* __attribute__((unused)) */;
@@ -150,8 +153,9 @@ void caml_v_semaphore(sem_t* semaphore){
 #endif // #ifdef HAS_PTHREAD
 }
 
-#ifdef HAS_MULTICONTEXT
 void caml_run_at_context_exit_functions_r(CAML_R);
+
+#ifdef HAS_MULTICONTEXT
 void* caml_destructor_thread_function(void *ctx_as_void_star){
   CAML_R = ctx_as_void_star;
   //DUMP("Hello from the destructor thread for context %p (ctx is %p)", ctx_as_void_star, ctx);
@@ -556,15 +560,17 @@ section.  */
 
   /* Global context-local OCaml variables */
 #ifdef NATIVE_CODE
-  ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE;
-  ctx->caml_globals.used_size = 0;
-  ctx->caml_globals.array = caml_stat_alloc(ctx->caml_globals.allocated_size);
+  caml_initialize_extensible_buffer(& ctx->caml_globals, &caml_extensible_buffer_shape);
+  /* ctx->caml_globals.allocated_size = INITIAL_CAML_GLOBALS_ALLOCATED_SIZE; */
+  /* ctx->caml_globals.used_size = 0; */
+  /* ctx->caml_globals.array = caml_stat_alloc(ctx->caml_globals.allocated_size); */
 #endif /* #ifdef NATIVE_CODE */
 
   /* Global context-local C variables */
-  ctx->c_globals.allocated_size = INITIAL_C_GLOBALS_ALLOCATED_SIZE;
-  ctx->c_globals.used_size = 0;
-  ctx->c_globals.array = caml_stat_alloc(ctx->c_globals.allocated_size);
+  caml_initialize_extensible_buffer(& ctx->c_globals, &c_extensible_buffer_shape);
+  /* ctx->c_globals.allocated_size = INITIAL_C_GLOBALS_ALLOCATED_SIZE; */
+  /* ctx->c_globals.used_size = 0; */
+  /* ctx->c_globals.array = caml_stat_alloc(ctx->c_globals.allocated_size); */
 
   /* By default, a context is associated with its creating thread: */
   ctx->thread = pthread_self();
@@ -624,7 +630,7 @@ caml_global_context *caml_make_first_global_context(void){
 /* Return an index, in words */
 int caml_allocate_caml_globals_r(CAML_R, size_t added_caml_global_no){
   size_t new_used_size =
-    caml_allocate_from_extensible_buffer(&ctx->caml_globals, added_caml_global_no * sizeof(value), /*as the least-significant byte, this yields a non-pointer*/1);
+    caml_allocate_from_extensible_buffer(&ctx->caml_globals, added_caml_global_no * sizeof(value));
   return new_used_size / sizeof(value);
 }
 #endif /* #ifdef NATIVE_CODE */
@@ -632,16 +638,7 @@ int caml_allocate_caml_globals_r(CAML_R, size_t added_caml_global_no){
 /* Reserve space for a new element of the given size.  Return the new
    object byte offset from the beginning of c_global.array */
 static ptrdiff_t caml_allocate_c_global_r(CAML_R, size_t added_bytes){
-  /* Add enough padding bytes to make the next element, potentially a
-     pointer, at least word-aligned.  This is required on some architectures,
-     and yields better performance in any case.  --Luca Saiu */
-  size_t old_used_size = (size_t)ctx->c_globals.used_size;
-  const size_t word_size = sizeof(void*);
-  const size_t old_misalignment = old_used_size % word_size;
-  if(old_misalignment != 0)
-    ctx->c_globals.used_size += word_size - old_misalignment;
-
-  return caml_allocate_from_extensible_buffer(&ctx->c_globals, added_bytes, 0);
+  return caml_allocate_from_extensible_buffer(&ctx->c_globals, added_bytes);
 }
 caml_c_global_id caml_define_context_local_c_variable_r(CAML_R, size_t added_bytes){
   return caml_allocate_c_global_r(ctx, added_bytes);
@@ -652,7 +649,7 @@ void* caml_context_local_c_variable_r(CAML_R, caml_c_global_id id){
 
 void caml_scan_caml_globals_r(CAML_R, scanning_action f){
 #ifdef NATIVE_CODE
-  int i, caml_global_no = ctx->caml_globals.used_size / sizeof(value);
+  int i, caml_global_no = ctx->caml_globals.local_used_size / sizeof(value);
   QDUMP("scanning %i contextual Caml globals", caml_global_no);
   if(ctx != caml_get_thread_local_context())
     {fprintf(stderr, "Context %p: it's different from the thread-local context %p !!!\n", ctx, caml_get_thread_local_context()); fflush(stderr);};
@@ -795,10 +792,10 @@ void caml_finalize_context_r(CAML_R){
 
   /* No global variables are live any more; destroy everything in the Caml heap: */
 #ifdef NATIVE_CODE
-  caml_shrink_extensible_buffer(&ctx->caml_globals, ctx->caml_globals.used_size);
-  //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
-  caml_stat_free(ctx->caml_globals.array);
+  caml_finalize_extensible_buffer(&ctx->caml_globals); 
+ //fprintf(stderr, "caml_finalize_context_r [context %p] [thread %p]: OK-2\n", ctx, (void*)(pthread_self())); fflush(stderr);
 #endif /* #ifdef NATIVE_CODE */
+  caml_finalize_extensible_buffer(&ctx->c_globals); 
 
   /* Mark the context as dead in the descriptor, but do *not* free the
      descriptor, which might well be still alive. */
@@ -837,7 +834,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
   int size_in_words = size_in_bytes / sizeof(void*);
   /* We keep the module name right after the offset pointer, as a read-only string: */
   char *module_name __attribute__((unused)) = (char*)offset_pointer + sizeof(long);
-  DUMP("module_name is %s (%li bytes); offset_pointer is at %p", module_name, (long)size_in_bytes, offset_pointer);
+  QDUMP("module_name is %s (%li bytes); offset_pointer is at %p", module_name, (long)size_in_bytes, offset_pointer);
   Assert(size_in_words * sizeof(void*) == size_in_bytes); /* there's a whole number of globals */
   //fprintf(stderr, "caml_register_module_r [context %p]: registering %s%p [%lu bytes at %p]: BEGIN\n", ctx, module_name, offset_pointer, (unsigned long)size_in_bytes, offset_pointer); fflush(stderr);
 
@@ -852,7 +849,7 @@ void caml_register_module_r(CAML_R, size_t size_in_bytes, long *offset_pointer){
     first_unused_word_offset += size_in_words;
     caml_allocate_caml_globals_r(ctx, size_in_words);
     //caml_resize_global_array_r(ctx, first_unused_word_offset);
-    DUMP("The new first_unused_word_offset is %i\n", (int)first_unused_word_offset);
+    QDUMP("The new first_unused_word_offset is %i\n", (int)first_unused_word_offset);
     /* fprintf(stderr, "The global vector is now at %p\n", (void*)ctx->caml_globals.array); */
   }
   /* else */
@@ -868,7 +865,7 @@ void caml_after_module_initialization_r(CAML_R, size_t size_in_bytes, long *offs
   /* We keep the module name right after the offset pointer, as a read-only string: */
   char *module_name __attribute__ (( unused )) = (char*)offset_pointer - size_in_bytes + sizeof(long);
 
-  DUMP("Initialized the module %s", module_name);
+  QDUMP("Initialized the module %s", module_name);
 
   //fprintf(stderr, "caml_after_module_initialization_r [context %p]: %s@%p: still alive.\n", ctx, module_name, offset_pointer); fflush(stderr);
   /*
@@ -968,8 +965,11 @@ void caml_context_initialize_global_stuff(void){
   caml_initialize_mutex(&caml_global_mutex);
   caml_initialize_mutex(&caml_channel_mutex);
   //caml_are_global_mutexes_initialized = 1;
-}
 
+  /* Initialize shared shapes for extensible buffers: */
+  caml_initialize_extensible_buffer_shape(&caml_extensible_buffer_shape, 1); // words look like unboxed caml objects
+  caml_initialize_extensible_buffer_shape(&c_extensible_buffer_shape, 2); // some recognizable value
+}
 
 /* This is a thin wrapper over pthread_mutex_lock and pthread_mutex_unlock: */
 static void caml_call_on_mutex(int(*function)(pthread_mutex_t *), pthread_mutex_t *mutex){
@@ -1041,7 +1041,7 @@ void caml_release_global_lock(void){
 }
 
 // TEMPORARY SCREWUP: BEGIN !!!!!!!!!!!!!!!!!!!!!!!!!
-static pthread_t *current_owner = NULL;
+//static pthread_t *current_owner = NULL;
 void caml_acquire_channel_lock(void){
   /* INIT_CAML_R; */
   /* int trylock_result = */
